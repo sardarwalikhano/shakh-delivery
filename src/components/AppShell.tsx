@@ -3,12 +3,14 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useNotifications } from '@/features/notifications/hooks/NotificationContext';
+  import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 
 type AppShellProps = { children: ReactNode };
 
 export function AppShell({ children }: AppShellProps) {
   const { isAuthenticated, user, logout } = useAuth();
   const { unreadCount } = useNotifications();
+  const { hasPermission } = useAuthorization();
   const navigate = useNavigate();
 
   const onLogout = async () => {
@@ -30,6 +32,7 @@ export function AppShell({ children }: AppShellProps) {
 
           <nav className="ms-auto flex items-center gap-1" aria-label="Main navigation">
             <Link className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-black/60 hover:bg-black/[0.04] sm:inline-flex" to="/search">گەڕان</Link>
+            {isAuthenticated && hasPermission("posts.create") ? <Link className="hidden rounded-xl px-3 py-2 text-sm font-black text-[var(--shakh-orange)] hover:bg-[var(--shakh-orange)]/10 md:inline-flex" to="/dashboard/posts/new">پۆستی نوێ</Link> : null}
             <Link className="rounded-xl p-2 text-black/60 hover:bg-black/[0.04]" to="/search" aria-label="گەڕان"><Search size={20} /></Link>
             {isAuthenticated ? (
               <>
