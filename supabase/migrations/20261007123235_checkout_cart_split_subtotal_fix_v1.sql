@@ -1,0 +1,3 @@
+-- The checkout implementation was corrected in-place by the follow-up migration
+-- to guarantee per-store subtotal isolation when one cart contains products
+-- from multiple stores. Kept as a migration-history marker for clean rebuilds.

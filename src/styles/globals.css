@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+:root {
+  --shakh-navy: #0B1220;
+  --shakh-blue: #1E63FF;
+  --shakh-orange: #FF7A1A;
+  --shakh-green: #19A974;
+  --shakh-bg: #F7F8FA;
+  --shakh-ink: #101623;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--shakh-ink);
+  background: var(--shakh-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  min-width: 320px;
+  background: var(--shakh-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background: var(--shakh-bg);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--shakh-orange) 25%, transparent);
+}
