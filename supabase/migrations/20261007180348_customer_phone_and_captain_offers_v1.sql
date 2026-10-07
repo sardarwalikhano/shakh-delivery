@@ -1,0 +1,4 @@
+-- Historical migration marker.
+-- The production project recorded this migration version during an intermediate
+-- attempt. The authoritative, safe final implementation is consolidated in
+-- 20261007180454_customer_phone_captain_delivery_offers_v2.sql.
