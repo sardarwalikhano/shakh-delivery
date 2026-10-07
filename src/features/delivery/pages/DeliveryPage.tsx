@@ -102,7 +102,7 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   };
 
   return (
-    <DeliveryLayout eyebrow="Captain workspace" title="گەیاندنەکانی تۆ" subtitle={role === 'captain' ? 'تەنها گەیاندنە سپێردراوەکانت لێرەدا پیشان دەدرێن.' : 'ئەم بەشە بەپێی دەسەڵاتی هەژمارەکەت داتای گەیاندن پیشان دەدات.'} onRefresh={() => void refresh()} refreshing={loading}>
+    <DeliveryLayout eyebrow="Captain workspace" title="گەیاندنەکانی تۆ" subtitle={role === 'captain' ? 'داواکارییە نوێکان لێرە وەردەگریت و دەتوانیت گەیاندنە سپێردراوەکانت بەڕێوەببەیت.' : 'ئەم بەشە بەپێی دەسەڵاتی هەژمارەکەت داتای گەیاندن پیشان دەدات.'} onRefresh={() => void refresh()} refreshing={loading}>
       {message ? <Notice text={message} /> : null}
       {role === 'captain' ? (
         <section className="space-y-3">
@@ -133,8 +133,10 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
       </section>
       <section className="space-y-3">
         <div className="flex items-center gap-2 px-1"><Clock3 size={18} className="text-black/35" /><h2 className="text-lg font-black">مێژووی گەیاندن</h2></div>
-        {deliveries.filter((d) => d.id !== active?.id).map((delivery) => <DeliveryRow key={delivery.id} delivery={delivery} />)}
-        {!loading && deliveries.filter((d) => d.id !== active?.id).length === 0 ? <Empty text="هێشتا مێژووی گەیاندن نییە." /> : null}
+        {deliveries
+          .filter((d) => d.id !== active?.id && !(role === 'captain' && d.status === 'pending' && d.captain_id == null))
+          .map((delivery) => <DeliveryRow key={delivery.id} delivery={delivery} />)}
+        {!loading && deliveries.filter((d) => d.id !== active?.id && !(role === 'captain' && d.status === 'pending' && d.captain_id == null)).length === 0 ? <Empty text="هێشتا مێژووی گەیاندن نییە." /> : null}
       </section>
     </DeliveryLayout>
   );
