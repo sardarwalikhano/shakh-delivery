@@ -107,8 +107,8 @@ export async function getVendorProducts(userId: string, storeId?: string): Promi
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []).map((row) => {
-    const item = row as VendorProduct & { categories: VendorProduct['category'] };
-    return { ...item, category: item.categories ?? null };
+    const item = row as VendorProduct & { categories: VendorProduct['category'][] };
+    return { ...item, category: item.categories?.[0] ?? null };
   });
 }
 
@@ -136,7 +136,7 @@ export async function createVendorProduct(userId: string, input: {
   return data as VendorProduct;
 }
 
-export async function updateVendorProduct(userId: string, productId: string, input: Partial<Pick<VendorProduct, 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'description_ku' | 'description_ar' | 'description_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'is_featured'>>): Promise<VendorProduct> {
+export async function updateVendorProduct(userId: string, productId: string, input: Partial<Pick<VendorProduct, 'category_id' | 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'description_ku' | 'description_ar' | 'description_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'is_featured'>>): Promise<VendorProduct> {
   const { data, error } = await supabase
     .from('products')
     .update(input)
