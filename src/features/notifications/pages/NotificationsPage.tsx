@@ -9,6 +9,7 @@ const iconByType: Record<NotificationType, typeof Bell> = {
   delivery_assigned: Truck,
   delivery_offer: Truck,
   delivery_status: Truck,
+  role_request: ShieldCheck,
   payment_status: CreditCard,
   system: Bell,
 };
