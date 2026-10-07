@@ -25,11 +25,11 @@ export function AccountPage() {
 
   useEffect(() => { void loadRoleRequests(); }, [loadRoleRequests]);
 
-  const requestableRoles = useMemo(() => (Object.keys(roleLabelsKu) as typeof roles).filter((candidate) => !roles.includes(candidate)), [roles]);
+  const requestableRoles = useMemo(() => (Object.keys(roleLabelsKu) as typeof roles).filter((candidate) => candidate !== 'super_admin' && !roles.includes(candidate)), [roles]);
   const pendingRequestedRoles = useMemo(() => new Set(roleRequests.filter((item) => item.status === 'pending').map((item) => item.requested_role)), [roleRequests]);
 
   const onRequestRole = async () => {
-    if (!selectedRole || roleBusy) return;
+    if (!selectedRole || selectedRole === 'super_admin' || roleBusy) return;
     setRoleBusy(true); setRoleError(null); setRoleSuccess(null);
     try {
       const request = await requestRole(selectedRole as typeof roles[number]);
