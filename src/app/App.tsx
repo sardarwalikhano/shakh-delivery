@@ -24,6 +24,8 @@ import { OrdersPage } from '@/features/orders/OrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { NotificationsPage } from '@/features/notifications/pages/NotificationsPage';
 import { RoleRequestsPage } from '@/features/role-requests/pages/RoleRequestsPage';
+import { PostsPage } from '@/features/posts/pages/PostsPage';
+import { CreatePostPage } from '@/features/posts/pages/CreatePostPage';
 
 export function App() {
   return (
@@ -42,6 +44,8 @@ export function App() {
         <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
         <Route path="/orders/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
+        <Route path="/posts" element={<RequireAuth><RequirePermission permission="posts.view"><PostsPage /></RequirePermission></RequireAuth>} />
+        <Route path="/dashboard/posts/new" element={<RequireAuth><RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission></RequireAuth>} />
         <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
