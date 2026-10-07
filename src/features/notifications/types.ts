@@ -4,6 +4,7 @@ export type NotificationType =
   | 'delivery_assigned'
   | 'delivery_offer'
   | 'delivery_status'
+  | 'role_request'
   | 'payment_status'
   | 'system';
 
