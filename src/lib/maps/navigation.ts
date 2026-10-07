@@ -3,8 +3,11 @@ export type Coordinates = {
   longitude: number;
 };
 
-export function isValidCoordinates(latitude: number | null | undefined, longitude: number | null | undefined): latitude is number {
-  return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
+export function isValidCoordinates(latitude: number | null | undefined, longitude: number | null | undefined): boolean {
+  return latitude != null && longitude != null
+    && Number.isFinite(latitude) && Number.isFinite(longitude)
+    && latitude >= -90 && latitude <= 90
+    && longitude >= -180 && longitude <= 180;
 }
 
 export function buildGoogleMapsDirectionsUrl(destination: Coordinates, origin?: Coordinates | null): string {
