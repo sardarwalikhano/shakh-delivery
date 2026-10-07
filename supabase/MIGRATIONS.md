@@ -22,9 +22,18 @@ The remote production project is `shakh-delivery-prod` (`jjtmtxrkbewmdxdmgtrf`).
 - 20261007125848 — least_privilege_trigger_execute_fix_v1
 - 20261007134541 — product_media_storage_v1
 - 20261007134947 — delivery_location_bounds_v1
+- 20261007180348 — customer_phone_and_captain_offers_v1 (historical marker; superseded immediately)
+- 20261007180454 — customer_phone_captain_delivery_offers_v2 (authoritative final implementation)
 
 ## Notes
 
 - No mock marketplace, order, delivery, payment or notification records are seeded.
 - The remote database is the application source of truth.
 - The local CLI executable is not available in the current runtime, so remote migration state is verified through Supabase management tooling and local filenames are kept synchronized to that ledger.
+
+### Authentication and delivery note
+
+- New email/password accounts must provide a valid mobile number; the requirement is enforced both in the UI and the `auth.users` signup trigger.
+- Checkout is blocked at the database RPC layer when the customer profile has no valid mobile number.
+- New unassigned deliveries create realtime/in-app `delivery_offer` notifications for all captain-role users.
+- Captains with `deliveries.claim` can atomically claim one pending delivery; the first successful claim wins.
