@@ -243,3 +243,14 @@ as $$
       where ur.user_id=(select auth.uid())), '[]'::jsonb)
   );
 $$;
+
+-- Allow the role-review permission to read the applicant profile fields returned by the review RPC.
+drop policy if exists profiles_select_scoped on public.profiles;
+create policy profiles_select_scoped
+on public.profiles for select to authenticated
+using (
+  (select auth.uid()) = id
+  or (select private.has_permission('deliveries.view_all'))
+  or (select private.has_permission('deliveries.assign'))
+  or (select private.has_permission('role_requests.review'))
+);
