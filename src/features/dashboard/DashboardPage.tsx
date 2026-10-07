@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { label: 'ڕاپۆرتەکان', href: '/dashboard/reports', icon: BarChart3, permission: 'reports.view' },
   { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.manage' },
   { label: 'پشتیوانی', href: '/dashboard/support', icon: CircleHelp, permission: 'support.manage' },
+  { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review' },
   { label: 'Audit Logs', href: '/dashboard/audit', icon: ShieldCheck, permission: 'audit.view' },
 ];
 
