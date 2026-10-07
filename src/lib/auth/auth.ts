@@ -131,7 +131,15 @@ export async function updateMyPhone(phone: string): Promise<void> {
   const normalizedPhone = normalizePhone(phone);
   const phoneError = validatePhone(normalizedPhone);
   if (phoneError) throw new Error(phoneError);
-  const { error } = await supabase.from('profiles').update({ phone: normalizedPhone }).eq('id', (await supabase.auth.getUser()).data.user?.id ?? '');
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ phone: normalizedPhone })
+    .eq('id', userData.user.id);
+
   if (error) throw error;
 }
 
