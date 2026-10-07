@@ -1,17 +1,17 @@
 import { supabase } from '@/lib/supabase/client';
-import type { Cart, CartItem, Category, Product, ProductVariant } from './types';
+import type { Cart, CartItem, Category, Product, ProductVariant, StoreSummary } from './types';
 
 type ProductRow = Omit<Product, 'store' | 'category' | 'images' | 'variants'> & {
-  stores: Product['store'];
-  categories: Product['category'];
+  stores: StoreSummary[];
+  categories: Category[];
   images?: Product['images'];
 };
 
 function mapProduct(row: ProductRow, images: Product['images'] = [], variants: ProductVariant[] = []): Product {
   return {
     ...row,
-    store: row.stores ?? null,
-    category: row.categories ?? null,
+    store: row.stores?.[0] ?? null,
+    category: row.categories?.[0] ?? null,
     images,
     variants,
   };
@@ -100,7 +100,10 @@ export async function getWishlist(userId: string): Promise<Product[]> {
     .eq('user_id', userId);
 
   if (error) throw error;
-  return ((data ?? []).map((row: { products: ProductRow }) => mapProduct(row.products, row.products.images ?? [])));
+  return ((data ?? []).map((row: { products: ProductRow[] }) => {
+    const product = row.products?.[0];
+    return product ? mapProduct(product, product.images ?? []) : null;
+  }).filter((product): product is Product => Boolean(product)));
 }
 
 async function getOrCreateCart(userId: string): Promise<Cart> {
@@ -131,10 +134,24 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
   if (error) throw error;
   return {
     cart: cartData as Cart,
-    items: ((data ?? []) as Array<CartItem & { products: CartItem['product']; product_variants: CartItem['variant'] }>).map((item) => ({
-      ...item,
-      product: item.products ?? null,
-      variant: item.product_variants ?? null,
+    items: ((data ?? []) as Array<{
+      id: string;
+      cart_id: string;
+      product_id: string;
+      variant_id: string | null;
+      quantity: number;
+      added_price_iqd: number;
+      products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'stock_quantity'>>;
+      product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity'>>;
+    }>).map((item) => ({
+      id: item.id,
+      cart_id: item.cart_id,
+      product_id: item.product_id,
+      variant_id: item.variant_id,
+      quantity: item.quantity,
+      added_price_iqd: item.added_price_iqd,
+      product: item.products?.[0] ?? null,
+      variant: item.product_variants?.[0] ?? null,
     })),
   };
 }
