@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
+import { AuthCard, AuthPageShell, PasswordField, PasswordStrength, primaryButtonClass } from '@/features/auth/components/AuthCard';
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
+import { authErrorMessage, signOutEverywhere, updatePassword, validatePassword } from '@/lib/auth/auth';
 import { supabase } from '@/lib/supabase/client';
-import { updatePassword } from '@/lib/auth/auth';
 
 export function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -16,26 +16,57 @@ export function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
+    let mounted = true;
+
+    const checkRecoverySession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
       setReady(Boolean(data.session));
       setChecked(true);
+      if (data.session) window.history.replaceState({}, document.title, '/reset-password');
+    };
+
+    void checkRecoverySession();
+
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        setReady(Boolean(session));
+        setChecked(true);
+        if (event === 'PASSWORD_RECOVERY' && session) {
+          window.history.replaceState({}, document.title, '/reset-password');
+        }
+      }
     });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy) return;
     setError(null);
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
     if (password !== confirmPassword) {
       setError('دوو وشەی نهێنییەکە وەک یەک نین.');
       return;
     }
+
     setBusy(true);
     try {
       await updatePassword(password);
+      await signOutEverywhere();
       setSuccess(true);
-      await supabase.auth.signOut({ scope: 'local' });
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'نوێکردنەوەی وشەی نهێنی سەرنەکەوت.');
+      setError(authErrorMessage(nextError));
     } finally {
       setBusy(false);
     }
@@ -47,10 +78,10 @@ export function ResetPasswordPage() {
 
   return (
     <AuthPageShell>
-      <AuthCard title="دانانی وشەی نهێنیی نوێ" description="وشەی نهێنیی نوێ دابنێ بۆ ئەوەی بتوانیت دووبارە بچیتە ژوورەوە.">
+      <AuthCard title="دانانی وشەی نهێنیی نوێ" description="وشەی نهێنییەکی نوێ و بەهێز دابنێ.">
         {success ? (
           <div className="space-y-5">
-            <AuthSuccess>وشەی نهێنیت بە سەرکەوتوویی نوێکرایەوە.</AuthSuccess>
+            <AuthSuccess>وشەی نهێنیت بە سەرکەوتوویی نوێکرایەوە و session ـەکانت داخراون.</AuthSuccess>
             <button className={primaryButtonClass} onClick={() => navigate('/login', { replace: true })}>چوونە ژوورەوە</button>
           </div>
         ) : !ready ? (
@@ -59,14 +90,11 @@ export function ResetPasswordPage() {
             <Link className={primaryButtonClass} to="/forgot-password">داوای لینکی نوێ بکە</Link>
           </div>
         ) : (
-          <form className="space-y-5" onSubmit={submit}>
+          <form className="space-y-5" onSubmit={submit} noValidate>
             <AuthFeedback error={error} />
-            <Field label="وشەی نهێنیی نوێ">
-              <input className={inputClass} type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" dir="ltr" />
-            </Field>
-            <Field label="دووبارەکردنەوە">
-              <input className={inputClass} type="password" autoComplete="new-password" required minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" dir="ltr" />
-            </Field>
+            <PasswordField label="وشەی نهێنیی نوێ" value={password} onChange={setPassword} autoComplete="new-password" />
+            <PasswordStrength password={password} />
+            <PasswordField label="دووبارەکردنەوە" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" />
             <button className={primaryButtonClass} disabled={busy} type="submit">{busy ? 'نوێکردنەوە...' : 'نوێکردنەوەی وشەی نهێنی'}</button>
           </form>
         )}
