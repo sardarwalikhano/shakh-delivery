@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getCart } from '@/features/marketplace/api';
 import type { CartItem } from '@/features/marketplace/types';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth';
 import { createCheckout } from './api';
 import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
 import type { PaymentMethod } from './types';
@@ -15,6 +16,8 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash_on_delivery');
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -23,10 +26,16 @@ export function CheckoutPage() {
 
   useEffect(() => {
     if (!user) return;
-    void getCart(user.id)
-      .then(({ items: nextItems }) => setItems(nextItems))
-      .catch((err) => setError(err instanceof Error ? err.message : 'نەتوانرا سەبەتە بخوێندرێتەوە.'))
-      .finally(() => setLoading(false));
+    void Promise.all([getCart(user.id), getMyProfilePhone()])
+      .then(([cart, profilePhone]) => {
+        setItems(cart.items);
+        setPhone(profilePhone);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'نەتوانرا زانیاری checkout بخوێندرێتەوە.'))
+      .finally(() => {
+        setLoading(false);
+        setLoadingProfile(false);
+      });
   }, [user]);
 
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.added_price_iqd * item.quantity, 0), [items]);
@@ -38,8 +47,14 @@ export function CheckoutPage() {
       setError('ناونیشانی گەیاندن پێویستە.');
       return;
     }
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
     setSubmitting(true);
     try {
+      await updateMyPhone(phone);
       const result = await createCheckout({ deliveryAddress: address, deliveryLat: coordinates?.latitude ?? null, deliveryLng: coordinates?.longitude ?? null, customerNote: note, paymentMethod });
       navigate(`/orders?checkout=${result.checkout_id}`, { replace: true });
     } catch (err) {
@@ -70,6 +85,21 @@ export function CheckoutPage() {
             <div className="space-y-5">
               <div className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.035)] sm:p-6">
                 <div className="flex items-center gap-3"><MapPin size={19} className="text-[var(--shakh-blue)]" /><h2 className="text-lg font-black">ناونیشانی گەیاندن</h2></div>
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-sm font-black">ژمارەی مۆبایل <span className="text-red-500">*</span></span>
+                  <input
+                    className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3.5 text-sm outline-none focus:border-[var(--shakh-blue)]"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    required
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    placeholder="+9647501234567"
+                    dir="ltr"
+                    disabled={loadingProfile}
+                  />
+                </label>
                 <textarea value={address} onChange={(event) => setAddress(event.target.value)} className="mt-4 min-h-28 w-full resize-y rounded-2xl border border-black/10 bg-white p-4 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="شار، گەڕەک، شەقام، ژمارەی خانوو..." required />
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button type="button" disabled={locating} onClick={() => {
