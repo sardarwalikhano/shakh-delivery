@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, PasswordField, PasswordStrength, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
-import { authErrorMessage, validatePassword } from '@/lib/auth/auth';
+import { authErrorMessage, validatePassword, validatePhone } from '@/lib/auth/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function RegisterPage() {
@@ -10,6 +10,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -24,6 +25,11 @@ export function RegisterPage() {
 
     if (!fullName.trim()) {
       setError('ناوی تەواو پێویستە.');
+      return;
+    }
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      setError(phoneError);
       return;
     }
     const passwordError = validatePassword(password);
@@ -42,7 +48,7 @@ export function RegisterPage() {
 
     setBusy(true);
     try {
-      const result = await register(email, password, fullName);
+      const result = await register(email, password, fullName, phone);
       if (result.session && result.user?.email_confirmed_at) {
         navigate('/dashboard', { replace: true });
       } else {
@@ -76,6 +82,19 @@ export function RegisterPage() {
                 onChange={(event) => setFullName(event.target.value)}
                 placeholder="ناوی تەواوت"
                 dir="auto"
+              />
+            </Field>
+            <Field label="ژمارەی مۆبایل" hint="ژمارەکەت بۆ پەیوەندی لە کاتی گەیاندنی order ـەکان بەکاردهێنرێت.">
+              <input
+                className={inputClass}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                required
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="+9647501234567"
+                dir="ltr"
               />
             </Field>
             <Field label="ئیمەیڵ">
