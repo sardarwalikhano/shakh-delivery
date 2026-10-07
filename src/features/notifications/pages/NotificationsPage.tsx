@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, ChevronLeft, CircleCheck, Clock3, CreditCard, PackageCheck, Truck } from 'lucide-react';
+import { Bell, CheckCheck, ChevronLeft, CircleCheck, Clock3, CreditCard, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../hooks/NotificationContext';
 import type { NotificationType } from '../types';
