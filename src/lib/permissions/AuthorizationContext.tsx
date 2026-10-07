@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 
@@ -15,66 +15,52 @@ export type AppRole =
 
 type AuthorizationContextValue = {
   role: AppRole | null;
+  roles: AppRole[];
   permissions: ReadonlySet<string>;
   loading: boolean;
   hasPermission: (permission: string) => boolean;
+  refresh: () => Promise<void>;
 };
 
 const AuthorizationContext = createContext<AuthorizationContextValue | null>(null);
 
 export function AuthorizationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [role, setRole] = useState<AppRole | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [permissions, setPermissions] = useState<ReadonlySet<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setRoles([]);
+    setPermissions(new Set());
+    if (!user) { setLoading(false); return; }
 
-    const loadAuthorization = async () => {
-      setLoading(true);
-      setRole(null);
-      setPermissions(new Set());
+    const roleResult = await supabase.from('user_roles').select('role').eq('user_id', user.id).order('created_at', { ascending: true });
+    if (roleResult.error) { setLoading(false); return; }
 
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    const nextRoles = (roleResult.data ?? []).map((item) => item.role as AppRole);
+    if (nextRoles.length === 0) { setLoading(false); return; }
 
-      const roleResult = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (roleResult.error || !roleResult.data) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
-
-      const nextRole = roleResult.data.role as AppRole;
-      const permissionResult = await supabase
-        .from('role_permissions')
-        .select('permission_code')
-        .eq('role', nextRole);
-
-      if (!cancelled) {
-        setRole(nextRole);
-        setPermissions(new Set((permissionResult.data ?? []).map((item) => item.permission_code)));
-        setLoading(false);
-      }
-    };
-
-    void loadAuthorization();
-    return () => { cancelled = true; };
+    const permissionResult = await supabase.from('role_permissions').select('permission_code').in('role', nextRoles);
+    setRoles(nextRoles);
+    setPermissions(new Set((permissionResult.data ?? []).map((item) => item.permission_code)));
+    setLoading(false);
   }, [user]);
 
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel('user-roles:' + user.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_roles', filter: 'user_id=eq.' + user.id }, () => { void refresh(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [refresh, user]);
+
   const value = useMemo<AuthorizationContextValue>(() => ({
-    role,
-    permissions,
-    loading,
-    hasPermission: (permission) => permissions.has(permission),
-  }), [loading, permissions, role]);
+    role: roles[0] ?? null, roles, permissions, loading, refresh, hasPermission: (permission) => permissions.has(permission),
+  }), [loading, permissions, refresh, roles]);
 
   return <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>;
 }
