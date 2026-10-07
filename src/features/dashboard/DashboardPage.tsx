@@ -16,6 +16,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: 'سەرەکی', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
   { label: 'بەرهەمەکان', href: '/dashboard/products', icon: Boxes, permission: 'products.view' },
+  { label: 'پۆستەکان', href: '/posts', icon: Package, permission: 'posts.view' },
   { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view' },
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view' },
