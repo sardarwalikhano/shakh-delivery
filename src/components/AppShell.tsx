@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useNotifications } from '@/features/notifications/hooks/NotificationContext';
-  import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
+import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 
 type AppShellProps = { children: ReactNode };
 
