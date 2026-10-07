@@ -40,7 +40,7 @@ export function useRealtimeCaptainDeliveries(userId: string | undefined, onChang
       .channel(`captain-deliveries-realtime:${userId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'deliveries', filter: `captain_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'deliveries' },
         () => onChange(),
       )
       .subscribe();
