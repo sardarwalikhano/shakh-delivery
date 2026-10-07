@@ -2,6 +2,7 @@ export type NotificationType =
   | 'order_created'
   | 'order_status'
   | 'delivery_assigned'
+  | 'delivery_offer'
   | 'delivery_status'
   | 'payment_status'
   | 'system';
