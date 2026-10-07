@@ -143,7 +143,7 @@ export function CheckoutPage() {
                 <div className="flex justify-between"><span className="text-black/45">گەیاندن</span><span className="font-bold text-black/45">لە ئێستادا هەژمار نەکراوە</span></div>
                 <div className="border-t border-black/[0.06] pt-4 flex justify-between"><span className="font-black">کۆی کاتی</span><span className="text-xl font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
               </div>
-              <button disabled={submitting} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
+              <button disabled={submitting || loadingProfile} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
               <p className="mt-3 text-xs leading-5 text-black/35">نرخ و stock لە server پشتڕاست کراوەتەوە. دووبارە ناردن بە idempotency پارێزراوە.</p>
             </aside>
           </form>
