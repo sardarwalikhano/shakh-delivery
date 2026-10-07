@@ -224,3 +224,55 @@ Status: COMPLETE / EXTERNAL CONNECTIONS PENDING
 - `npm run typecheck`: PASS.
 
 External release connections intentionally remain separate: Vercel source/deployment, `daim-post.online` cutover, Supabase Auth + Resend SMTP, and a full interactive map/routing provider are connected only after the production build/source path is ready.
+
+
+## Phase 14 — Role Request Verification
+
+Status: COMPLETE
+
+- Users can request approved application roles from their account profile.
+- Super Admin is never exposed as a self-service request option.
+- Database constraint and RPC guard reject any attempted Super Admin role request.
+- Every role request is stored as pending until reviewed.
+- Super Admin receives an in-app role-request notification.
+- Approval atomically activates the requested role using the existing role-permission matrix.
+- Rejection is audited and the requester receives an in-app notification.
+- Duplicate pending requests and duplicate role-request notifications are blocked.
+- Multi-role authorization aggregates permissions across all active roles.
+- Role-review RPCs use SECURITY INVOKER public wrappers with privileged helpers isolated in private.
+- Security Advisor remains clean for this workflow; the only remaining Auth advisory is Supabase leaked-password protection availability/configuration.
+
+## Phase 15 — Role-Based Post Publishing
+
+Status: COMPLETE
+
+- Added production post publishing schema with role/category authorization.
+- Super Admin can publish to every configured post category.
+- Customer can publish Cars only.
+- Role-specific users can publish in their role category plus Cars where configured.
+- Post publishing authorization is enforced by PostgreSQL RLS and role/category mappings, not only frontend controls.
+- Added protected Posts listing and Create Post routes.
+- Added post creation API with authenticated identity binding.
+- Added granular post permissions: posts.create, posts.view, posts.update_own, posts.delete_own, posts.manage.
+- No mock/demo/test business records are seeded.
+- Data API grants are explicit and paired with RLS.
+
+## Phase 16 — Auth Email / Resend Production Delivery
+
+Status: CONNECTED / VERIFIED
+
+- Resend domain mail.daim-post.online is verified and sending-enabled.
+- Latest authentication confirmation email through the configured SMTP path reached Resend with status delivered.
+- Supabase Auth logs show the custom email rate limiter changed from the built-in 2/hour limit to 30/hour after custom SMTP configuration.
+- Recipient-specific suppression checks for active test addresses returned no suppression entry.
+- The application continues using Supabase Auth as the source of truth; Resend is the SMTP delivery provider.
+- If an end user does not see a delivered message, the remaining investigation is recipient mailbox filtering/spam/quarantine rather than the application-to-Resend transport.
+
+## Current Production Release
+
+- GitHub repository: sardarwalikhano/shakh-delivery
+- Latest production commit: ff597122918942afe7e229100042b22b916aec81
+- Latest Vercel production deployment from main: READY
+- Production apex: https://daim-post.online
+- Production www: https://www.daim-post.online
+- Both custom domains are verified on the SHAKH Delivery Vercel project.
