@@ -69,6 +69,11 @@ function mapDelivery(row: Record<string, unknown>): Delivery {
   };
 }
 
+export async function claimDelivery(deliveryId: string): Promise<void> {
+  const { error } = await supabase.rpc('claim_delivery', { p_delivery_id: deliveryId });
+  if (error) throw error;
+}
+
 export async function getMyDeliveries(): Promise<Delivery[]> {
   const { data, error } = await supabase
     .from('deliveries')
