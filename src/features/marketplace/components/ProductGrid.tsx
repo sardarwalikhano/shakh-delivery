@@ -1,4 +1,4 @@
-import { Heart, LoaderCircle, SearchX } from 'lucide-react';
+import { LoaderCircle, SearchX } from 'lucide-react';
 import type { Product } from '../types';
 import { ProductCard } from './ProductCard';
 
