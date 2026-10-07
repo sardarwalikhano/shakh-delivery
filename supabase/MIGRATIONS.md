@@ -37,3 +37,5 @@ The remote production project is `shakh-delivery-prod` (`jjtmtxrkbewmdxdmgtrf`).
 - Checkout is blocked at the database RPC layer when the customer profile has no valid mobile number.
 - New unassigned deliveries create realtime/in-app `delivery_offer` notifications for all captain-role users.
 - Captains with `deliveries.claim` can atomically claim one pending delivery; the first successful claim wins.
+
+- 20261007201500 — role_requests_rpc_access_fix_v1
