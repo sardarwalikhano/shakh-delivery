@@ -181,3 +181,7 @@ $$;
 
 revoke all on function public.get_allowed_post_targets() from public,anon;
 grant execute on function public.get_allowed_post_targets() to authenticated;
+
+-- Data API privileges; RLS remains the authorization boundary.
+grant select, insert, update, delete on public.posts to authenticated;
+grant select, insert, update, delete on public.role_post_categories to authenticated;
