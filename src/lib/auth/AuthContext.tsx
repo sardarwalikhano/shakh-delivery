@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
-import { signIn, signOut, signUp } from '@/lib/auth/auth';
+import { signIn, signOut, signUp, syncPendingProfile } from '@/lib/auth/auth';
 
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isEmailVerified: boolean;
   login: typeof signIn;
   register: typeof signUp;
   logout: typeof signOut;
@@ -22,12 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session);
-        setLoading(false);
-      }
-    });
+    const initialize = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      setSession(data.session);
+      setLoading(false);
+      if (data.session?.user) await syncPendingProfile(data.session.user);
+    };
+
+    void initialize();
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (mounted) setSession(nextSession);
@@ -39,11 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (session?.user) void syncPendingProfile(session.user);
+  }, [session?.user]);
+
   const value = useMemo<AuthContextValue>(() => ({
     session,
     user: session?.user ?? null,
     loading,
     isAuthenticated: Boolean(session?.user),
+    isEmailVerified: Boolean(session?.user?.email_confirmed_at),
     login: signIn,
     register: signUp,
     logout: signOut,
