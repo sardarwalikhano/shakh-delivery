@@ -7,6 +7,7 @@ const iconByType: Record<NotificationType, typeof Bell> = {
   order_created: PackageCheck,
   order_status: PackageCheck,
   delivery_assigned: Truck,
+  delivery_offer: Truck,
   delivery_status: Truck,
   payment_status: CreditCard,
   system: Bell,
