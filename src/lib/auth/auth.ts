@@ -98,7 +98,7 @@ export async function updatePassword(password: string, currentPassword?: string)
   if (passwordError) throw new Error(passwordError);
 
   const payload = currentPassword
-    ? { password, current_password: currentPassword }
+    ? { password, currentPassword }
     : { password };
 
   const { error } = await supabase.auth.updateUser(payload);
