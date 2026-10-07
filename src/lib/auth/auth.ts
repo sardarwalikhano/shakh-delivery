@@ -27,22 +27,38 @@ export function authErrorMessage(error: unknown): string {
   if (message.includes('email not confirmed')) return 'ئیمەیڵەکەت هێشتا پشتڕاست نەکراوەتەوە.';
   if (message.includes('user already registered') || message.includes('already been registered')) return 'ئەم ئیمەیڵە پێشتر تۆمارکراوە.';
   if (message.includes('rate limit') || message.includes('too many')) return 'ژمارەی هەوڵدان زۆر بووە. تکایە دوای کەمێک دووبارە هەوڵ بدەوە.';
+  if (message.includes('mobile number')) return 'ژمارەی مۆبایل پێویستە.';
   if (message.includes('password')) return 'وشەی نهێنی پێداویستییەکانی security پڕ ناکات.';
   return 'هەڵەیەکی authentication ڕوویدا. دووبارە هەوڵ بدەوە.';
 }
 
-export async function signUp(email: string, password: string, fullName: string): Promise<AuthResult> {
+export function normalizePhone(phone: string): string {
+  return phone.trim().replace(/[\s()-]/g, '');
+}
+
+export function validatePhone(phone: string): string | null {
+  const normalized = normalizePhone(phone);
+  if (!/^\+?[0-9]{8,15}$/.test(normalized)) {
+    return 'ژمارەی مۆبایل دەبێت بە شێوەی دروست بنووسرێت.';
+  }
+  return null;
+}
+
+export async function signUp(email: string, password: string, fullName: string, phone: string): Promise<AuthResult> {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedName = fullName.trim();
+  const normalizedPhone = normalizePhone(phone);
   const passwordError = validatePassword(password);
+  const phoneError = validatePhone(normalizedPhone);
   if (!normalizedName) throw new Error('ناوی تەواو پێویستە.');
+  if (phoneError) throw new Error(phoneError);
   if (passwordError) throw new Error(passwordError);
 
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
     password,
     options: {
-      data: { full_name: normalizedName },
+      data: { full_name: normalizedName, phone: normalizedPhone },
       emailRedirectTo: absoluteUrl('/verify-email'),
     },
   });
@@ -102,6 +118,20 @@ export async function updatePassword(password: string, currentPassword?: string)
     : { password };
 
   const { error } = await supabase.auth.updateUser(payload);
+  if (error) throw error;
+}
+
+export async function getMyProfilePhone(): Promise<string> {
+  const { data, error } = await supabase.from('profiles').select('phone').maybeSingle();
+  if (error) throw error;
+  return typeof data?.phone === 'string' ? data.phone : '';
+}
+
+export async function updateMyPhone(phone: string): Promise<void> {
+  const normalizedPhone = normalizePhone(phone);
+  const phoneError = validatePhone(normalizedPhone);
+  if (phoneError) throw new Error(phoneError);
+  const { error } = await supabase.from('profiles').update({ phone: normalizedPhone }).eq('id', (await supabase.auth.getUser()).data.user?.id ?? '');
   if (error) throw error;
 }
 
