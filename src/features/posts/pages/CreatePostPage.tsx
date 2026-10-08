@@ -68,6 +68,21 @@ export function CreatePostPage() {
   }, [preferredRole, targets]);
 
   useEffect(() => {
+    if (!targets.length) return;
+
+    // On first load, prefer the category belonging to the approved role.
+    // Cars remains available as an additional category for the customer role.
+    if (!category) {
+      const initialTarget =
+        targets.find((item) => item.publisher_role === preferredRole && item.category !== 'cars') ??
+        targets.find((item) => item.publisher_role === preferredRole) ??
+        targets[0];
+
+      setRole(initialTarget?.publisher_role ?? '');
+      setCategory(initialTarget?.category ?? '');
+      return;
+    }
+
     const target = targetForCategory(category);
     if (target) {
       setRole(target.publisher_role);
@@ -77,7 +92,7 @@ export function CreatePostPage() {
     const firstTarget = targets[0];
     setRole(firstTarget?.publisher_role ?? '');
     setCategory(firstTarget?.category ?? '');
-  }, [category, targetForCategory, targets]);
+  }, [category, preferredRole, targetForCategory, targets]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
