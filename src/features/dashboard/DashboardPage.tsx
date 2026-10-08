@@ -43,7 +43,8 @@ const roleLabels: Record<string, string> = {
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { role, permissions } = useAuthorization();
+  const { roles, permissions } = useAuthorization();
+  const displayRole = roles.find((item) => item !== 'customer') ?? roles[0] ?? null;
   const visibleItems = navItems.filter((item) => permissions.has(item.permission));
 
   return (
@@ -56,7 +57,7 @@ export function DashboardPage() {
                 <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-lg font-black">S</div>
                 <div className="min-w-0">
                   <div className="truncate font-black">SHAKH Delivery</div>
-                  <div className="mt-0.5 truncate text-xs text-white/50">{role ? roleLabels[role] ?? role : '...'}</div>
+                  <div className="mt-0.5 truncate text-xs text-white/50">{displayRole ? roleLabels[displayRole] ?? displayRole : '...'}</div>
                 </div>
               </div>
             </div>
