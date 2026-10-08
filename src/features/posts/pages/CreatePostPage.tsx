@@ -45,15 +45,39 @@ export function CreatePostPage() {
     [targets],
   );
 
-  const categories = useMemo(
-    () => targets.filter((item) => item.publisher_role === role).map((item) => item.category),
-    [role, targets],
+  // Customer is a baseline role and should not hide the category granted by
+  // an approved business role. Prefer an approved non-customer role whenever
+  // more than one active role exists.
+  const preferredRole = useMemo(
+    () => roles.find((item) => item !== 'customer' && item !== 'super_admin') ?? roles[0] ?? '',
+    [roles],
   );
 
+  const categories = useMemo(
+    () => [...new Set(targets.map((item) => item.category))],
+    [targets],
+  );
+
+  const targetForCategory = useCallback((nextCategory: PostTarget['category'] | '') => {
+    if (!nextCategory) return undefined;
+
+    return (
+      targets.find((item) => item.category === nextCategory && item.publisher_role === preferredRole) ??
+      targets.find((item) => item.category === nextCategory)
+    );
+  }, [preferredRole, targets]);
+
   useEffect(() => {
-    if (category && categories.includes(category)) return;
-    setCategory(categories[0] ?? '');
-  }, [categories, category]);
+    const target = targetForCategory(category);
+    if (target) {
+      setRole(target.publisher_role);
+      return;
+    }
+
+    const firstTarget = targets[0];
+    setRole(firstTarget?.publisher_role ?? '');
+    setCategory(firstTarget?.category ?? '');
+  }, [category, targetForCategory, targets]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -101,18 +125,15 @@ export function CreatePostPage() {
           <AuthFeedback error={error} />
           {success ? <AuthSuccess>پۆستەکە بە سەرکەوتوویی بڵاوکرایەوە.</AuthSuccess> : null}
 
-          {roles.length > 1 ? (
-            <Field label="پۆست لە ناوی Role">
-              <select className={inputClass} value={role} onChange={(event) => setRole(event.target.value as AppRole)}>
-                {roles.map((item) => <option key={item} value={item}>{postRoleLabels[item]}</option>)}
-              </select>
-            </Field>
-          ) : (
-            <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
-              <div className="text-xs font-bold text-black/40">Role</div>
-              <div className="mt-1 font-black">{postRoleLabels[roles[0]]}</div>
-            </div>
-          )}
+          <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
+            <div className="text-xs font-bold text-black/40">بڵاوکردنەوە بە ناوی Role</div>
+            <div className="mt-1 font-black">{role ? postRoleLabels[role] : '—'}</div>
+            {roles.length > 1 ? (
+              <div className="mt-2 text-xs leading-6 text-black/40">
+                ئەم پۆستە بە پێی category ـی هەڵبژێردراو بە شێوەی خۆکار لە ناوی Role ـی ڕێگەپێدراو بڵاو دەکرێتەوە.
+              </div>
+            ) : null}
+          </div>
 
           <Field label="جۆری پۆست">
             <div className="relative">
