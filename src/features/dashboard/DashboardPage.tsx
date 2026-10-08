@@ -2,6 +2,7 @@ import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, LayoutDashboard, Packa
 import type { ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
+import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>;
@@ -29,17 +30,7 @@ const navItems: NavItem[] = [
   { label: 'Audit Logs', href: '/dashboard/audit', icon: ShieldCheck, permission: 'audit.view' },
 ];
 
-const roleLabels: Record<string, string> = {
-  super_admin: 'Super Admin',
-  admin: 'Admin',
-  customer: 'Customer',
-  captain: 'Captain',
-  restaurant_vendor: 'Restaurant Vendor',
-  fashion_vendor: 'Fashion Vendor',
-  car_dealer: 'Car Dealer',
-  umrah_agency: 'Umrah Agency',
-  support: 'Support',
-};
+
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -57,7 +48,7 @@ export function DashboardPage() {
                 <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-lg font-black">S</div>
                 <div className="min-w-0">
                   <div className="truncate font-black">SHAKH Delivery</div>
-                  <div className="mt-0.5 truncate text-xs text-white/50">{displayRole ? roleLabels[displayRole] ?? displayRole : '...'}</div>
+                  <div className="mt-0.5 truncate text-xs text-white/50">{displayRole ? roleLabelsKu[displayRole] ?? displayRole : '...'}</div>
                 </div>
               </div>
             </div>
@@ -79,7 +70,10 @@ export function DashboardPage() {
             <section className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_14px_50px_rgba(16,22,35,.05)] sm:p-7">
               <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
                 <div>
-                  <div className="text-sm font-bold text-[var(--shakh-orange)]">Dashboard</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-bold text-[var(--shakh-orange)]">Dashboard</div>
+                    {displayRole ? <span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">ڕۆڵ: {roleLabelsKu[displayRole] ?? displayRole}</span> : null}
+                  </div>
                   <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">بەخێربێیتەوە</h1>
                   <p className="mt-3 max-w-2xl text-sm leading-7 text-black/50">ئەم workspace ـە بەپێی role و permission ـەکانی هەژمارەکەت ڕێکخراوە. data ـی ڕاستەقینە لە module ـەکاندا دێت؛ لەم بناغەیەدا هیچ KPI ـی ساختە نین.</p>
                 </div>
