@@ -5,6 +5,7 @@ import { AuthFeedback } from '@/features/auth/components/AuthFeedback';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { listActivePosts } from '../api';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
+import { supabase } from '@/lib/supabase/client';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { Post, PostCategory } from '../types';
 
@@ -25,6 +26,13 @@ export function PostsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const channel = supabase.channel('posts-list-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { void load(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [load]);
 
   const visible = useMemo(() => posts.filter((post) => {
     const textMatch = !query.trim() || (post.title + ' ' + post.content).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
