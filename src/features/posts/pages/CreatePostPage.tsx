@@ -150,10 +150,10 @@ export function CreatePostPage() {
   };
 
   const updateVariant = (key: string, patch: Partial<VariantDraft>) => {
-    setVariantDrafts((current) => ({
-      ...current,
-      [key]: { stock: '0', price: '', imageIndex: '', ...current[key], ...patch },
-    }));
+    setVariantDrafts((current) => {
+      const previous = current[key] ?? { stock: '0', price: '', imageIndex: '' };
+      return { ...current, [key]: { ...previous, ...patch } };
+    });
   };
 
   const addCustomColor = () => {
