@@ -231,3 +231,22 @@ using (
     )
   )
 );
+
+-- Realtime refreshes active post listings and the selected apparel combinations.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'posts'
+    ) then
+      execute 'alter publication supabase_realtime add table public.posts';
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'apparel_variants'
+    ) then
+      execute 'alter publication supabase_realtime add table public.apparel_variants';
+    end if;
+  end if;
+end $$;
