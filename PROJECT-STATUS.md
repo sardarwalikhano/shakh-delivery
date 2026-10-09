@@ -276,3 +276,23 @@ Status: CONNECTED / VERIFIED
 - Production apex: https://daim-post.online
 - Production www: https://www.daim-post.online
 - Both custom domains are verified on the SHAKH Delivery Vercel project.
+
+
+## Phase 17 — Dynamic Apparel Posting & Variant Inventory
+
+Status: IMPLEMENTED / DATABASE MIGRATION APPLIED / BUILD VERIFIED ON VERCEL
+
+- Preserved the existing role-based post publishing flow, account/role approval, generic post categories, dashboard, and all prior application routes.
+- Added an apparel-specific form shown only when the Fashion post category is selected: menswear, womenswear, kids' clothing, men's/women's/kids' shoes, bags, sportswear, home textiles, beauty/fashion accessories, and other accessories.
+- Added up to eight JPG/PNG/WebP product photos (maximum 5MB each) stored in a dedicated public-read `post-media` Supabase Storage bucket; photo writes and deletes are scoped by the authenticated user's permissions and path.
+- Added optional brand, material, country of origin, season, and a 0–99% discount.
+- Added multi-color selection, custom named colors with a color picker, size presets based on apparel type, and custom sizes.
+- Added a real color × size inventory matrix with non-negative stock, optional per-combination price overrides, and optional color/variant-specific photo association. Only submitted combinations are stored or shown.
+- Added `public.apparel_variants` with RLS, ownership/permission policies, a unique post/color/size key, non-negative inventory checks, and per-variant price validation.
+- Added database validation so new Fashion posts cannot become active unless they have an apparel type, positive base price, 1–8 stored images, and at least one in-stock color/size combination.
+- Added customer-facing `/posts/:id` details to select only actual colors and sizes, see real stock, variant pricing, discount, image, and seller location. Post lists and product-detail variants subscribe to Supabase Realtime for refreshes.
+- Applied Supabase migration `20261009183157_apparel_posting_variants_v1` to production project `jjtmtxrkbewmdxdmgtrf`.
+- Post-migration smoke check: apparel columns present; RLS enabled for `apparel_variants`; four variant policies present; `posts` and `apparel_variants` are in `supabase_realtime`; `post-media` bucket configured at 5MB for JPG/PNG/WebP.
+- Supabase Security Advisor returned the existing Auth leaked-password-protection warning only; no new apparel-specific Security Advisor issue was returned. Performance Advisor returned existing INFO/WARN findings elsewhere in the schema plus an expected unused-index INFO for the new table before it has traffic.
+- Vercel build passed on commit `8ff6d336848a2b5a4dc49de8b8feaa7a311465b2` after correcting the duplicate variant draft object properties. A later UI image-selection refinement was committed afterward and awaits its own final deployment status.
+- No mock apparel, products, color combinations, sizes, or inventory records were seeded. Existing posts remain intact.
