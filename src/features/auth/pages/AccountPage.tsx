@@ -2,12 +2,17 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { CheckCircle2, Clock3, ShieldCheck, XCircle } from 'lucide-react';
 import { getMyRoleRequests, requestRole, type RoleRequest } from '@/features/role-requests/api';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { authErrorMessage, signOutEverywhere, updatePassword, validatePassword } from '@/lib/auth/auth';
 import { AuthCard, AuthPageShell, PasswordField, PasswordStrength, primaryButtonClass } from '@/features/auth/components/AuthCard';
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
+import { getMyPosts } from '@/features/posts/api';
+import { postCategoryLabels, postRoleLabels } from '@/features/posts/labels';
+import type { Post } from '@/features/posts/types';
+import { getPostImageUrl } from '@/lib/storage/postMedia';
+import { supabase } from '@/lib/supabase/client';
 
 export function AccountPage() {
   const { user, logout } = useAuth();
@@ -17,6 +22,41 @@ export function AccountPage() {
   const [roleBusy, setRoleBusy] = useState(false);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [roleSuccess, setRoleSuccess] = useState<string | null>(null);
+  const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const [myPostsLoading, setMyPostsLoading] = useState(true);
+  const [myPostsError, setMyPostsError] = useState<string | null>(null);
+
+  const loadMyPosts = useCallback(async () => {
+    if (!user) {
+      setMyPosts([]);
+      setMyPostsLoading(false);
+      return;
+    }
+    setMyPostsLoading(true);
+    setMyPostsError(null);
+    try {
+      setMyPosts(await getMyPosts(user.id));
+    } catch (nextError) {
+      setMyPostsError(nextError instanceof Error ? nextError.message : 'نەتوانرا پۆستەکانی تۆ بخوێندرێنەوە.');
+    } finally {
+      setMyPostsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => { void loadMyPosts(); }, [loadMyPosts]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel('my-posts:' + user.id)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'posts',
+        filter: 'author_id=eq.' + user.id,
+      }, () => { void loadMyPosts(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [loadMyPosts, user]);
 
   const loadRoleRequests = useCallback(async () => {
     try { setRoleRequests(await getMyRoleRequests()); }
@@ -155,6 +195,52 @@ export function AccountPage() {
               <button className={primaryButtonClass} disabled={busy} type="submit">{busy ? 'گۆڕین...' : 'گۆڕینی وشەی نهێنی'}</button>
             </form>
           </div>
+
+          <section className="border-t border-black/[0.07] pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black">پۆستەکانی من</h2>
+                <p className="mt-1 text-sm leading-6 text-black/45">پۆستە چالاکەکانت لە Supabase دەخوێندرێنەوە؛ گۆڕانکارییەکان بە شێوەی ڕاستەوخۆ نوێ دەبنەوە.</p>
+              </div>
+              {roles.some((item) => item !== 'customer') || role === 'customer' ? (
+                <Link to="/dashboard/posts/new" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--shakh-navy)] px-4 py-2 text-xs font-black text-white">پۆستی نوێ</Link>
+              ) : null}
+            </div>
+
+            {myPostsError ? <div className="mt-4"><AuthFeedback error={myPostsError} /></div> : null}
+            {myPostsLoading ? (
+              <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-5 text-center text-sm font-bold text-black/40">بارکردنی پۆستەکان...</div>
+            ) : null}
+            {!myPostsLoading && !myPostsError && myPosts.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-black/10 bg-[var(--shakh-bg)] p-5 text-center">
+                <p className="text-sm font-bold text-black/45">هێشتا هیچ پۆستێکی چالاکت نییە.</p>
+                <Link to="/dashboard/posts/new" className="mt-3 inline-flex text-sm font-black text-[var(--shakh-blue)]">یەکەم پۆستت بڵاو بکەرەوە ←</Link>
+              </div>
+            ) : null}
+            {!myPostsLoading && myPosts.length > 0 ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {myPosts.map((post) => (
+                  <Link key={post.id} to={`/posts/${post.id}`} className="group overflow-hidden rounded-2xl border border-black/[0.07] bg-white transition hover:border-[var(--shakh-orange)]/40">
+                    {post.images?.[0]?.storage_path ? (
+                      <img src={getPostImageUrl(post.images[0].storage_path)} alt={post.title} className="aspect-[16/9] w-full bg-[var(--shakh-bg)] object-cover" loading="lazy" />
+                    ) : null}
+                    <div className="p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[10px] font-black text-[var(--shakh-orange)]">{postCategoryLabels[post.category]}</span>
+                        <span className="text-[10px] font-bold text-black/35">{postRoleLabels[post.publisher_role]}</span>
+                      </div>
+                      <h3 className="mt-3 line-clamp-2 font-black group-hover:text-[var(--shakh-blue)]">{post.title}</h3>
+                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/[0.06] pt-3">
+                        <span className="text-xs text-black/40">{post.location || 'شوێن دیاری نەکراوە'}</span>
+                        <span className="text-sm font-black text-[var(--shakh-navy)]">{post.price_iqd != null ? Number(post.price_iqd).toLocaleString('en-US') + ' د.ع' : 'نرخ دیاری نەکراوە'}</span>
+                      </div>
+                      <div className="mt-2 text-xs font-black text-[var(--shakh-blue)]">بینینی پۆست ←</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
 
           <button className={primaryButtonClass} onClick={onLogout}>دەرچوون</button>
         </div>
