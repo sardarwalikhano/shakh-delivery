@@ -271,8 +271,8 @@ Status: CONNECTED / VERIFIED
 ## Current Production Release
 
 - GitHub repository: sardarwalikhano/shakh-delivery
-- Latest production commit: ff597122918942afe7e229100042b22b916aec81
-- Latest Vercel production deployment from main: READY
+- Production commit at the Phase 16 release handoff: ff597122918942afe7e229100042b22b916aec81 (historical; later Phase 17 changes are recorded below).
+- Vercel production deployment at the Phase 16 release handoff: READY (later Phase 17 deployments are recorded below).
 - Production apex: https://daim-post.online
 - Production www: https://www.daim-post.online
 - Both custom domains are verified on the SHAKH Delivery Vercel project.
@@ -294,5 +294,5 @@ Status: IMPLEMENTED / DATABASE MIGRATION APPLIED / BUILD VERIFIED ON VERCEL
 - Applied Supabase migration `20261009183157_apparel_posting_variants_v1` to production project `jjtmtxrkbewmdxdmgtrf`.
 - Post-migration smoke check: apparel columns present; RLS enabled for `apparel_variants`; four variant policies present; `posts` and `apparel_variants` are in `supabase_realtime`; `post-media` bucket configured at 5MB for JPG/PNG/WebP.
 - Supabase Security Advisor returned the existing Auth leaked-password-protection warning only; no new apparel-specific Security Advisor issue was returned. Performance Advisor returned existing INFO/WARN findings elsewhere in the schema plus an expected unused-index INFO for the new table before it has traffic.
-- Vercel build passed on commit `8ff6d336848a2b5a4dc49de8b8feaa7a311465b2` after correcting the duplicate variant draft object properties. A later UI image-selection refinement was committed afterward and awaits its own final deployment status.
+- Vercel build passed after fixing TypeScript TS2783 duplicate object properties. The later color-specific image refinement also reached a READY Vercel deployment on code-bearing commit `5c3e14649167f6cd42dd8af86dc87d9e18711037`; the follow-up documentation-only deployment also reached READY. `https://www.daim-post.online/posts` returned HTTP 200 and the served JavaScript bundle contained the new Sorani apparel form/category strings.
 - No mock apparel, products, color combinations, sizes, or inventory records were seeded. Existing posts remain intact.
