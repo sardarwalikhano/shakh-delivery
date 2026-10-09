@@ -25,6 +25,9 @@ The remote production project is `shakh-delivery-prod` (`jjtmtxrkbewmdxdmgtrf`).
 - 20261007180348 — customer_phone_and_captain_offers_v1 (historical marker; superseded immediately)
 - 20261007180454 — customer_phone_captain_delivery_offers_v2 (authoritative final implementation)
 
+- 20261007195935 — role_based_post_publishing_v1
+- 20261009183157 — apparel_posting_variants_v1
+
 ## Notes
 
 - No mock marketplace, order, delivery, payment or notification records are seeded.
