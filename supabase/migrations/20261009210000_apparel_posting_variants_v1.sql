@@ -150,9 +150,10 @@ begin
     if new.price_iqd is null or new.price_iqd <= 0 then
       raise exception 'Apparel price must be greater than zero';
     end if;
-    if jsonb_typeof(new.images) is distinct from 'array'
-       or jsonb_array_length(new.images) < 1
-       or jsonb_array_length(new.images) > 8 then
+    if jsonb_typeof(new.images) is distinct from 'array' then
+      raise exception 'Apparel images must be a JSON array';
+    end if;
+    if jsonb_array_length(new.images) < 1 or jsonb_array_length(new.images) > 8 then
       raise exception 'Apparel posts require between 1 and 8 images';
     end if;
 
