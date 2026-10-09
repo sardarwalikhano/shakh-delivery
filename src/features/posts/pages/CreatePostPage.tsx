@@ -154,7 +154,7 @@ export function CreatePostPage() {
 
   const updateVariant = (key: string, patch: Partial<VariantDraft>) => {
     setVariantDrafts((current) => {
-      const previous = current[key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
+      const previous = current[key] ?? { enabled: false, stock: '', price: '', imageIndex: '' };
       return { ...current, [key]: { ...previous, ...patch } };
     });
   };
@@ -240,7 +240,8 @@ export function CreatePostPage() {
       if (!Number.isInteger(discount) || discount < 0 || discount > 99) return setError('داشکاندن دەبێت لە ٠ تا ٩٩٪ بێت.');
 
       for (const item of activeCombinations) {
-        const draft = variantDrafts[item.key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
+        const draft = variantDrafts[item.key] ?? { enabled: false, stock: '', price: '', imageIndex: '' };
+        if (!draft.stock.trim()) return setError(`ژمارەی کۆگای ${item.color.name} / ${item.size} پێویستە.`);
         const stock = Number(draft.stock);
         const overridePrice = draft.price.trim() ? Number(draft.price.replace(/,/g, '')) : null;
         if (!Number.isInteger(stock) || stock < 0) return setError(`کۆگای ${item.color.name} / ${item.size} دروست نییە.`);
@@ -248,7 +249,7 @@ export function CreatePostPage() {
       }
 
       const apparelVariants = activeCombinations.map((item) => {
-        const draft = variantDrafts[item.key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
+        const draft = variantDrafts[item.key] ?? { enabled: false, stock: '', price: '', imageIndex: '' };
         return {
           color_name: item.color.name,
           color_hex: item.color.hex,
@@ -440,7 +441,7 @@ export function CreatePostPage() {
                 ) : (
                   <div className="mt-3 space-y-3">
                     {combinations.map((item) => {
-                      const draft = variantDrafts[item.key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
+                      const draft = variantDrafts[item.key] ?? { enabled: false, stock: '', price: '', imageIndex: '' };
                       return (
                         <div key={item.key} className="rounded-2xl border border-black/10 bg-[var(--shakh-bg)] p-3">
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
