@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getActivePostById, getApparelVariants } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
+import { supabase } from '@/lib/supabase/client';
 import type { ApparelVariant, Post } from '../types';
 
 export function PostDetailPage() {
@@ -21,18 +22,29 @@ export function PostDetailPage() {
     setLoading(true);
     setError(null);
     if (!id) { setPost(null); setVariants([]); setLoading(false); return; }
-    void Promise.all([getActivePostById(id), getApparelVariants(id)])
-      .then(([nextPost, nextVariants]) => {
-        if (cancelled) return;
-        setPost(nextPost);
-        setVariants(nextVariants);
-        setSelectedColor('');
-        setSelectedSize('');
-        setActiveImageIndex(-1);
-      })
+
+    const refreshPost = async () => {
+      const [nextPost, nextVariants] = await Promise.all([getActivePostById(id), getApparelVariants(id)]);
+      if (cancelled) return;
+      setPost(nextPost);
+      setVariants(nextVariants);
+      setActiveImageIndex((current) => current < 0 ? -1 : current);
+    };
+
+    void refreshPost()
       .catch((nextError) => { if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'نەتوانرا وردەکاریی پۆست بخوێندرێتەوە.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+
+    const channel = supabase.channel('post-detail:' + id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: 'id=eq.' + id }, () => {
+        void refreshPost().catch((nextError) => { if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'نوێکردنەوەی پۆست سەرکەوتوو نەبوو.'); });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apparel_variants', filter: 'post_id=eq.' + id }, () => {
+        void refreshPost().catch((nextError) => { if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'نوێکردنەوەی کۆگا سەرکەوتوو نەبوو.'); });
+      })
+      .subscribe();
+
+    return () => { cancelled = true; void supabase.removeChannel(channel); };
   }, [id]);
 
   const images = useMemo(() => (Array.isArray(post?.images) ? post.images.filter((image) => Boolean(image?.storage_path)) : []), [post]);
