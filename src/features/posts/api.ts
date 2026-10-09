@@ -153,6 +153,19 @@ export async function listActivePosts(): Promise<Post[]> {
   return (data ?? []) as Post[];
 }
 
+export async function getMyPosts(authorId: string): Promise<Post[]> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('author_id', authorId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) throw error;
+  return (data ?? []) as Post[];
+}
+
 export async function getActivePostById(postId: string): Promise<Post | null> {
   const { data, error } = await supabase
     .from('posts')
