@@ -11,7 +11,7 @@ import type { ApparelSeason, ApparelType, PostTarget } from '../types';
 
 type SelectedImage = { file: File; previewUrl: string };
 type ApparelColor = { name: string; hex: string };
-type VariantDraft = { stock: string; price: string; imageIndex: string };
+type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
 
 const apparelTypes: Array<{ value: ApparelType; label: string; group: 'clothing' | 'shoes' | 'other' }> = [
   { value: 'mens_clothing', label: 'جل‌وبەرگی پیاوان', group: 'clothing' },
@@ -133,7 +133,10 @@ export function CreatePostPage() {
     [colors, sizes],
   );
   const totalStock = useMemo(
-    () => combinations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(variantDrafts[item.key]?.stock || '0'))), 0),
+    () => combinations.reduce((sum, item) => {
+      const draft = variantDrafts[item.key];
+      return sum + (draft?.enabled ? Math.max(0, Math.floor(Number(draft.stock || '0'))) : 0);
+    }, 0),
     [combinations, variantDrafts],
   );
 
@@ -151,7 +154,7 @@ export function CreatePostPage() {
 
   const updateVariant = (key: string, patch: Partial<VariantDraft>) => {
     setVariantDrafts((current) => {
-      const previous = current[key] ?? { stock: '0', price: '', imageIndex: '' };
+      const previous = current[key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
       return { ...current, [key]: { ...previous, ...patch } };
     });
   };
@@ -229,21 +232,23 @@ export function CreatePostPage() {
       if (!colors.length) return setError('لانیکەم یەک ڕەنگ هەڵبژێرە.');
       if (!sizes.length) return setError('لانیکەم یەک قەبارە هەڵبژێرە.');
       if (!combinations.length) return setError('ڕەنگ و قەبارەکان پێکەوە هەڵبژێرە.');
-      if (!totalStock) return setError('کۆگای لانیکەم یەک ڕەنگ و قەبارە دەبێت لە سفر زیاتر بێت.');
+      const activeCombinations = combinations.filter((item) => variantDrafts[item.key]?.enabled === true);
+      if (!activeCombinations.length) return setError('تەنها تێکەڵەی ئەو ڕەنگ و قەبارانە نیشانە بکە کە بەڕاستی بەردەستن.');
+      if (!totalStock) return setError('کۆگای لانیکەم یەک تێکەڵەی ڕەنگ و قەبارە دەبێت لە سفر زیاتر بێت.');
 
       const discount = Number(discountPercent);
       if (!Number.isInteger(discount) || discount < 0 || discount > 99) return setError('داشکاندن دەبێت لە ٠ تا ٩٩٪ بێت.');
 
-      for (const item of combinations) {
-        const draft = variantDrafts[item.key] ?? { stock: '0', price: '', imageIndex: '' };
+      for (const item of activeCombinations) {
+        const draft = variantDrafts[item.key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
         const stock = Number(draft.stock);
         const overridePrice = draft.price.trim() ? Number(draft.price.replace(/,/g, '')) : null;
         if (!Number.isInteger(stock) || stock < 0) return setError(`کۆگای ${item.color.name} / ${item.size} دروست نییە.`);
         if (overridePrice !== null && (!Number.isFinite(overridePrice) || overridePrice <= 0)) return setError(`نرخی تایبەتی ${item.color.name} / ${item.size} دروست نییە.`);
       }
 
-      const apparelVariants = combinations.map((item) => {
-        const draft = variantDrafts[item.key] ?? { stock: '0', price: '', imageIndex: '' };
+      const apparelVariants = activeCombinations.map((item) => {
+        const draft = variantDrafts[item.key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
         return {
           color_name: item.color.name,
           color_hex: item.color.hex,
@@ -435,24 +440,30 @@ export function CreatePostPage() {
                 ) : (
                   <div className="mt-3 space-y-3">
                     {combinations.map((item) => {
-                      const draft = variantDrafts[item.key] ?? { stock: '0', price: '', imageIndex: '' };
+                      const draft = variantDrafts[item.key] ?? { enabled: false, stock: '0', price: '', imageIndex: '' };
                       return (
                         <div key={item.key} className="rounded-2xl border border-black/10 bg-[var(--shakh-bg)] p-3">
-                          <div className="mb-3 flex items-center gap-2">
-                            <span className="size-5 rounded-full border border-black/15" style={{ backgroundColor: item.color.hex }} />
-                            <span className="font-black">{item.color.name}</span>
-                            <span className="text-black/25">/</span>
-                            <span className="font-black">{item.size}</span>
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="size-5 rounded-full border border-black/15" style={{ backgroundColor: item.color.hex }} />
+                              <span className="font-black">{item.color.name}</span>
+                              <span className="text-black/25">/</span>
+                              <span className="font-black">{item.size}</span>
+                            </div>
+                            <label className="flex cursor-pointer items-center gap-2 text-xs font-black">
+                              <input type="checkbox" checked={draft.enabled} onChange={(event) => updateVariant(item.key, { enabled: event.target.checked })} className="size-4 accent-[var(--shakh-orange)]" />
+                              تۆمارکردنی ئەم تێکەڵەیە
+                            </label>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-3">
                             <Field label="ژمارەی بەردەست">
-                              <input className={inputClass} type="number" min="0" step="1" inputMode="numeric" value={draft.stock} onChange={(event) => updateVariant(item.key, { stock: event.target.value })} required />
+                              <input className={inputClass} type="number" min="0" step="1" inputMode="numeric" value={draft.stock} onChange={(event) => updateVariant(item.key, { stock: event.target.value })} required={draft.enabled} disabled={!draft.enabled} />
                             </Field>
                             <Field label="نرخی تایبەت (د.ع)">
-                              <input className={inputClass} type="number" min="1" step="1" inputMode="decimal" value={draft.price} onChange={(event) => updateVariant(item.key, { price: event.target.value })} placeholder={price ? Number(price.replace(/,/g, '')).toLocaleString('en-US') : 'نرخی سەرەکی'} />
+                              <input className={inputClass} type="number" min="1" step="1" inputMode="decimal" value={draft.price} onChange={(event) => updateVariant(item.key, { price: event.target.value })} placeholder={price ? Number(price.replace(/,/g, '')).toLocaleString('en-US') : 'نرخی سەرەکی'} disabled={!draft.enabled} />
                             </Field>
                             <Field label="وێنەی ئەم ڕەنگە">
-                              <select className={inputClass} value={draft.imageIndex} onChange={(event) => updateVariant(item.key, { imageIndex: event.target.value })} disabled={!images.length}>
+                              <select className={inputClass} value={draft.imageIndex} onChange={(event) => updateVariant(item.key, { imageIndex: event.target.value })} disabled={!draft.enabled || !images.length}>
                                 <option value="">وێنەی گشتی بەکاربهێنە</option>
                                 {images.map((image, imageIndex) => <option key={image.previewUrl} value={imageIndex}>وێنەی {imageIndex + 1}</option>)}
                               </select>
