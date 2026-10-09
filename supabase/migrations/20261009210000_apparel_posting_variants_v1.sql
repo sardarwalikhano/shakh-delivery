@@ -137,6 +137,7 @@ set search_path = pg_catalog, public, private
 as $$
 declare
   v_variant_count integer;
+  v_total_stock integer;
 begin
   if tg_op = 'UPDATE' and old.status = 'active' and new.status = 'active' then
     return new;
@@ -155,12 +156,13 @@ begin
       raise exception 'Apparel posts require between 1 and 8 images';
     end if;
 
-    select count(*) into v_variant_count
+    select count(*), coalesce(sum(av.stock_quantity), 0)::integer
+      into v_variant_count, v_total_stock
     from public.apparel_variants av
     where av.post_id = new.id;
 
-    if v_variant_count < 1 then
-      raise exception 'Add at least one real color and size combination before publishing';
+    if v_variant_count < 1 or v_total_stock < 1 then
+      raise exception 'Add at least one in-stock color and size combination before publishing';
     end if;
   end if;
 
