@@ -12,7 +12,7 @@ export function PostDetailPage() {
   const [variants, setVariants] = useState<ApparelVariant[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [activeImageIndex, setActiveImageIndex] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +28,7 @@ export function PostDetailPage() {
         setVariants(nextVariants);
         setSelectedColor('');
         setSelectedSize('');
-        setActiveImageIndex(0);
+        setActiveImageIndex(-1);
       })
       .catch((nextError) => { if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'نەتوانرا وردەکاریی پۆست بخوێندرێتەوە.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -63,9 +63,14 @@ export function PostDetailPage() {
   const basePrice = selectedVariant?.price_iqd ?? post.price_iqd ?? 0;
   const discount = post.category === 'fashion' ? Math.max(0, Math.min(99, post.discount_percent ?? 0)) : 0;
   const finalPrice = Math.round(basePrice * (100 - discount) / 100);
-  const currentImage = selectedVariant?.image_path || images[activeImageIndex]?.storage_path || images[0]?.storage_path;
+  const currentImage = activeImageIndex >= 0 ? images[activeImageIndex]?.storage_path : (selectedVariant?.image_path || images[0]?.storage_path);
   const colorStock = sizesForColor.reduce((sum, variant) => sum + variant.stock_quantity, 0);
   const isApparel = post.category === 'fashion';
+  const apparelTypeLabels: Record<string, string> = {
+    mens_clothing: 'جل‌وبەرگی پیاوان', womens_clothing: 'جل‌وبەرگی ئافرەتان', kids_clothing: 'جل‌وبەرگی منداڵان',
+    mens_shoes: 'پێڵاوی پیاوان', womens_shoes: 'پێڵاوی ئافرەتان', kids_shoes: 'پێڵاوی منداڵان', bags: 'جانتـا',
+    sportswear: 'جل‌وبەرگی وەرزشی', home_textiles: 'جل‌وبەرگی ناوماڵ', beauty_fashion_accessories: 'کەلوپەلی جوانکاری و ئەکسسواراتی جل‌وبەرگ', other_accessories: 'ئەکسسوارات و پێداویستیی تر',
+  };
 
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-10">
@@ -76,7 +81,7 @@ export function PostDetailPage() {
             <div className="overflow-hidden rounded-[24px] bg-[var(--shakh-bg)]">
               {currentImage ? <img src={getPostImageUrl(currentImage)} alt={post.title} className="aspect-square w-full object-cover" fetchPriority="high" /> : <div className="grid aspect-square place-items-center gap-2 text-sm font-bold text-black/30"><Package size={34} />وێنە بەردەست نییە</div>}
             </div>
-            {images.length > 1 ? <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">{images.map((image, index) => <button key={image.storage_path} type="button" onClick={() => setActiveImageIndex(index)} className={`overflow-hidden rounded-xl border-2 ${activeImageIndex === index ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>)}</div> : null}
+            {images.length > 1 ? <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">{images.map((image, index) => <button key={image.storage_path} type="button" onClick={() => setActiveImageIndex(index)} className={`overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && selectedVariant?.image_path === image.storage_path)) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>)}</div> : null}
           </div>
 
           <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-8">
@@ -86,6 +91,7 @@ export function PostDetailPage() {
               {discount > 0 ? <span className="rounded-full bg-red-500/10 px-3 py-1.5 text-red-600">{discount}٪ داشکاندن</span> : null}
             </div>
             <h1 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">{post.title}</h1>
+            {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
             {isApparel && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
             <p className="mt-4 whitespace-pre-wrap leading-8 text-black/60">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
 
