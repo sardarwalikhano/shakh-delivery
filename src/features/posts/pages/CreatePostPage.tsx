@@ -1,4 +1,4 @@
-import { BadgeDollarSign, FileText, ImagePlus, MapPin, Send, Tag, Trash2, X } from 'lucide-react';
+import { BadgeDollarSign, FileText, ImagePlus, MapPin, Send, Tag, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
