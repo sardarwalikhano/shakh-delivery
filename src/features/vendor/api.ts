@@ -199,7 +199,7 @@ export async function createVendorVariant(userId: string, input: {
   const { data, error } = await supabase
     .from('product_variants')
     .insert({ ...input, is_active: true })
-    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active')
+    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path')
     .single();
   if (error) throw error;
   return data as VendorVariant;
@@ -213,7 +213,7 @@ export async function updateVendorVariant(userId: string, variantId: string, inp
     .from('product_variants')
     .update(input)
     .eq('id', variantId)
-    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active')
+    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path')
     .single();
   if (error) throw error;
   return data as VendorVariant;
