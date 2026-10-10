@@ -1,4 +1,5 @@
-import { AlertTriangle, Camera, CarFront, CircleDollarSign, ClipboardCheck, FileText, Gauge, MapPin, Settings2, ShieldCheck, Wrench } from 'lucide-react';
+import { AlertTriangle, Camera, CarFront, CircleDollarSign, ClipboardCheck, Gauge, Settings2, ShieldCheck, Wrench, type LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Field, inputClass } from '@/features/auth/components/AuthCard';
 import { ImageUploadField } from '@/components/media/ImageUploadField';
 import {
@@ -46,7 +47,7 @@ const issueOptions = [
 
 const photoKindOptions = Object.entries(VEHICLE_PHOTO_KIND_LABELS) as Array<[Exclude<VehiclePhotoKind, ''>, string]>;
 
-function SectionHeading({ icon: Icon, title, description }: { icon: typeof CarFront; title: string; description?: string }) {
+function SectionHeading({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description?: string }) {
   return (
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Icon size={19} /></span>
@@ -58,7 +59,7 @@ function SectionHeading({ icon: Icon, title, description }: { icon: typeof CarFr
   );
 }
 
-function CarField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function CarField({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block min-w-0 text-sm font-black">
       <span className="mb-2 block">{label}</span>
@@ -225,7 +226,7 @@ export function VehicleListingFields({
       <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={CarFront} title="١. زانیاریی گشتی" description="تەنها زانیاریی ڕاستەقینەی ئۆتۆمبێلەکە بنووسە؛ خانەی نەزانراو بەتاڵ بهێڵە یان «نازانم» هەڵبژێرە." />
         <CarField label="ناونیشانی پۆست / ناوی ئۆتۆمبێل *">
-          <input className={inputClass} value={title} onChange={(event) => onTitleChange(event.target.value)} maxLength={180} required placeholder="ناونیشان بنووسە" />
+          <input className={inputClass} value={title} onChange={(event) => onTitleChange(event.target.value)} maxLength={180} required disabled={disabled} placeholder="ناونیشان بنووسە" />
         </CarField>
         <div className="grid gap-4 sm:grid-cols-2">
           <CarField label="جۆری ئۆتۆمبێل *">
