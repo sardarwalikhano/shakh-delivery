@@ -201,10 +201,20 @@ export async function getManageablePosts(): Promise<Post[]> {
 export async function saveManagedApparelPost(input: {
   postId: string;
   patch: { title: string; content: string; price_iqd: number; location: string | null; discount_percent: number; item_condition: ApparelCondition; apparel_audience: ApparelAudience };
-  variants: Array<{ id: string; stock_quantity: number; price_iqd: number | null }>;
+  variants: Array<{ id?: string; color_name: string; color_hex: string; size_label: string; stock_quantity: number; price_iqd: number | null }>;
 }): Promise<void> {
-  const { error } = await supabase.rpc('update_apparel_post_and_variants', {
-    p_post_id: input.postId, p_post_patch: input.patch, p_variant_patch: input.variants,
+  const variantPatch = input.variants.map((variant) => ({
+    ...(variant.id ? { id: variant.id } : {}),
+    color_name: variant.color_name.trim(),
+    color_hex: variant.color_hex.toLowerCase(),
+    size_label: variant.size_label.trim(),
+    stock_quantity: Number(variant.stock_quantity),
+    price_iqd: variant.price_iqd == null ? null : Number(variant.price_iqd),
+  }));
+  const { error } = await supabase.rpc('save_apparel_post_and_variants', {
+    p_post_id: input.postId,
+    p_post_patch: input.patch,
+    p_variant_patch: variantPatch,
   });
   if (error) throw error;
 }
