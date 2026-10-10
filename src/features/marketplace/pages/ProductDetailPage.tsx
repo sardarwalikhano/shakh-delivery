@@ -81,8 +81,25 @@ export function ProductDetailPage() {
             <div className="mt-6 flex items-end gap-3"><div className="text-3xl font-black tabular-nums">{price.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{product.compare_at_price_iqd && product.compare_at_price_iqd > price ? <div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}</div>
 
             {product.variants.length ? (
-              <div className="mt-7"><div className="text-sm font-black">هەڵبژاردە</div><div className="mt-3 flex flex-wrap gap-2">{product.variants.map((item) => <button key={item.id} onClick={() => { setVariant(item); setQuantity(1); }} className={`rounded-2xl border px-4 py-3 text-sm font-black ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}>{item.name_ku}</button>)}</div></div>
+              <div className="mt-7"><div className="text-sm font-black">قەبارە / تام / پاکێت</div><div className="mt-3 flex flex-wrap gap-2">{product.variants.map((item) => <button key={item.id} onClick={() => { setVariant(item); setQuantity(1); }} className={`rounded-2xl border px-4 py-3 text-start text-sm font-black ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}><span className="block">{item.name_ku}</span><span className="mt-1 block text-[11px] font-semibold opacity-60">{item.quantity_value != null && item.quantity_unit ? `${item.quantity_value} ${({g:'گرام',kg:'کیلۆگرام',ml:'ملیلتر',l:'لیتر',pack:'پاکێت',piece:'دانە',carton:'کارتۆن'} as Record<string,string>)[item.quantity_unit]}` : ''}{item.flavor ? ` · ${item.flavor}` : ''} · {item.stock_quantity} دانە</span></button>)}</div></div>
             ) : null}
+
+            {(product.supermarket_type || product.quantity_value != null || product.barcode || product.manufacturing_date || product.expiry_date || product.ingredients || product.storage_instructions || product.allergen_warnings || product.flavor) ? <section className="mt-7 rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+              <h2 className="text-base font-black">وردەکاریی کاڵا</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {product.brand ? <Detail label="براند" value={product.brand}/> : null}
+                {product.country_of_origin ? <Detail label="وڵاتی بەرهەمهێنان" value={product.country_of_origin}/> : null}
+                {(variant?.quantity_value ?? product.quantity_value) != null && (variant?.quantity_unit ?? product.quantity_unit) ? <Detail label="قەبارە / یەکە" value={`${variant?.quantity_value ?? product.quantity_value} ${({g:'گرام',kg:'کیلۆگرام',ml:'ملیلتر',l:'لیتر',pack:'پاکێت',piece:'دانە',carton:'کارتۆن'} as Record<string,string>)[(variant?.quantity_unit ?? product.quantity_unit)!]}`}/> : null}
+                {(variant?.package_count ?? product.package_count) != null ? <Detail label="ژمارە لە پاکێت" value={String(variant?.package_count ?? product.package_count)}/> : null}
+                {(variant?.flavor ?? product.flavor) ? <Detail label="تام / جۆر" value={(variant?.flavor ?? product.flavor)!}/> : null}
+                {(variant?.barcode ?? product.barcode) ? <Detail label="بارکۆد" value={(variant?.barcode ?? product.barcode)!}/> : null}
+                {(variant?.manufacturing_date ?? product.manufacturing_date) ? <Detail label="بەرواری بەرهەمهێنان" value={(variant?.manufacturing_date ?? product.manufacturing_date)!}/> : null}
+                {(variant?.expiry_date ?? product.expiry_date) ? <Detail label="بەرواری بەسەرچوون" value={(variant?.expiry_date ?? product.expiry_date)!}/> : null}
+              </div>
+              {product.ingredients ? <div className="mt-4"><div className="text-xs font-black text-black/45">پێکهاتەکان</div><p className="mt-1 text-sm leading-7">{product.ingredients}</p></div> : null}
+              {product.allergen_warnings ? <div className="mt-3 rounded-2xl bg-amber-50 p-3"><div className="text-xs font-black text-amber-800">ئاگاداریی هەستیاری</div><p className="mt-1 text-sm leading-6 text-amber-900">{product.allergen_warnings}</p></div> : null}
+              {product.storage_instructions ? <div className="mt-3"><div className="text-xs font-black text-black/45">ڕێنمایی هەڵگرتن</div><p className="mt-1 text-sm leading-6">{product.storage_instructions}</p></div> : null}
+            </section> : null}
 
             <div className="mt-7 flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] p-3 text-sm font-bold"><span className={`grid size-9 place-items-center rounded-xl ${canBuy ? 'bg-emerald-500/10 text-emerald-700' : 'bg-red-500/10 text-red-700'}`}><Check size={17} /></span>{canBuy ? `${maxStock} دانە بەردەستە` : 'ئەم بەرهەمە بەردەست نییە'}</div>
             <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr]">
@@ -97,4 +114,8 @@ export function ProductDetailPage() {
       </div>
     </section>
   );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-2xl bg-[var(--shakh-bg)] p-3"><div className="text-[11px] font-bold text-black/40">{label}</div><div className="mt-1 break-words text-sm font-black">{value}</div></div>;
 }
