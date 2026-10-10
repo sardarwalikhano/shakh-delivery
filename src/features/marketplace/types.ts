@@ -1,3 +1,4 @@
+import type { ApparelProductType } from '@/lib/catalog/apparel';
 export type Category = {
   id: string;
   parent_id: string | null;
@@ -37,6 +38,12 @@ export type Product = {
   status: 'draft' | 'active' | 'archived';
   stock_quantity: number;
   is_featured: boolean;
+  apparel_product_type: ApparelProductType | null;
+  brand: string | null;
+  material: string | null;
+  country_of_origin: string | null;
+  season: 'summer' | 'winter' | 'all_seasons' | null;
+  seller_location: string | null;
   store: StoreSummary | null;
   category: Category | null;
   images: ProductImage[];
@@ -63,6 +70,10 @@ export type ProductVariant = {
   price_iqd: number | null;
   stock_quantity: number;
   is_active: boolean;
+  color_name_ku: string | null;
+  color_hex: string | null;
+  size_label: string | null;
+  color_image_storage_path: string | null;
 };
 
 export type Cart = {
