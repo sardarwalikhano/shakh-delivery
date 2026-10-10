@@ -5,7 +5,7 @@ import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
 import { ImageUploadField } from '@/components/media/ImageUploadField';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
-import { MAX_POST_IMAGES, validatePostImage } from '@/lib/storage/postMedia';
+import { MAX_POST_IMAGES } from '@/lib/storage/postMedia';
 import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelSeason, ApparelType, PostTarget } from '../types';
@@ -322,6 +322,7 @@ export function CreatePostPage() {
             files={images}
             onChange={updateImages}
             maxFiles={MAX_POST_IMAGES}
+            disabled={busy}
             required={category === 'fashion'}
             label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : 'وێنەکانی پۆست / بەرهەم'}
             hint="کامێرا یان گەلەری بەکاربهێنە؛ ڕیزی وێنەکان دەتوانیت بگۆڕیت، وێنەی یەکەم وێنەی سەرەکییە."
