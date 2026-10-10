@@ -1,6 +1,6 @@
 import { AlertTriangle, Camera, CarFront, CircleDollarSign, ClipboardCheck, Gauge, Settings2, ShieldCheck, Wrench, type LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
-import { Field, inputClass } from '@/features/auth/components/AuthCard';
+import { useEffect, useState, type ReactNode } from 'react';
+import { inputClass } from '@/features/auth/components/AuthCard';
 import { ImageUploadField } from '@/components/media/ImageUploadField';
 import {
   VEHICLE_BODY_LABELS,
@@ -99,6 +99,56 @@ function OptionalNumberField({
   );
 }
 
+function OptionalTextField({
+  label, value, onChange, maxLength = 100, placeholder, disabled,
+}: {
+  label: string; value: string; onChange: (next: string) => void; maxLength?: number; placeholder?: string; disabled?: boolean;
+}) {
+  const unknown = value === 'unknown';
+  return (
+    <div className="min-w-0">
+      <CarField label={label}>
+        <input
+          className={inputClass}
+          value={unknown ? '' : value}
+          maxLength={maxLength}
+          disabled={disabled || unknown}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={unknown ? 'نازانراوە' : placeholder}
+        />
+      </CarField>
+      <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-black/55">
+        <input type="checkbox" checked={unknown} disabled={disabled} onChange={(event) => onChange(event.target.checked ? 'unknown' : '')} className="size-4 accent-[var(--shakh-orange)]" />
+        زانیارییەکەم نازانم
+      </label>
+    </div>
+  );
+}
+
+function ReviewPhoto({ file, kind, index }: { file: File; kind: VehiclePhotoKind; index: number }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setSrc(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return (
+    <div className="min-w-0 overflow-hidden rounded-xl border border-black/[0.06] bg-white">
+      {src ? <img src={src} alt={file.name} className="aspect-[4/3] w-full object-cover" /> : <div className="aspect-[4/3] animate-pulse bg-[var(--shakh-bg)]" />}
+      <div className="p-3">
+        <div className="truncate text-xs font-black">وێنەی {index + 1}: {file.name}</div>
+        <div className="mt-1 text-[11px] font-bold text-black/45">{kind ? VEHICLE_PHOTO_KIND_LABELS[kind] : 'جۆر دیاری نەکراوە'}</div>
+        <div className="mt-1 text-[11px] text-black/35">{(file.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی یەکەم' : ''}</div>
+      </div>
+    </div>
+  );
+}
+
+function textDisplay(raw: string): string {
+  if (raw === 'unknown') return 'نازانم';
+  return raw.trim() || 'زانیاری تۆمار نەکراوە';
+}
+
 function selectDisplay(raw: string, labels?: Record<string, string>): string {
   if (raw === 'unknown') return 'نازانراوە';
   if (!raw) return 'زانیاری تۆمار نەکراوە';
@@ -142,7 +192,7 @@ export function VehicleListingFields({
             <SummaryRow label="جۆری ئۆتۆمبێل" value={selectDisplay(value.vehicle_type, VEHICLE_TYPE_LABELS)} />
             <SummaryRow label="براند / کۆمپانیا" value={value.make.trim()} />
             <SummaryRow label="مۆدێل" value={value.model.trim()} />
-            <SummaryRow label="تریم / مۆدێلی لاوەکی" value={value.trim.trim()} />
+            <SummaryRow label="تریم / مۆدێلی لاوەکی" value={textDisplay(value.trim)} />
             <SummaryRow label="ساڵی دروستکردن" value={value.manufacturing_year === 'unknown' ? 'نازانراوە' : value.manufacturing_year || 'زانیاری تۆمار نەکراوە'} />
             <SummaryRow label="وەسفی فرۆشیار" value={<span className="whitespace-pre-wrap">{content.trim() || 'وەسف دانەنراوە.'}</span>} />
           </div>
@@ -151,8 +201,8 @@ export function VehicleListingFields({
         <section className="space-y-3 rounded-2xl border border-black/[0.06] p-4">
           <SectionHeading icon={Settings2} title="٢. زانیاریی تەکنیکی" />
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <SummaryRow label="ڕەنگی دەرەوە" value={value.exterior_color.trim()} />
-            <SummaryRow label="ڕەنگی ناوەوە" value={value.interior_color.trim()} />
+            <SummaryRow label="ڕەنگی دەرەوە" value={textDisplay(value.exterior_color)} />
+            <SummaryRow label="ڕەنگی ناوەوە" value={textDisplay(value.interior_color)} />
             <SummaryRow label="کیلۆمەتر" value={value.mileage_km === 'unknown' ? 'نازانراوە' : value.mileage_km ? Number(value.mileage_km).toLocaleString('en-US') + ' km' : undefined} />
             <SummaryRow label="سووتەمەنی" value={selectDisplay(value.fuel_type, VEHICLE_FUEL_LABELS)} />
             <SummaryRow label="جۆری گێڕ" value={selectDisplay(value.transmission, VEHICLE_TRANSMISSION_LABELS)} />
@@ -193,7 +243,7 @@ export function VehicleListingFields({
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <SummaryRow label="نرخ" value={value.price_amount ? Number(value.price_amount).toLocaleString('en-US') + ' ' + (value.currency || '') : undefined} />
             <SummaryRow label="داشکاندن" value={value.discount_percent !== '' ? value.discount_percent + '٪' : undefined} />
-            <SummaryRow label="جێگۆڕکێی نرخ" value={selectDisplay(value.price_negotiable, { yes: 'بەڵێ', no: 'نەخێر' })} />
+            <SummaryRow label="جێگۆڕکێی نرخ" value={selectDisplay(value.price_negotiable, { yes: 'بەڵێ', no: 'نەخێر', unknown: 'نازانم' })} />
             <SummaryRow label="شوێن" value={value.location.trim()} />
             <SummaryRow label="ناوی پەیوەندی" value={value.contact_name.trim()} />
             <SummaryRow label="ژمارەی مۆبایل" value={value.contact_phone.trim()} />
@@ -203,13 +253,7 @@ export function VehicleListingFields({
         <section className="space-y-3 rounded-2xl border border-black/[0.06] p-4">
           <SectionHeading icon={Camera} title="٦. وێنەکان" description="وێنەکان بە ڕیز و جۆری دیاریکراویان پیشان دەدرێن." />
           {images.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {images.map((file, index) => {
-              const kind = imageKinds.get(file) ?? '';
-              return <div key={file.name + file.size + file.lastModified + index} className="rounded-xl bg-white p-3">
-                <div className="truncate text-xs font-black">وێنەی {index + 1}: {file.name}</div>
-                <div className="mt-1 text-[11px] text-black/45">{kind ? VEHICLE_PHOTO_KIND_LABELS[kind] : 'جۆر دیاری نەکراوە'}</div>
-              </div>;
-            })}
+            {images.map((file, index) => <ReviewPhoto key={file.name + file.size + file.lastModified + index} file={file} index={index} kind={imageKinds.get(file) ?? ''} />)}
           </div> : <p className="text-sm font-bold text-red-600">هیچ وێنەیەک دانەنراوە.</p>}
           <button type="button" onClick={onEdit} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
         </section>
@@ -241,9 +285,7 @@ export function VehicleListingFields({
           <CarField label="مۆدێل *">
             <input className={inputClass} value={value.model} onChange={(event) => update('model', event.target.value)} maxLength={100} required disabled={disabled} placeholder="مۆدێل" />
           </CarField>
-          <CarField label="تریم / مۆدێلی لاوەکی">
-            <input className={inputClass} value={value.trim} onChange={(event) => update('trim', event.target.value)} maxLength={100} disabled={disabled} placeholder="ئارەزوومەندانە" />
-          </CarField>
+          <OptionalTextField label="تریم / مۆدێلی لاوەکی" value={value.trim} onChange={(next) => update('trim', next)} maxLength={100} disabled={disabled} placeholder="تریم یان مۆدێلی لاوەکی" />
           <CarField label="ساڵی دروستکردن">
             <select className={inputClass} value={value.manufacturing_year} onChange={(event) => update('manufacturing_year', event.target.value)} disabled={disabled}>
               <option value="">هەڵبژاردن / زانیاری نییە</option>
@@ -260,8 +302,8 @@ export function VehicleListingFields({
       <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={Gauge} title="٢. زانیاریی تەکنیکی" description="ئەگەر زانیارییەک نازانیت، «نازانم» هەڵبژێرە یان زانیارییە هەڵنەزانراوەکان بەتاڵ بهێڵە." />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <CarField label="ڕەنگی دەرەوە"><input className={inputClass} value={value.exterior_color} onChange={(event) => update('exterior_color', event.target.value)} maxLength={60} disabled={disabled} placeholder="ڕەنگی ڕاستەقینە" /></CarField>
-          <CarField label="ڕەنگی ناوەوە"><input className={inputClass} value={value.interior_color} onChange={(event) => update('interior_color', event.target.value)} maxLength={60} disabled={disabled} placeholder="ڕەنگی ڕاستەقینە" /></CarField>
+          <OptionalTextField label="ڕەنگی دەرەوە" value={value.exterior_color} onChange={(next) => update('exterior_color', next)} maxLength={60} disabled={disabled} placeholder="ڕەنگی دەرەوە" />
+          <OptionalTextField label="ڕەنگی ناوەوە" value={value.interior_color} onChange={(next) => update('interior_color', next)} maxLength={60} disabled={disabled} placeholder="ڕەنگی ناوەوە" />
           <OptionalNumberField label="کیلۆمەتر (km)" value={value.mileage_km} onChange={(next) => update('mileage_km', next)} min={0} max={2_000_000} disabled={disabled} />
           <CarField label="جۆری سووتەمەنی"><select className={inputClass} value={value.fuel_type} onChange={(event) => update('fuel_type', event.target.value)} disabled={disabled}><option value="">هەڵنەبژێردراو</option>{Object.entries(VEHICLE_FUEL_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></CarField>
           <CarField label="جۆری گێڕ"><select className={inputClass} value={value.transmission} onChange={(event) => update('transmission', event.target.value)} disabled={disabled}><option value="">هەڵنەبژێردراو</option>{Object.entries(VEHICLE_TRANSMISSION_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></CarField>
@@ -314,7 +356,7 @@ export function VehicleListingFields({
           <CarField label="نرخ *"><input className={inputClass} type="number" min="0.01" step="any" inputMode="decimal" value={value.price_amount} onChange={(event) => update('price_amount', event.target.value)} required disabled={disabled} placeholder="نرخ بنووسە" /></CarField>
           <CarField label="دراو *"><select className={inputClass} value={value.currency} onChange={(event) => update('currency', event.target.value)} required disabled={disabled}><option value="">دراو هەڵبژێرە</option><option value="IQD">دیناری عێراقی (IQD)</option><option value="USD">دۆلاری ئەمریکی (USD)</option></select></CarField>
           <CarField label="داشکاندن (%) *"><select className={inputClass} value={value.discount_percent} onChange={(event) => update('discount_percent', event.target.value)} required disabled={disabled}><option value="">داشکاندن هەڵبژێرە</option>{Array.from({ length: 100 }, (_, index) => String(index)).map((percent) => <option key={percent} value={percent}>{percent}٪</option>)}</select></CarField>
-          <CarField label="ئایا نرخ جێگۆڕکێی تێدایە؟ *"><select className={inputClass} value={value.price_negotiable} onChange={(event) => update('price_negotiable', event.target.value)} required disabled={disabled}><option value="">وەڵام هەڵبژێرە</option><option value="yes">بەڵێ</option><option value="no">نەخێر</option></select></CarField>
+          <CarField label="ئایا نرخ جێگۆڕکێی تێدایە؟ *"><select className={inputClass} value={value.price_negotiable} onChange={(event) => update('price_negotiable', event.target.value)} required disabled={disabled}><option value="">وەڵام هەڵبژێرە</option><option value="yes">بەڵێ</option><option value="no">نەخێر</option><option value="unknown">نازانم</option></select></CarField>
           <CarField label="شوێنی ئۆتۆمبێل *"><input className={inputClass} value={value.location} onChange={(event) => update('location', event.target.value)} required maxLength={180} disabled={disabled} placeholder="شار و ناوچە" /></CarField>
           <CarField label="ئاستی ئامادەبوون بۆ فرۆشتن *"><select className={inputClass} value={value.sale_readiness} onChange={(event) => update('sale_readiness', event.target.value)} required disabled={disabled}><option value="">هەڵبژێرە</option><option value="ready">ئامادەی فرۆشتنە</option><option value="not_ready">هێشتا ئامادە نییە</option><option value="unknown">نازانم</option></select></CarField>
           <CarField label="بەڵگەنامە یاساییەکان *"><select className={inputClass} value={value.legal_documents_status} onChange={(event) => update('legal_documents_status', event.target.value)} required disabled={disabled}><option value="">هەڵبژێرە</option><option value="available">بەردەستن</option><option value="missing">نییە / ناتەواون</option><option value="unknown">نازانم</option></select></CarField>
