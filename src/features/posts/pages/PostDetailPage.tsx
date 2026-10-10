@@ -6,6 +6,7 @@ import { postCategoryLabels, postRoleLabels } from '../labels';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
 import { supabase } from '@/lib/supabase/client';
 import type { ApparelVariant, Post } from '../types';
+import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 
 export function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,12 +52,13 @@ export function PostDetailPage() {
   const colors = useMemo(() => {
     const byHex = new Map<string, { name: string; hex: string }>();
     variants.forEach((variant) => {
+      if (variant.stock_quantity <= 0) return;
       if (!byHex.has(variant.color_hex.toLowerCase())) byHex.set(variant.color_hex.toLowerCase(), { name: variant.color_name, hex: variant.color_hex });
     });
     return [...byHex.values()];
   }, [variants]);
   const chosenColor = selectedColor || colors[0]?.hex || '';
-  const sizesForColor = useMemo(() => variants.filter((variant) => variant.color_hex.toLowerCase() === chosenColor.toLowerCase()), [chosenColor, variants]);
+  const sizesForColor = useMemo(() => variants.filter((variant) => variant.color_hex.toLowerCase() === chosenColor.toLowerCase() && variant.stock_quantity > 0), [chosenColor, variants]);
   const selectedVariant = useMemo(() => sizesForColor.find((variant) => variant.size_label === selectedSize) ?? sizesForColor[0] ?? null, [selectedSize, sizesForColor]);
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export function PostDetailPage() {
   useEffect(() => {
     if (!sizesForColor.length) { if (selectedSize) setSelectedSize(''); return; }
     if (!sizesForColor.some((variant) => variant.size_label === selectedSize)) {
-      setSelectedSize((sizesForColor.find((variant) => variant.stock_quantity > 0) ?? sizesForColor[0]).size_label);
+      setSelectedSize(sizesForColor[0].size_label);
     }
   }, [selectedSize, sizesForColor]);
 
@@ -105,6 +107,7 @@ export function PostDetailPage() {
             <h1 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">{post.title}</h1>
             {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
             {isApparel && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
+            {isApparel && post.item_condition ? <div className="mt-2 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">دۆخ: {post.item_condition === 'new' ? 'نوێ' : 'بەکارهاتوو'}</span>{post.apparel_audience ? <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">{({men:'پیاوان',women:'ئافرەتان',kids:'منداڵان',all:'هەمووان'} as Record<string,string>)[post.apparel_audience] ?? 'هەمووان'}</span> : null}</div>
             <p className="mt-4 whitespace-pre-wrap leading-8 text-black/60">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
@@ -137,6 +140,9 @@ export function PostDetailPage() {
                 {post.season ? <div>وەرز: <span className="font-bold text-black/70">{post.season === 'summer' ? 'هاوین' : post.season === 'winter' ? 'زستان' : 'هەموو وەرزەکان'}</span></div> : null}
               </div>
             </div> : null}
+
+            {isApparel && selectedVariant ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
+            {isApparel && !selectedVariant ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
 
             <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
               <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>

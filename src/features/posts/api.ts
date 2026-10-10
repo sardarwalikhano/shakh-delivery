@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import { deletePostImages, MAX_POST_IMAGES, uploadPostImage, validatePostImage } from '@/lib/storage/postMedia';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
-import type { ApparelSeason, ApparelType, ApparelVariant, Post, PostCategory, PostTarget } from './types';
+import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, ApparelVariant, Post, PostCategory, PostTarget } from './types';
 
 export type ApparelVariantInput = {
   color_name: string;
@@ -36,6 +36,8 @@ export async function createPost(input: {
   content: string;
   priceIqd?: number | null;
   location?: string | null;
+  itemCondition?: ApparelCondition;
+  apparelAudience?: ApparelAudience;
   images?: File[];
   apparel?: ApparelPostInput;
 }): Promise<Post> {
@@ -102,6 +104,8 @@ export async function createPost(input: {
         country_of_origin: input.apparel.country_of_origin?.trim() || null,
         season: input.apparel.season ?? null,
         discount_percent: input.apparel.discount_percent,
+        item_condition: input.itemCondition ?? 'new',
+        apparel_audience: input.apparelAudience ?? 'all',
       } : {}),
     })
     .select('*')
@@ -186,6 +190,23 @@ export async function getActivePostById(postId: string): Promise<Post | null> {
 
   if (error) throw error;
   return data as Post | null;
+}
+
+export async function getManageablePosts(): Promise<Post[]> {
+  const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(100);
+  if (error) throw error;
+  return (data ?? []) as Post[];
+}
+
+export async function saveManagedApparelPost(input: {
+  postId: string;
+  patch: { title: string; content: string; price_iqd: number; location: string | null; discount_percent: number; item_condition: ApparelCondition; apparel_audience: ApparelAudience };
+  variants: Array<{ id: string; stock_quantity: number; price_iqd: number | null }>;
+}): Promise<void> {
+  const { error } = await supabase.rpc('update_apparel_post_and_variants', {
+    p_post_id: input.postId, p_post_patch: input.patch, p_variant_patch: input.variants,
+  });
+  if (error) throw error;
 }
 
 export async function getApparelVariants(postId: string): Promise<ApparelVariant[]> {

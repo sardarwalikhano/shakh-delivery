@@ -18,6 +18,8 @@ const navItems: NavItem[] = [
   { label: 'سەرەکی', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
   { label: 'بەرهەمەکان', href: '/dashboard/products', icon: Boxes, permission: 'products.view' },
   { label: 'پۆستەکان', href: '/posts', icon: Package, permission: 'posts.view' },
+  { label: 'بەڕێوەبردنی پۆستەکان', href: '/dashboard/posts/manage', icon: Package, permission: 'posts.update_own' },
+  { label: 'داواکاریی جل‌وبەرگ', href: '/post-orders', icon: ShoppingCart, permission: 'posts.view' },
   { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view' },
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view' },

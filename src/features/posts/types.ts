@@ -18,6 +18,8 @@ export type ApparelType =
   | 'other_accessories';
 
 export type ApparelSeason = 'summer' | 'winter' | 'all_seasons';
+export type ApparelAudience = 'men' | 'women' | 'kids' | 'all';
+export type ApparelCondition = 'new' | 'used';
 export type PostStatus = 'active' | 'archived' | 'deleted';
 
 export type PostTarget = {
@@ -60,6 +62,8 @@ export type Post = {
   country_of_origin: string | null;
   season: ApparelSeason | null;
   discount_percent: number;
+  item_condition: ApparelCondition | null;
+  apparel_audience: ApparelAudience | null;
   created_at: string;
   updated_at: string;
 };

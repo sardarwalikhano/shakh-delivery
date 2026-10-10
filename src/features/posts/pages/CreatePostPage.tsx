@@ -8,7 +8,7 @@ import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import { MAX_POST_IMAGES } from '@/lib/storage/postMedia';
 import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
-import type { ApparelSeason, ApparelType, PostTarget } from '../types';
+import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, PostTarget } from '../types';
 
 type ApparelColor = { name: string; hex: string };
 type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
@@ -69,6 +69,9 @@ export function CreatePostPage() {
   const [material, setMaterial] = useState('');
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
   const [season, setSeason] = useState<ApparelSeason>('all_seasons');
+  const [itemCondition, setItemCondition] = useState<ApparelCondition>('new');
+  const [apparelAudience, setApparelAudience] = useState<ApparelAudience>('men');
+  const [reviewing, setReviewing] = useState(false);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [images, setImages] = useState<File[]>([]);
   const [colors, setColors] = useState<ApparelColor[]>([]);
@@ -249,6 +252,7 @@ export function CreatePostPage() {
         };
       });
 
+      if (!reviewing) { setReviewing(true); return; }
       setBusy(true);
       try {
         const created = await createPost({
@@ -258,6 +262,8 @@ export function CreatePostPage() {
           content,
           priceIqd: numericPrice,
           location,
+          itemCondition,
+          apparelAudience,
           apparel: {
             apparel_type: apparelType,
             brand,
@@ -279,6 +285,7 @@ export function CreatePostPage() {
       return;
     }
 
+    if (!reviewing) { setReviewing(true); return; }
     setBusy(true);
     try {
       const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, location, images });
@@ -344,6 +351,19 @@ export function CreatePostPage() {
                   {apparelTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </Field>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="بۆ کێیە؟">
+                  <select className={inputClass} value={apparelAudience} onChange={(event) => setApparelAudience(event.target.value as ApparelAudience)}>
+                    <option value="men">پیاوان</option><option value="women">ئافرەتان</option><option value="kids">منداڵان</option><option value="all">هەمووان</option>
+                  </select>
+                </Field>
+                <Field label="دۆخی کاڵا">
+                  <select className={inputClass} value={itemCondition} onChange={(event) => setItemCondition(event.target.value as ApparelCondition)}>
+                    <option value="new">نوێ</option><option value="used">بەکارهاتوو</option>
+                  </select>
+                </Field>
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="براند / کۆمپانیا (ئارەزوومەندانە)">
@@ -498,8 +518,22 @@ export function CreatePostPage() {
             </Field>
           </div>
 
+          {reviewing ? (
+            <section className="space-y-3 rounded-2xl border border-[var(--shakh-blue)]/20 bg-[var(--shakh-blue)]/[0.04] p-4" aria-live="polite">
+              <h2 className="text-lg font-black">پێداچوونەوە پێش بڵاوکردنەوە</h2>
+              <div className="grid gap-2 text-sm sm:grid-cols-2">
+                <div className="rounded-xl bg-white p-3"><span className="text-black/45">ناوی کاڵا:</span> <strong>{title || '—'}</strong></div>
+                <div className="rounded-xl bg-white p-3"><span className="text-black/45">نرخی سەرەکی:</span> <strong>{price ? Number(price.replace(/,/g, '')).toLocaleString('en-US') + ' د.ع' : '—'}</strong></div>
+                {category === 'fashion' ? <div className="rounded-xl bg-white p-3"><span className="text-black/45">دۆخ / بۆ کێیە:</span> <strong>{itemCondition === 'new' ? 'نوێ' : 'بەکارهاتوو'} · {({men:'پیاوان',women:'ئافرەتان',kids:'منداڵان',all:'هەمووان'} as Record<ApparelAudience,string>)[apparelAudience]}</strong></div> : null}
+                <div className="rounded-xl bg-white p-3"><span className="text-black/45">وێنە / ڕەنگ / قەبارە:</span> <strong>{images.length} / {colors.length} / {sizes.length}</strong></div>
+                {category === 'fashion' ? <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">تێکەڵەی چالاک / کۆی دانە:</span> <strong>{combinations.filter((item) => variantDrafts[item.key]?.enabled).length} / {totalStock.toLocaleString('en-US')}</strong></div> : null}
+              </div>
+              <p className="text-xs leading-6 text-black/50">بڵاوکردنەوە داتاکە لە Supabase پاشەکەوت دەکات؛ کڕین و کۆگا لە database پشتڕاست دەکرێنەوە.</p>
+              <button type="button" onClick={() => setReviewing(false)} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
+            </section>
+          ) : null}
           <button className={primaryButtonClass} type="submit" disabled={busy}>
-            {busy ? 'پاشەکەوت و بڵاوکردنەوە...' : <><Send size={17} /> <span className="ms-2">بڵاوکردنەوەی پۆست</span></>}
+            {busy ? 'پاشەکەوت و بڵاوکردنەوە...' : <><Send size={17} /> <span className="ms-2">{reviewing ? 'پشتڕاستکردنەوە و بڵاوکردنەوە' : 'پێداچوونەوە پێش بڵاوکردنەوە'}</span></>}
           </button>
         </form>
       </AuthCard>
