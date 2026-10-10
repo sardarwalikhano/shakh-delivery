@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
 import { ImageUploadField } from '@/components/media/ImageUploadField';
+import { VehicleListingFields } from '../components/VehicleListingFields';
+import { EMPTY_VEHICLE_LISTING, validateVehicleListing, type VehicleListingDraft, type VehiclePhotoKind } from '../vehicleTypes';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import { MAX_POST_IMAGES } from '@/lib/storage/postMedia';
 import { createPost, getAllowedPostTargets } from '../api';
@@ -74,6 +76,8 @@ export function CreatePostPage() {
   const [reviewing, setReviewing] = useState(false);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [images, setImages] = useState<File[]>([]);
+  const [vehicleListing, setVehicleListing] = useState<VehicleListingDraft>(() => ({ ...EMPTY_VEHICLE_LISTING, features: [] }));
+  const [vehiclePhotoKinds, setVehiclePhotoKinds] = useState<Map<File, VehiclePhotoKind>>(() => new Map());
   const [colors, setColors] = useState<ApparelColor[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [customColorName, setCustomColorName] = useState('');
@@ -206,6 +210,19 @@ export function CreatePostPage() {
     setImages(nextImages);
   };
 
+  const updateVehicleImages = (nextImages: File[]) => {
+    setVehiclePhotoKinds((current) => new Map(nextImages.map((file) => [file, current.get(file) ?? ''])));
+    updateImages(nextImages);
+  };
+
+  const updateVehiclePhotoKind = (file: File, kind: VehiclePhotoKind) => {
+    setVehiclePhotoKinds((current) => {
+      const next = new Map(current);
+      next.set(file, kind);
+      return next;
+    });
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy || !role || !category) return;
@@ -213,6 +230,36 @@ export function CreatePostPage() {
 
     if (title.trim().length < 3) return setError('ناونیشانی پۆست دەبێت لانیکەم 3 پیت بێت.');
     if (content.trim().length > 12000) return setError('ناوەڕۆک زۆر درێژە.');
+
+    if (category === 'cars') {
+      const vehicleError = validateVehicleListing(vehicleListing);
+      if (vehicleError) return setError(vehicleError);
+      if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ پۆستی ئۆتۆمبێل لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+      if (!reviewing) { setReviewing(true); return; }
+      setBusy(true);
+      try {
+        const created = await createPost({
+          publisherRole: role,
+          category,
+          title,
+          content,
+          priceIqd: Number(vehicleListing.price_amount),
+          location: vehicleListing.location,
+          images,
+          vehicle: {
+            details: vehicleListing,
+            imageKinds: images.map((file) => vehiclePhotoKinds.get(file) ?? ''),
+          },
+        });
+        setSuccess(true);
+        navigate(`/posts/${created.id}`, { replace: true });
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : 'پۆستکردنی ئۆتۆمبێل سەرکەوتوو نەبوو.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
 
     const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
     if (numericPrice !== null && (!Number.isFinite(numericPrice) || numericPrice < 0)) return setError('نرخی پۆست دروست نییە.');
@@ -325,6 +372,24 @@ export function CreatePostPage() {
             </div>
           </Field>
 
+          {category === 'cars' ? (
+            <VehicleListingFields
+              value={vehicleListing}
+              onChange={setVehicleListing}
+              title={title}
+              onTitleChange={setTitle}
+              content={content}
+              onContentChange={setContent}
+              images={images}
+              onImagesChange={updateVehicleImages}
+              imageKinds={vehiclePhotoKinds}
+              onPhotoKindChange={updateVehiclePhotoKind}
+              reviewing={reviewing}
+              onEdit={() => setReviewing(false)}
+              disabled={busy}
+            />
+          ) : (
+            <>
           <ImageUploadField
             files={images}
             onChange={updateImages}
@@ -517,8 +582,10 @@ export function CreatePostPage() {
               </div>
             </Field>
           </div>
+            </>
+          )}
 
-          {reviewing ? (
+          {reviewing && category !== 'cars' ? (
             <section className="space-y-3 rounded-2xl border border-[var(--shakh-blue)]/20 bg-[var(--shakh-blue)]/[0.04] p-4" aria-live="polite">
               <h2 className="text-lg font-black">پێداچوونەوە پێش بڵاوکردنەوە</h2>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
