@@ -1,4 +1,4 @@
-import { Boxes, Check, ChevronDown, Edit3, PackagePlus, Plus, Ruler, Save, Tag, Trash2, X } from 'lucide-react';
+import { Boxes, Check, ChevronDown, Edit3, ImagePlus, PackagePlus, Plus, Ruler, Save, Tag, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
@@ -311,7 +311,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const [colors, setColors] = useState<ApparelColor[]>(() => {
     const rows = editingVariants.filter((item) => item.color_name_ku && item.size_label);
     const seen = new Set<string>();
-    return rows.flatMap((item, index) => {
+    return rows.flatMap((item) => {
       const key = item.color_name_ku!.toLocaleLowerCase();
       if (seen.has(key)) return [];
       seen.add(key);
@@ -346,9 +346,10 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     return inner + (cell?.enabled ? Math.max(0, Math.floor(Number(cell.stock) || 0)) : 0);
   }, 0), 0);
 
-  const updateCell = (key: string, patch: Partial<MatrixCell>) => setMatrix((current) => ({
-    ...current, [key]: { enabled: false, stock: '0', price: '', ...current[key], ...patch },
-  }));
+  const updateCell = (key: string, patch: Partial<MatrixCell>) => setMatrix((current) => {
+    const previous = current[key] ?? { enabled: false, stock: '0', price: '' };
+    return { ...current, [key]: { ...previous, ...patch } };
+  });
 
   const togglePresetColor = (preset: typeof apparelColorPalette[number]) => {
     setColors((current) => current.some((item) => item.key === preset.key)
