@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
-import { deletePostImages, uploadPostImage } from '@/lib/storage/postMedia';
+import { deletePostImages, MAX_POST_IMAGES, uploadPostImage, validatePostImage } from '@/lib/storage/postMedia';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import type { ApparelSeason, ApparelType, ApparelVariant, Post, PostCategory, PostTarget } from './types';
 
@@ -36,6 +36,7 @@ export async function createPost(input: {
   content: string;
   priceIqd?: number | null;
   location?: string | null;
+  images?: File[];
   apparel?: ApparelPostInput;
 }): Promise<Post> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -44,14 +45,21 @@ export async function createPost(input: {
   const user = userData.user;
   const title = input.title.trim();
   const isApparelPost = input.category === 'fashion';
+  const imageFiles = input.apparel?.images ?? input.images ?? [];
+  const needsStagedPublish = Boolean(input.apparel) || imageFiles.length > 0;
 
   if (isApparelPost && !input.apparel) {
     throw new Error('بۆ پۆستی جل‌وبەرگ، زانیاریی جۆر، وێنە، ڕەنگ، قەبارە و کۆگا پێویستە.');
   }
+  if (imageFiles.length > MAX_POST_IMAGES) {
+    throw new Error(`زۆرترین ژمارەی وێنە ${MAX_POST_IMAGES} دانەیە.`);
+  }
+  imageFiles.forEach(validatePostImage);
+
   if (input.apparel) {
     const price = input.priceIqd ?? 0;
     if (!Number.isFinite(price) || price <= 0) throw new Error('نرخی جل‌وبەرگ دەبێت لە سفر زیاتر بێت.');
-    if (input.apparel.images.length < 1 || input.apparel.images.length > 8) {
+    if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) {
       throw new Error('بۆ جل‌وبەرگ ١ تا ٨ وێنە هەڵبژێرە.');
     }
     if (!input.apparel.variants.length) throw new Error('لانیکەم یەک ڕەنگ و قەبارە زیاد بکە.');
@@ -63,13 +71,14 @@ export async function createPost(input: {
       const key = `${variant.color_hex.toLowerCase()}::${variant.size_label.trim().toLocaleLowerCase()}`;
       if (seen.has(key)) throw new Error('هەمان ڕەنگ و قەبارە دووبارە داخڵ کراوە.');
       seen.add(key);
+      if (!/^#[0-9A-Fa-f]{6}$/.test(variant.color_hex)) throw new Error('کۆدی HEX ـی ڕەنگ دروست نییە.');
       if (!Number.isInteger(variant.stock_quantity) || variant.stock_quantity < 0) {
         throw new Error('ژمارەی کۆگا دەبێت ژمارەیەکی تەواوی سفر یان زیاتر بێت.');
       }
       if (variant.price_iqd != null && (!Number.isFinite(variant.price_iqd) || variant.price_iqd <= 0)) {
         throw new Error('نرخی تایبەتی قەبارە/ڕەنگ دەبێت لە سفر زیاتر بێت.');
       }
-      if (variant.image_index != null && (variant.image_index < 0 || variant.image_index >= input.apparel.images.length)) {
+      if (variant.image_index != null && (!Number.isInteger(variant.image_index) || variant.image_index < 0 || variant.image_index >= imageFiles.length)) {
         throw new Error('وێنەی تایبەتی ڕەنگ دروست نییە.');
       }
     }
@@ -85,7 +94,7 @@ export async function createPost(input: {
       content: input.content.trim(),
       price_iqd: input.priceIqd ?? null,
       location: input.location?.trim() || null,
-      status: input.apparel ? 'archived' : 'active',
+      status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {
         apparel_type: input.apparel.apparel_type,
         brand: input.apparel.brand?.trim() || null,
@@ -100,27 +109,28 @@ export async function createPost(input: {
 
   if (createError) throw createError;
   const postId = created.id as string;
+  if (!needsStagedPublish) return created as Post;
+
   const uploadedPaths: string[] = [];
-
-  if (!input.apparel) return created as Post;
-
   try {
-    for (const file of input.apparel.images) {
+    for (const file of imageFiles) {
       uploadedPaths.push(await uploadPostImage(user.id, postId, file));
     }
 
-    const rows = input.apparel.variants.map((variant) => ({
-      post_id: postId,
-      color_name: variant.color_name.trim(),
-      color_hex: variant.color_hex.toLowerCase(),
-      size_label: variant.size_label.trim(),
-      stock_quantity: variant.stock_quantity,
-      price_iqd: variant.price_iqd ?? null,
-      image_path: variant.image_index == null ? null : uploadedPaths[variant.image_index] ?? null,
-    }));
+    if (input.apparel) {
+      const rows = input.apparel.variants.map((variant) => ({
+        post_id: postId,
+        color_name: variant.color_name.trim(),
+        color_hex: variant.color_hex.toLowerCase(),
+        size_label: variant.size_label.trim(),
+        stock_quantity: variant.stock_quantity,
+        price_iqd: variant.price_iqd ?? null,
+        image_path: variant.image_index == null ? null : uploadedPaths[variant.image_index] ?? null,
+      }));
 
-    const { error: variantsError } = await supabase.from('apparel_variants').insert(rows);
-    if (variantsError) throw variantsError;
+      const { error: variantsError } = await supabase.from('apparel_variants').insert(rows);
+      if (variantsError) throw variantsError;
+    }
 
     const postImages = uploadedPaths.map((storage_path) => ({ storage_path, alt_ku: title }));
     const { data: published, error: publishError } = await supabase
