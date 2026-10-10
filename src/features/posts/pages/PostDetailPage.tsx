@@ -91,12 +91,14 @@ export function PostDetailPage() {
     ? Math.max(0, Math.min(99, post.discount_percent ?? 0))
     : vehicleListing ? Math.max(0, Math.min(99, vehicleListing.discount_percent ?? 0)) : 0;
   const finalPrice = Math.round(basePrice * (100 - discount) / 100);
-  const currencyLabel = vehicleListing?.currency === 'USD' ? '
+  const currencyLabel = vehicleListing?.currency === 'USD' ? '$' : 'د.ع';
+  const currentImage = activeImageIndex >= 0 ? images[activeImageIndex]?.storage_path : (selectedVariant?.image_path || images[0]?.storage_path);
+  const colorStock = sizesForColor.reduce((sum, variant) => sum + variant.stock_quantity, 0);
+  const apparelTypeLabels: Record<string, string> = {
     mens_clothing: 'جل‌وبەرگی پیاوان', womens_clothing: 'جل‌وبەرگی ئافرەتان', kids_clothing: 'جل‌وبەرگی منداڵان',
     mens_shoes: 'پێڵاوی پیاوان', womens_shoes: 'پێڵاوی ئافرەتان', kids_shoes: 'پێڵاوی منداڵان', bags: 'جانتـا',
     sportswear: 'جل‌وبەرگی وەرزشی', home_textiles: 'جل‌وبەرگی ناوماڵ', beauty_fashion_accessories: 'کەلوپەلی جوانکاری و ئەکسسواراتی جل‌وبەرگ', other_accessories: 'ئەکسسوارات و پێداویستیی تر',
   };
-
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
