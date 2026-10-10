@@ -47,7 +47,7 @@ export const apparelSeasonOptions: Array<{ value: ApparelSeason; label: string }
   { value: 'all_seasons', label: 'هەموو وەرزەکان' },
 ];
 
-export const apparelColorPalette: Omit<ApparelColor, 'imageIndex'>[] = [
+export const apparelColorPalette: Omit<ApparelColor, 'imageIndex' | 'imageRef'>[] = [
   { key: 'black', name_ku: 'ڕەش', name_ar: 'أسود', name_en: 'Black', hex: '#171717' },
   { key: 'white', name_ku: 'سپی', name_ar: 'أبيض', name_en: 'White', hex: '#FFFFFF' },
   { key: 'red', name_ku: 'سوور', name_ar: 'أحمر', name_en: 'Red', hex: '#E53935' },
