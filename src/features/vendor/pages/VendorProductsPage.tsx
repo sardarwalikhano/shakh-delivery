@@ -121,6 +121,10 @@ export function VendorProductsPage() {
   const save = async (data: ProductFormPayload) => {
     if (!user) return;
     setMessage(null);
+    let savedProduct: VendorProduct | null = null;
+    let createdDuringAttempt = false;
+    const uploadedImages: VendorProductImage[] = [];
+    const uploadedStoragePaths: string[] = [];
     try {
       const base = Number(data.base_price_iqd);
       const compare = data.compare_at_price_iqd.trim() ? Number(data.compare_at_price_iqd) : null;
@@ -164,19 +168,18 @@ export function VendorProductsPage() {
         seller_location: apparel ? data.seller_location.trim() || null : null,
       };
 
-      let savedProduct: VendorProduct;
       if (editing) {
         savedProduct = await updateVendorProduct(user.id, editing.id, productInput);
       } else {
         if (!selectedStore) throw new Error('سەرەتا فرۆشگایەک هەڵبژێرە.');
         savedProduct = await createVendorProduct(user.id, { ...productInput, store_id: selectedStore.id });
-        // Keep the saved draft as the edit target if a later image/variant request fails;
-        // retrying will update this draft rather than creating a duplicate product.
+        createdDuringAttempt = true;
       }
+      if (!savedProduct) throw new Error('بەرهەم پاشەکەوت نەکرا.');
 
-      const uploadedImages: VendorProductImage[] = [];
       for (const file of data.imageFiles) {
         const path = await uploadProductImage(user.id, savedProduct.id, file);
+        uploadedStoragePaths.push(path);
         uploadedImages.push(await addVendorProductImage(user.id, savedProduct.id, path));
       }
       const allImages = [...editingImages, ...uploadedImages];
@@ -236,7 +239,28 @@ export function VendorProductsPage() {
       resetForm();
       await refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'پاشەکەوتکردنی بەرهەم سەرکەوتوو نەبوو.');
+      // Remove only media uploaded by this save attempt. Existing catalog images remain untouched.
+      for (const image of uploadedImages) {
+        try { await deleteVendorProductImage(user.id, image.id); } catch { /* preserve the original failure */ }
+      }
+      for (const path of uploadedStoragePaths) {
+        try { await deleteProductImage(path); } catch { /* storage cleanup can be retried by an admin */ }
+      }
+
+      if (savedProduct) {
+        // If creation succeeded but a later upload/variant step failed, keep its draft
+        // selected for retry instead of attempting to create a duplicate product.
+        if (createdDuringAttempt) setEditing(savedProduct);
+        try {
+          const [remainingImages, remainingVariants] = await Promise.all([
+            getVendorProductImages(user.id, savedProduct.id),
+            getVendorVariants(user.id, savedProduct.id),
+          ]);
+          setEditingImages(remainingImages);
+          setEditingVariants(remainingVariants);
+        } catch { /* show the original failure; the draft remains inactive */ }
+      }
+      setMessage(error instanceof Error ? error.message : 'پاشەکەوتکردنی بەرهەم سەرکەوتوو نەبوو. بەرهەمەکە بە دۆخی draft دەمێنێتەوە تا بتوانیت دووبارە هەوڵ بدەیتەوە.');
     }
   };
 
@@ -259,7 +283,7 @@ export function VendorProductsPage() {
         {message ? <div className="mt-5 rounded-2xl bg-[var(--shakh-blue)]/8 px-4 py-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{message}</div> : null}
       </section>
 
-      {showForm ? <ProductForm key={editing?.id ?? 'new'} form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} onCancel={resetForm} onSave={(payload) => void save(payload)} /> : null}
+      {showForm ? <ProductForm form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} onCancel={resetForm} onSave={(payload) => save(payload)} /> : null}
 
       <section className="space-y-3">
         {loading ? <div className="rounded-[30px] bg-white p-12 text-center text-sm font-bold text-black/45">بارکردن...</div> : products.length === 0 ? <div className="rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-bg)] text-black/30"><Boxes size={24} /></div><h2 className="mt-4 text-lg font-black">هێشتا بەرهەم نییە</h2><p className="mt-2 text-sm leading-7 text-black/45">یەکەم بەرهەم دروست بکە؛ هەموو بەرهەمە نوێکان بە `draft` دەستپێدەکەن تا approval سیستەمەکە دواتر status ـیان بگۆڕێت.</p></div> : products.map((product) => <VendorProductRow key={product.id} product={product} userId={user?.id ?? ''} onEdit={() => void edit(product)} onDelete={() => void remove(product)} />)}
