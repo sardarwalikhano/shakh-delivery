@@ -1,7 +1,7 @@
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getCategories, getProducts, toggleWishlist, isWishlisted, addToCart } from '../api';
+import { getCategories, getChildCategories, getProducts, toggleWishlist, isWishlisted, addToCart } from '../api';
 import type { Category, Product } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { ProductGrid } from '../components/ProductGrid';
@@ -12,26 +12,36 @@ export function MarketplacePage() {
   const { user } = useAuth();
   const query = params.get('q') ?? '';
   const categorySlug = params.get('category') ?? '';
+  const subcategorySlug = params.get('subcategory') ?? '';
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [wishlistIds, setWishlistIds] = useState<ReadonlySet<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(query);
 
   const selectedCategory = useMemo(() => categories.find((item) => item.slug === categorySlug) ?? null, [categories, categorySlug]);
+  const selectedSubcategory = useMemo(() => subcategories.find((item) => item.slug === subcategorySlug) ?? null, [subcategories, subcategorySlug]);
 
   useEffect(() => { void getCategories().then(setCategories).catch(() => setCategories([])); }, []);
+
+  useEffect(() => {
+    if (!selectedCategory) { setSubcategories([]); return; }
+    let cancelled = false;
+    void getChildCategories(selectedCategory.id).then((items) => { if (!cancelled) setSubcategories(items); }).catch(() => { if (!cancelled) setSubcategories([]); });
+    return () => { cancelled = true; };
+  }, [selectedCategory?.id]);
 
   useEffect(() => {
     setSearch(query);
     let cancelled = false;
     setLoading(true);
     void (async () => {
-      const items = await getProducts({ search: query, categoryId: selectedCategory?.id, limit: 48 }).catch(() => [] as Product[]);
+      const items = await getProducts({ search: query, categoryId: selectedSubcategory?.id ?? selectedCategory?.id, limit: 48 }).catch(() => [] as Product[]);
       if (!cancelled) { setProducts(items); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [query, selectedCategory?.id]);
+  }, [query, selectedCategory?.id, selectedSubcategory?.id]);
 
   useEffect(() => {
     if (!user || !products.length) { setWishlistIds(new Set()); return; }
@@ -52,6 +62,13 @@ export function MarketplacePage() {
   const setCategory = (slug: string) => {
     const next = new URLSearchParams(params);
     if (slug) next.set('category', slug); else next.delete('category');
+    next.delete('subcategory');
+    setParams(next);
+  };
+
+  const setSubcategory = (slug: string) => {
+    const next = new URLSearchParams(params);
+    if (slug) next.set('subcategory', slug); else next.delete('subcategory');
     setParams(next);
   };
 
@@ -95,8 +112,16 @@ export function MarketplacePage() {
           </div>
         </div>
 
+        {selectedCategory && subcategories.length ? <div className="mt-4 rounded-3xl border border-black/[0.05] bg-white p-3 sm:p-4">
+          <div className="mb-3 px-1 text-xs font-black text-black/40">بەشی لاوەکیی {selectedCategory.name_ku}</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setSubcategory('')} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${!subcategorySlug ? 'bg-[var(--shakh-blue)] text-white' : 'bg-[var(--shakh-bg)] text-black/60'}`}>هەموو {selectedCategory.name_ku}</button>
+            {subcategories.map((item) => <button key={item.id} onClick={() => setSubcategory(item.slug)} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${subcategorySlug === item.slug ? 'bg-[var(--shakh-orange)] text-white' : 'bg-[var(--shakh-bg)] text-black/60'}`}>{item.name_ku}</button>)}
+          </div>
+        </div> : null}
+
         <div className="mt-8 flex items-end justify-between gap-3">
-          <div><p className="text-xs font-black text-[var(--shakh-blue)]">{selectedCategory?.name_ku ?? 'بازاڕ'}</p><h2 className="mt-1 text-2xl font-black">{query ? `ئەنجامی گەڕان بۆ «${query}»` : 'بەرهەمە نوێ و چالاکەکان'}</h2></div>
+          <div><p className="text-xs font-black text-[var(--shakh-blue)]">{selectedSubcategory?.name_ku ?? selectedCategory?.name_ku ?? 'بازاڕ'}</p><h2 className="mt-1 text-2xl font-black">{query ? `ئەنجامی گەڕان بۆ «${query}»` : 'بەرهەمە نوێ و چالاکەکان'}</h2></div>
           <div className="hidden text-xs font-bold text-black/35 sm:block">{products.length} بەرهەم</div>
         </div>
 
