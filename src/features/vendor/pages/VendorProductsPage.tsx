@@ -460,7 +460,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
           const key = comboKey(color.key, size);
           const cell = matrix[key] ?? { enabled: false, stock: '0', price: '' };
           return <div key={key} className={`rounded-2xl border p-3 ${cell.enabled ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/[0.035]' : 'border-black/[0.06]'}`}><div className="flex flex-wrap items-center justify-between gap-3"><label className="flex min-w-0 items-center gap-3"><input type="checkbox" checked={cell.enabled} onChange={(e) => updateCell(key, { enabled: e.target.checked })} className="size-4 accent-[var(--shakh-blue)]" /><span className="size-7 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} /><span className="text-sm font-black">{color.name_ku} · {size}</span></label><span className={`text-[11px] font-black ${cell.enabled ? 'text-[var(--shakh-blue)]' : 'text-black/30'}`}>{cell.enabled ? 'لە کۆگادا' : 'چالاک نییە'}</span></div>{cell.enabled ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="دانەی بەردەست" value={cell.stock} onChange={(value) => updateCell(key, { stock: value })} dir="ltr" inputMode="numeric" /><Field label="نرخی تایبەتی (ئەگەر جیاوازە)" value={cell.price} onChange={(value) => updateCell(key, { price: value })} dir="ltr" inputMode="decimal" /></div> : null}</div>;
-        })}</div>}
+        }))}</div>}
       </div>
 
 
