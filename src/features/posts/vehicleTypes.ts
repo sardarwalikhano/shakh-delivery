@@ -327,3 +327,10 @@ export function vehicleListingToDatabase(draft: VehicleListingDraft) {
     contact_phone: draft.contact_phone.trim(),
   };
 }
+
+export function singleVehicleListing(
+  value: VehicleListingRecord | VehicleListingRecord[] | null | undefined,
+): VehicleListingRecord | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
