@@ -216,7 +216,7 @@ export async function createVendorVariant(userId: string, input: {
   name_ku: string;
   name_ar: string;
   name_en: string;
-  sku?: string;
+  sku?: string | null;
   price_iqd?: number | null;
   stock_quantity: number;
   color_name_ku?: string | null;
