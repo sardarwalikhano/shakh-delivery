@@ -481,6 +481,16 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     setLocalError(null);
   };
 
+  const updateSupermarketVariant = (index: number, patch: Partial<SupermarketVariantDraft>) => {
+    setSupermarketVariants((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  };
+
+  const addSupermarketVariant = () => setSupermarketVariants((items) => [...items, {
+    name_ku: '', name_ar: '', name_en: '', sku: '', price: '', stock: '0',
+    quantity_value: form.quantity_value, quantity_unit: form.quantity_unit || 'g', package_count: '',
+    flavor: form.flavor, barcode: '', manufacturing_date: form.manufacturing_date, expiry_date: form.expiry_date,
+  }]);
+
   return <section className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_14px_45px_rgba(16,22,35,.04)] sm:p-8" dir="rtl">
     <div className="flex items-center justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">{editing ? 'دەستکاری' : 'بەرهەمی نوێ'}</div><h2 className="mt-1 text-xl font-black">{editing ? 'دەستکاری بەرهەم' : 'دروستکردنی بەرهەم'}</h2><p className="mt-2 text-sm leading-6 text-black/45">تایبەتمەندییە نوێکان زیادکراون؛ فۆڕمی کۆنی بەرهەم و variants ـیش هەر بەردەوامە.</p></div><button onClick={onCancel} className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-bg)]" aria-label="داخستن"><X size={18} /></button></div>
 
@@ -511,6 +521,53 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       }))}
     />
 
+    {supermarket ? <section className="mt-8 space-y-6 border-t border-black/[0.07] pt-7">
+      <div className="flex items-start gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Boxes size={19} /></div>
+        <div><h3 className="text-lg font-black">زانیاریی سوپەرمارکێت</h3><p className="mt-1 text-sm leading-6 text-black/45">زانیاریی تایبەت بە جۆری کاڵا پێش پۆستکردن پڕ بکەرەوە. خانە هەڵبژاردەییەکان دەتوانیت بەتاڵ بهێڵیتەوە ئەگەر زانیارییەکە نازانیت.</p></div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <label><span className="text-xs font-black text-black/55">جۆری کاڵا *</span><select value={form.supermarket_type} onChange={(e) => field('supermarket_type', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold">
+          <option value="food">خواردەمەنی</option><option value="beverage">خواردنەوە</option><option value="cleaning">پاککەرەوە</option><option value="daily_essentials">کاڵای ڕۆژانە</option><option value="fresh_food">خواردنی تازە</option><option value="other">جۆری تر</option>
+        </select></label>
+        <Field label="براند / کۆمپانیا" value={form.brand} onChange={(v) => field('brand', v)} />
+        <Field label="وڵاتی بەرهەمهێنان" value={form.country_of_origin} onChange={(v) => field('country_of_origin', v)} />
+        <Field label="بارکۆد (ئارەزوومەندانە)" value={form.barcode} onChange={(v) => field('barcode', v)} dir="ltr" />
+        <Field label="قەبارەی هەر یەکە" value={form.quantity_value} onChange={(v) => field('quantity_value', v)} dir="ltr" inputMode="decimal" />
+        <label><span className="text-xs font-black text-black/55">یەکە</span><select value={form.quantity_unit} onChange={(e) => field('quantity_unit', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="g">گرام</option><option value="kg">کیلۆگرام</option><option value="ml">ملیلتر</option><option value="l">لیتر</option><option value="pack">پاکێت</option><option value="piece">دانە</option><option value="carton">کارتۆن</option></select></label>
+        <Field label="ژمارەی دانە لە پاکێت" value={form.package_count} onChange={(v) => field('package_count', v)} dir="ltr" inputMode="numeric" />
+        {(form.supermarket_type === 'food' || form.supermarket_type === 'beverage' || form.supermarket_type === 'fresh_food') ? <Field label="تام / جۆر" value={form.flavor} onChange={(v) => field('flavor', v)} /> : null}
+        {(form.supermarket_type === 'food' || form.supermarket_type === 'beverage' || form.supermarket_type === 'fresh_food') ? <DateField label="بەرواری بەرهەمهێنان" value={form.manufacturing_date} onChange={(v) => field('manufacturing_date', v)} /> : null}
+        {(form.supermarket_type === 'food' || form.supermarket_type === 'beverage' || form.supermarket_type === 'fresh_food') ? <DateField label="بەرواری بەسەرچوون" value={form.expiry_date} onChange={(v) => field('expiry_date', v)} /> : null}
+      </div>
+      {(form.supermarket_type === 'food' || form.supermarket_type === 'beverage' || form.supermarket_type === 'fresh_food') ? <div className="grid gap-4 md:grid-cols-2">
+        <label><span className="text-xs font-black text-black/55">پێکهاتەکان</span><textarea value={form.ingredients} onChange={(e) => field('ingredients', e.target.value)} rows={3} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>
+        <label><span className="text-xs font-black text-black/55">ئاگاداریی هەستیاری / ئالێرژی</span><textarea value={form.allergen_warnings} onChange={(e) => field('allergen_warnings', e.target.value)} rows={3} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>
+        <label className="md:col-span-2"><span className="text-xs font-black text-black/55">ڕێنمایی هەڵگرتن</span><textarea value={form.storage_instructions} onChange={(e) => field('storage_instructions', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" placeholder="بۆ نموونە: لە شوێنی سارد و وشک هەڵبگیرێت." /></label>
+      </div> : <label className="block"><span className="text-xs font-black text-black/55">ڕێنمایی هەڵگرتن</span><textarea value={form.storage_instructions} onChange={(e) => field('storage_instructions', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>}
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h4 className="font-black">وەشان و پاکێتەکان</h4><p className="mt-1 text-xs leading-5 text-black/45">بۆ هەر قەبارە/تام/پاکێت نرخ و ستۆکی تایبەت دابنێ. خانەی نرخ ئەگەر بەتاڵ بێت نرخی سەرەکی کاڵا بەکاردێت.</p></div><button type="button" onClick={addSupermarketVariant} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-xs font-black text-white"><Plus size={15}/> زیادکردنی وەشان</button></div>
+        {supermarketVariants.length === 0 ? <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm leading-6 text-black/45">وەشان هەڵبژاردەییە. ئەگەر یەک نرخ و یەک قەبارە هەیە، ستۆک و نرخ لە سەرەوە دابنێ.</div> : <div className="mt-4 space-y-4">
+          {supermarketVariants.map((row, index) => <article key={row.id ?? 'new-supermarket-variant-' + index} className="rounded-2xl border border-black/[0.07] bg-[var(--shakh-bg)]/60 p-4">
+            <div className="mb-4 flex items-center justify-between gap-3"><div className="text-sm font-black">وەشانی {index + 1}</div><button type="button" onClick={() => setSupermarketVariants((items) => items.filter((_, i) => i !== index))} className="inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600"><Trash2 size={14}/> لابردن</button></div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="ناوی وەشان بە کوردی *" value={row.name_ku} onChange={(v) => updateSupermarketVariant(index,{name_ku:v})}/>
+              <Field label="ناوی عەرەبی" value={row.name_ar} onChange={(v) => updateSupermarketVariant(index,{name_ar:v})}/>
+              <Field label="ناوی ئینگلیزی" value={row.name_en} onChange={(v) => updateSupermarketVariant(index,{name_en:v})} dir="ltr"/>
+              <Field label="بارکۆد / SKU" value={row.barcode} onChange={(v) => updateSupermarketVariant(index,{barcode:v,sku:row.sku || v})} dir="ltr"/>
+              <Field label="تام / جۆر" value={row.flavor} onChange={(v) => updateSupermarketVariant(index,{flavor:v})}/>
+              <Field label="قەبارە" value={row.quantity_value} onChange={(v) => updateSupermarketVariant(index,{quantity_value:v})} dir="ltr" inputMode="decimal"/>
+              <label><span className="text-xs font-black text-black/55">یەکە</span><select value={row.quantity_unit} onChange={(e) => updateSupermarketVariant(index,{quantity_unit:e.target.value})} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm font-bold"><option value="g">گرام</option><option value="kg">کیلۆگرام</option><option value="ml">ملیلتر</option><option value="l">لیتر</option><option value="pack">پاکێت</option><option value="piece">دانە</option><option value="carton">کارتۆن</option></select></label>
+              <Field label="ژمارە لە پاکێت" value={row.package_count} onChange={(v) => updateSupermarketVariant(index,{package_count:v})} dir="ltr" inputMode="numeric"/>
+              <Field label="نرخی تایبەت (د.ع)" value={row.price} onChange={(v) => updateSupermarketVariant(index,{price:v})} dir="ltr" inputMode="decimal"/>
+              <Field label="ستۆکی ئەم وەشانە" value={row.stock} onChange={(v) => updateSupermarketVariant(index,{stock:v})} dir="ltr" inputMode="numeric"/>
+              {(form.supermarket_type === 'food' || form.supermarket_type === 'beverage' || form.supermarket_type === 'fresh_food') ? <><DateField label="بەرواری بەرهەمهێنان" value={row.manufacturing_date} onChange={(v) => updateSupermarketVariant(index,{manufacturing_date:v})}/><DateField label="بەرواری بەسەرچوون" value={row.expiry_date} onChange={(v) => updateSupermarketVariant(index,{expiry_date:v})}/></> : null}
+            </div>
+          </article>)}
+        </div>}
+      </div>
+    </section> : null}
     {apparel ? <div className="mt-8 space-y-7 border-t border-black/[0.07] pt-7">
       <div className="flex items-center gap-2"><Tag size={19} className="text-[var(--shakh-orange)]" /><h3 className="text-lg font-black">زانیاریی جل‌وبەرگ</h3></div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -563,13 +620,17 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     </div> : null}
 
     {localError ? <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{localError}</div> : null}
-    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
-    {apparel ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان وەک پێشوو بە دۆخی draft هەڵدەگیرێن؛ هەموو زانیاری، وێنە و کۆگاکان لە Supabase پاشەکەوت دەکرێن.</p> : null}
+    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix, supermarketVariants }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
+    {(apparel || supermarket) ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان بە دۆخی draft پاشەکەوت دەکرێن؛ زانیاری، وێنە و ستۆک لە Supabase دەمێننەوە تا بە approval چالاک بکرێن.</p> : null}
   </section>;
 }
 
 function PaletteIcon() {
   return <span className="grid size-9 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Tag size={17} /></span>;
+}
+
+function DateField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label><span className="text-xs font-black text-black/55">{label}</span><input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>;
 }
 
 function Field({ label, value, onChange, dir, inputMode }: { label: string; value: string; onChange: (value: string) => void; dir?: 'ltr' | 'rtl'; inputMode?: 'numeric' | 'decimal' }) {
