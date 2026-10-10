@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase/client';
 import { deletePostImages, MAX_POST_IMAGES, uploadPostImage, validatePostImage } from '@/lib/storage/postMedia';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, ApparelVariant, Post, PostCategory, PostTarget } from './types';
+import { VEHICLE_PHOTO_KIND_LABELS, validateVehicleListing, vehicleListingToDatabase, type VehicleListingDraft, type VehiclePhotoKind } from './vehicleTypes';
 
 export type ApparelVariantInput = {
   color_name: string;
@@ -40,6 +41,7 @@ export async function createPost(input: {
   apparelAudience?: ApparelAudience;
   images?: File[];
   apparel?: ApparelPostInput;
+  vehicle?: { details: VehicleListingDraft; imageKinds?: VehiclePhotoKind[] };
 }): Promise<Post> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error('Not authenticated');
@@ -47,11 +49,29 @@ export async function createPost(input: {
   const user = userData.user;
   const title = input.title.trim();
   const isApparelPost = input.category === 'fashion';
+  const isVehiclePost = input.category === 'cars';
   const imageFiles = input.apparel?.images ?? input.images ?? [];
-  const needsStagedPublish = Boolean(input.apparel) || imageFiles.length > 0;
+  const needsStagedPublish = Boolean(input.apparel) || Boolean(input.vehicle) || imageFiles.length > 0;
 
   if (isApparelPost && !input.apparel) {
     throw new Error('بۆ پۆستی جل‌وبەرگ، زانیاریی جۆر، وێنە، ڕەنگ، قەبارە و کۆگا پێویستە.');
+  }
+
+  if (isVehiclePost && !input.vehicle) {
+    throw new Error('پۆستی ئۆتۆمبێل پێویستی بە فۆڕمی تەواوی Shakh Cars هەیە.');
+  }
+  if (input.vehicle && !isVehiclePost) {
+    throw new Error('زانیاریی ئۆتۆمبێل تەنها لە category ـی cars پەسەندە.');
+  }
+  if (input.vehicle) {
+    const vehicleValidation = validateVehicleListing(input.vehicle.details);
+    if (vehicleValidation) throw new Error(vehicleValidation);
+    if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) {
+      throw new Error('بۆ ئۆتۆمبێل لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+    }
+    if (input.vehicle.imageKinds && input.vehicle.imageKinds.length !== imageFiles.length) {
+      throw new Error('جۆری وێنەکان لەگەڵ ژمارەی وێنەکان ناگونجێت.');
+    }
   }
   if (imageFiles.length > MAX_POST_IMAGES) {
     throw new Error(`زۆرترین ژمارەی وێنە ${MAX_POST_IMAGES} دانەیە.`);
@@ -94,8 +114,8 @@ export async function createPost(input: {
       category: input.category,
       title,
       content: input.content.trim(),
-      price_iqd: input.priceIqd ?? null,
-      location: input.location?.trim() || null,
+      price_iqd: input.vehicle ? Number(input.vehicle.details.price_amount) : (input.priceIqd ?? null),
+      location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
       status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {
         apparel_type: input.apparel.apparel_type,
@@ -117,6 +137,13 @@ export async function createPost(input: {
 
   const uploadedPaths: string[] = [];
   try {
+    if (input.vehicle) {
+      const { error: vehicleDetailsError } = await supabase
+        .from('vehicle_listings')
+        .insert({ post_id: postId, ...vehicleListingToDatabase(input.vehicle.details) });
+      if (vehicleDetailsError) throw vehicleDetailsError;
+    }
+
     for (const file of imageFiles) {
       uploadedPaths.push(await uploadPostImage(user.id, postId, file));
     }
@@ -136,7 +163,13 @@ export async function createPost(input: {
       if (variantsError) throw variantsError;
     }
 
-    const postImages = uploadedPaths.map((storage_path) => ({ storage_path, alt_ku: title }));
+    const postImages = uploadedPaths.map((storage_path, index) => {
+      const photoKind = input.vehicle?.imageKinds?.[index] ?? '';
+      return {
+        storage_path,
+        alt_ku: input.vehicle && photoKind ? VEHICLE_PHOTO_KIND_LABELS[photoKind] : title,
+      };
+    });
     const { data: published, error: publishError } = await supabase
       .from('posts')
       .update({ images: postImages, status: 'active' })
@@ -158,7 +191,7 @@ export async function createPost(input: {
 export async function listActivePosts(): Promise<Post[]> {
   const { data, error } = await supabase
     .from('posts')
-    .select('*')
+    .select('*, vehicle_listing:vehicle_listings(*)')
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(100);
@@ -193,7 +226,7 @@ export async function getActivePostById(postId: string): Promise<Post | null> {
 }
 
 export async function getManageablePosts(): Promise<Post[]> {
-  const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(100);
+  const { data, error } = await supabase.from('posts').select('*, vehicle_listing:vehicle_listings(*)').order('created_at', { ascending: false }).limit(100);
   if (error) throw error;
   return (data ?? []) as Post[];
 }
