@@ -201,7 +201,7 @@ begin
     end if;
   elsif not (select private.has_permission('posts.manage')) then raise exception 'You cannot manage this order'; end if;
 
-  if p_status in ('cancelled','rejected') and v_order.status in ('pending','confirmed') then
+  if p_status = 'cancelled' and v_order.status in ('pending','confirmed') then
     update public.apparel_variants set stock_quantity=stock_quantity+v_order.quantity where id=v_order.variant_id;
   end if;
   update public.apparel_post_orders set status=p_status where id=p_order_id;
