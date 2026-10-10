@@ -168,7 +168,7 @@ export function VehicleListingFields({
   };
 
   const yearNow = new Date().getFullYear();
-  const yearOptions = Array.from({ length: Math.max(0, yearNow + 1 - 1950 + 1) }, (_, index) => String(yearNow + 1 - index));
+  const yearOptions = Array.from({ length: Math.max(0, yearNow + 1 - 1886 + 1) }, (_, index) => String(yearNow + 1 - index));
   const hasIssue = issueOptions.some(([key]) => value[key] === 'yes');
   const selectedFeatureLabels = VEHICLE_FEATURE_OPTIONS.filter(([key]) => value.features.includes(key)).map(([, label]) => label);
 
