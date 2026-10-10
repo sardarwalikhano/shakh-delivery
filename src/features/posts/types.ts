@@ -1,4 +1,5 @@
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
+import type { VehicleListingRecord } from './vehicleTypes';
 
 export type PostCategory =
   | 'general' | 'food' | 'fashion' | 'electronics' | 'home_living'
@@ -64,6 +65,7 @@ export type Post = {
   discount_percent: number;
   item_condition: ApparelCondition | null;
   apparel_audience: ApparelAudience | null;
+  vehicle_listing?: VehicleListingRecord | VehicleListingRecord[] | null;
   created_at: string;
   updated_at: string;
 };
