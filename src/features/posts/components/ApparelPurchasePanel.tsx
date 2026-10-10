@@ -26,6 +26,14 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     void getMyProfilePhone().then(setPhone).catch(() => undefined);
   }, [user]);
 
+  useEffect(() => {
+    setQuantity(1);
+  }, [variant.id]);
+
+  useEffect(() => {
+    setQuantity((current) => Math.min(Math.max(1, current), Math.max(1, variant.stock_quantity)));
+  }, [variant.stock_quantity]);
+
   const price = Math.round((variant.price_iqd ?? post.price_iqd ?? 0) * (100 - Math.max(0, Math.min(99, post.discount_percent ?? 0))) / 100);
   const subtotal = price * quantity;
   const ownPost = Boolean(user?.id && user.id === post.author_id);
