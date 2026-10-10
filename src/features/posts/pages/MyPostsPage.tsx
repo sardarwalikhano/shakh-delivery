@@ -2,7 +2,7 @@ import { Edit3, Package, Plus, Save } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getManageablePosts, getApparelVariants, saveManagedApparelPost } from '../api';
-import type { ApparelAudience, ApparelCondition, ApparelVariant, Post } from '../types';
+import type { ApparelAudience, ApparelCondition, Post } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
@@ -172,7 +172,7 @@ export function MyPostsPage() {
       const rows = await getApparelVariants(selected.id);
       const updated = (await getManageablePosts()).find((item) => item.id === selected.id) ?? selected;
       setSelected(updated);
-      setVariants(rows);
+      setVariants(rows.map((variant) => ({ ...variant, draftKey: variant.id })));
       setTitle(updated.title);
       setContent(updated.content);
       setPrice(String(updated.price_iqd ?? ''));
