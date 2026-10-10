@@ -61,6 +61,7 @@ export function VendorProductsPage() {
   const [storeId, setStoreId] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [formKey, setFormKey] = useState(0);
   const [editing, setEditing] = useState<VendorProduct | null>(null);
   const [editingVariants, setEditingVariants] = useState<VendorVariant[]>([]);
   const [editingImages, setEditingImages] = useState<VendorProductImage[]>([]);
@@ -90,6 +91,7 @@ export function VendorProductsPage() {
   const selectedStore = useMemo(() => stores.find((item) => item.id === storeId) ?? null, [stores, storeId]);
 
   const resetForm = () => {
+    setFormKey((value) => value + 1);
     setEditing(null); setEditingVariants([]); setEditingImages([]); setShowForm(false); setForm(emptyForm());
   };
 
@@ -101,6 +103,7 @@ export function VendorProductsPage() {
         getVendorVariants(user.id, product.id),
         getVendorProductImages(user.id, product.id),
       ]);
+      setFormKey((value) => value + 1);
       setEditingVariants(variants);
       setEditingImages(images);
       setEditing(product);
@@ -283,7 +286,7 @@ export function VendorProductsPage() {
         {message ? <div className="mt-5 rounded-2xl bg-[var(--shakh-blue)]/8 px-4 py-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{message}</div> : null}
       </section>
 
-      {showForm ? <ProductForm form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} onCancel={resetForm} onSave={(payload) => save(payload)} /> : null}
+      {showForm ? <ProductForm key={formKey} form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} onCancel={resetForm} onSave={(payload) => save(payload)} /> : null}
 
       <section className="space-y-3">
         {loading ? <div className="rounded-[30px] bg-white p-12 text-center text-sm font-bold text-black/45">بارکردن...</div> : products.length === 0 ? <div className="rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-bg)] text-black/30"><Boxes size={24} /></div><h2 className="mt-4 text-lg font-black">هێشتا بەرهەم نییە</h2><p className="mt-2 text-sm leading-7 text-black/45">یەکەم بەرهەم دروست بکە؛ هەموو بەرهەمە نوێکان بە `draft` دەستپێدەکەن تا approval سیستەمەکە دواتر status ـیان بگۆڕێت.</p></div> : products.map((product) => <VendorProductRow key={product.id} product={product} userId={user?.id ?? ''} onEdit={() => void edit(product)} onDelete={() => void remove(product)} />)}
