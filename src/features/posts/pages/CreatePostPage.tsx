@@ -1,15 +1,15 @@
-import { BadgeDollarSign, FileText, ImagePlus, MapPin, Send, Tag, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { BadgeDollarSign, FileText, MapPin, Send, Tag, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
+import { ImageUploadField } from '@/components/media/ImageUploadField';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import { MAX_POST_IMAGES, validatePostImage } from '@/lib/storage/postMedia';
 import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelSeason, ApparelType, PostTarget } from '../types';
 
-type SelectedImage = { file: File; previewUrl: string };
 type ApparelColor = { name: string; hex: string };
 type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
 
@@ -70,8 +70,7 @@ export function CreatePostPage() {
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
   const [season, setSeason] = useState<ApparelSeason>('all_seasons');
   const [discountPercent, setDiscountPercent] = useState('0');
-  const [images, setImages] = useState<SelectedImage[]>([]);
-  const imageUrls = useRef<string[]>([]);
+  const [images, setImages] = useState<File[]>([]);
   const [colors, setColors] = useState<ApparelColor[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
   const [customColorName, setCustomColorName] = useState('');
@@ -96,7 +95,6 @@ export function CreatePostPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => () => { imageUrls.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
 
   const roles = useMemo(() => [...new Set(targets.map((item) => item.publisher_role))], [targets]);
   const preferredRole = useMemo(
@@ -195,35 +193,14 @@ export function CreatePostPage() {
     setError(null);
   };
 
-  const chooseImages = (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = '';
-    if (images.length + selected.length > MAX_POST_IMAGES) {
-      setError('زۆرترین ژمارەی وێنە ٨ دانەیە.');
-      return;
-    }
-    try {
-      selected.forEach(validatePostImage);
-      const next = selected.map((file) => {
-        const previewUrl = URL.createObjectURL(file);
-        imageUrls.current.push(previewUrl);
-        return { file, previewUrl };
-      });
-      setImages((current) => [...current, ...next]);
-      setError(null);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'وێنەکە ڕێگەپێدراو نییە.');
-    }
-  };
-
-  const removeImage = (index: number) => {
-    const removed = images[index];
-    if (removed) URL.revokeObjectURL(removed.previewUrl);
-    setImages((current) => current.filter((_, itemIndex) => itemIndex !== index));
-    setVariantDrafts((current) => Object.fromEntries(Object.entries(current).map(([key, value]) => [
-      key,
-      { ...value, imageIndex: value.imageIndex === String(index) ? '' : value.imageIndex && Number(value.imageIndex) > index ? String(Number(value.imageIndex) - 1) : value.imageIndex },
-    ])));
+  const updateImages = (nextImages: File[]) => {
+    setVariantDrafts((current) => Object.fromEntries(Object.entries(current).map(([key, value]) => {
+      if (value.imageIndex === '') return [key, value];
+      const oldFile = images[Number(value.imageIndex)];
+      const nextIndex = oldFile ? nextImages.indexOf(oldFile) : -1;
+      return [key, { ...value, imageIndex: nextIndex < 0 ? '' : String(nextIndex) }];
+    })));
+    setImages(nextImages);
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -288,7 +265,7 @@ export function CreatePostPage() {
             country_of_origin: countryOfOrigin,
             season,
             discount_percent: Number(discountPercent),
-            images: images.map((item) => item.file),
+            images,
             variants: apparelVariants,
           },
         });
@@ -304,7 +281,7 @@ export function CreatePostPage() {
 
     setBusy(true);
     try {
-      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, location });
+      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, location, images });
       setSuccess(true);
       navigate(`/posts/${created.id}`, { replace: true });
     } catch (nextError) {
@@ -341,6 +318,15 @@ export function CreatePostPage() {
             </div>
           </Field>
 
+          <ImageUploadField
+            files={images}
+            onChange={updateImages}
+            maxFiles={MAX_POST_IMAGES}
+            required={category === 'fashion'}
+            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : 'وێنەکانی پۆست / بەرهەم'}
+            hint="کامێرا یان گەلەری بەکاربهێنە؛ ڕیزی وێنەکان دەتوانیت بگۆڕیت، وێنەی یەکەم وێنەی سەرەکییە."
+          />
+
           {category === 'fashion' ? (
             <section className="space-y-5 rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-4 sm:p-6">
               <div>
@@ -376,26 +362,6 @@ export function CreatePostPage() {
                   </select>
                 </Field>
               </div>
-
-              <Field label={`٢. وێنەی بەرهەم (${images.length}/8)`} hint="JPG، PNG یان WebP؛ هەر وێنەیەک تا 5MB. وێنەکان بە شێوەی ڕاستەقینە لە Supabase Storage هەڵدەگیرێن.">
-                <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-black/15 bg-[var(--shakh-bg)] p-4 text-center transition hover:border-[var(--shakh-orange)]">
-                  <ImagePlus size={23} className="text-[var(--shakh-orange)]" />
-                  <span className="text-sm font-black">هەڵبژاردن / زیادکردنی وێنە</span>
-                  <span className="text-xs text-black/40">تا {MAX_POST_IMAGES} وێنە</span>
-                  <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={chooseImages} disabled={images.length >= MAX_POST_IMAGES} />
-                </label>
-                {images.length ? (
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {images.map((item, index) => (
-                      <div key={item.previewUrl} className="relative overflow-hidden rounded-2xl border border-black/10 bg-white">
-                        <img src={item.previewUrl} alt={item.file.name} className="aspect-square w-full object-cover" />
-                        <div className="truncate px-2 py-1.5 text-[10px] font-bold text-black/55">وێنەی {index + 1}</div>
-                        <button type="button" onClick={() => removeImage(index)} className="absolute end-2 top-2 grid size-8 place-items-center rounded-full bg-white/95 text-red-600 shadow" aria-label="سڕینەوەی وێنە"><X size={16} /></button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </Field>
 
               <div>
                 <Field label="٣. ڕەنگە بەردەستەکان">
@@ -482,7 +448,7 @@ export function CreatePostPage() {
                             <Field label="وێنەی ئەم ڕەنگە">
                               <select className={inputClass} value={draft.imageIndex} onChange={(event) => updateVariant(item.key, { imageIndex: event.target.value })} disabled={!draft.enabled || !images.length}>
                                 <option value="">وێنەی گشتی بەکاربهێنە</option>
-                                {images.map((image, imageIndex) => <option key={image.previewUrl} value={imageIndex}>وێنەی {imageIndex + 1}</option>)}
+                                {images.map((image, imageIndex) => <option key={image.name + image.size + image.lastModified + imageIndex} value={imageIndex}>وێنەی {imageIndex + 1}</option>)}
                               </select>
                             </Field>
                           </div>
