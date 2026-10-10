@@ -216,7 +216,7 @@ export async function getMyPosts(authorId: string): Promise<Post[]> {
 export async function getActivePostById(postId: string): Promise<Post | null> {
   const { data, error } = await supabase
     .from('posts')
-    .select('*')
+    .select('*, vehicle_listing:vehicle_listings(*)')
     .eq('id', postId)
     .eq('status', 'active')
     .maybeSingle();
