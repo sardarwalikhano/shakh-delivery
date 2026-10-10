@@ -1,4 +1,5 @@
-import { AlertTriangle, CarFront, FileText, Fuel, Gauge, MapPin, ShieldCheck, Wrench } from 'lucide-react';
+import { AlertTriangle, CarFront, FileText, Gauge, MapPin, ShieldCheck, Wrench, type LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import {
   VEHICLE_BODY_LABELS,
   VEHICLE_CONDITION_LABELS,
@@ -38,7 +39,7 @@ function TextValue({ label, value }: { label: string; value: string | number | n
 function Section({
   icon: Icon, title, children,
 }: {
-  icon: typeof CarFront; title: string; children: React.ReactNode;
+  icon: LucideIcon; title: string; children: ReactNode;
 }) {
   return (
     <section className="space-y-3 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
@@ -120,7 +121,7 @@ export function VehiclePostDetails({ listing, location }: Props) {
       </Section>
 
       <Section icon={Wrench} title="کێشە، سێرڤیس و تایبەتمەندی">
-        {issues.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{issues.map((item) => <TextValue key={item.label} label={item.label} value={valueLabel(item.value, VEHICLE_TRI_STATE_LABELS}/>)}</div> : <p className="text-sm text-black/45">هیچ وەڵامێک بۆ کێشەکان تۆمار نەکراوە؛ ئەمە بە مانای نەبوونی کێشە نییە.</p>}
+        {issues.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{issues.map((item) => <TextValue key={item.label} label={item.label} value={valueLabel(item.value, VEHICLE_TRI_STATE_LABELS)} />)}</div> : <p className="text-sm text-black/45">هیچ وەڵامێک بۆ کێشەکان تۆمار نەکراوە؛ ئەمە بە مانای نەبوونی کێشە نییە.</p>}
         {listing.known_problems ? <TextValue label="وەسفی کێشەکان" value={listing.known_problems}/> : null}
         {listing.service_history ? <TextValue label="مێژووی چاککردنەوە و سێرڤیس" value={listing.service_history}/> : null}
         <div>
