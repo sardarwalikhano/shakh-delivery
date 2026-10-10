@@ -1,12 +1,55 @@
-import { Boxes, ChevronDown, Edit3, ImagePlus, PackagePlus, Plus, Save, Trash2, Upload, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Boxes, Check, ChevronDown, Edit3, ImagePlus, PackagePlus, Plus, Ruler, Save, Tag, Trash2, Upload, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { addVendorProductImage, createVendorProduct, createVendorVariant, deleteDraftProduct, deleteVendorProductImage, deleteVendorVariant, getVendorProductImages, getVendorProducts, getVendorStores, getVendorVariants, updateVendorProduct, updateVendorVariant, type VendorProduct, type VendorProductImage, type VendorStore, type VendorVariant } from '../api';
 import { supabase } from '@/lib/supabase/client';
 import { deleteProductImage, getProductImageUrl, uploadProductImage } from '@/lib/storage/catalogMedia';
+import { apparelColorPalette, apparelSeasonOptions, apparelTypeOptions, apparelTypeLabelsKu, defaultSizesForApparel, isShoeType, type ApparelColor, type ApparelProductType } from '@/lib/catalog/apparel';
 
-type Category = { id: string; name_ku: string; name_ar: string; name_en: string };
+type Category = { id: string; parent_id: string | null; name_ku: string; name_ar: string; name_en: string; slug: string };
+type ProductFormState = {
+  name_ku: string; name_ar: string; name_en: string; slug: string; category_id: string;
+  base_price_iqd: string; compare_at_price_iqd: string; stock_quantity: string; description_ku: string;
+  apparel_product_type: string; brand: string; material: string; country_of_origin: string; season: string; seller_location: string;
+};
+type MatrixCell = { enabled: boolean; stock: string; price: string };
+type ProductFormPayload = ProductFormState & { imageFiles: File[]; colors: ApparelColor[]; sizes: string[]; matrix: Record<string, MatrixCell> };
+
+const emptyForm = (): ProductFormState => ({
+  name_ku: '', name_ar: '', name_en: '', slug: '', category_id: '', base_price_iqd: '',
+  compare_at_price_iqd: '', stock_quantity: '0', description_ku: '', apparel_product_type: '',
+  brand: '', material: '', country_of_origin: '', season: '', seller_location: '',
+});
+
+function comboKey(colorKey: string, size: string): string {
+  return colorKey + '::' + size;
+}
+
+function isApparelCategory(categoryId: string, categories: Category[]): boolean {
+  const fashionRoot = categories.find((item) => item.slug === 'fashion');
+  if (!categoryId || !fashionRoot) return false;
+
+  let current = categories.find((item) => item.id === categoryId);
+  while (current) {
+    if (current.id === fashionRoot.id || current.slug === 'fashion') return true;
+    current = current.parent_id ? categories.find((item) => item.id === current?.parent_id) : undefined;
+  }
+  return false;
+}
+
+function colorFromVariant(variant: VendorVariant, index: number): ApparelColor {
+  const preset = apparelColorPalette.find((item) => item.hex.toLowerCase() === (variant.color_hex ?? '').toLowerCase());
+  return {
+    key: preset?.key ?? 'custom-' + index,
+    name_ku: variant.color_name_ku ?? variant.name_ku,
+    name_ar: variant.name_ar || variant.name_ku,
+    name_en: variant.name_en || variant.name_ku,
+    hex: variant.color_hex ?? '#9CA3AF',
+    imageRef: variant.color_image_storage_path ? 'path:' + variant.color_image_storage_path : '',
+    custom: !preset,
+  };
+}
 
 export function VendorProductsPage() {
   const { user } = useAuth();
@@ -18,8 +61,10 @@ export function VendorProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<VendorProduct | null>(null);
+  const [editingVariants, setEditingVariants] = useState<VendorVariant[]>([]);
+  const [editingImages, setEditingImages] = useState<VendorProductImage[]>([]);
   const [message, setMessage] = useState<string | null>(null);
-  const [form, setForm] = useState({ name_ku: '', name_ar: '', name_en: '', slug: '', category_id: '', base_price_iqd: '', compare_at_price_iqd: '', stock_quantity: '0', description_ku: '' });
+  const [form, setForm] = useState<ProductFormState>(emptyForm);
 
   const refresh = async () => {
     if (!user) return;
@@ -28,8 +73,9 @@ export function VendorProductsPage() {
       const [nextStores, nextProducts, catResult] = await Promise.all([
         getVendorStores(user.id, role),
         getVendorProducts(user.id, storeId || undefined),
-        supabase.from('categories').select('id,name_ku,name_ar,name_en').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('categories').select('id,parent_id,name_ku,name_ar,name_en,slug').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
+      if (catResult.error) throw catResult.error;
       setStores(nextStores);
       setProducts(nextProducts);
       setCategories((catResult.data ?? []) as Category[]);
@@ -43,34 +89,151 @@ export function VendorProductsPage() {
   const selectedStore = useMemo(() => stores.find((item) => item.id === storeId) ?? null, [stores, storeId]);
 
   const resetForm = () => {
-    setEditing(null); setShowForm(false);
-    setForm({ name_ku: '', name_ar: '', name_en: '', slug: '', category_id: '', base_price_iqd: '', compare_at_price_iqd: '', stock_quantity: '0', description_ku: '' });
+    setEditing(null); setEditingVariants([]); setEditingImages([]); setShowForm(false); setForm(emptyForm());
   };
 
-  const edit = (product: VendorProduct) => {
-    setEditing(product); setShowForm(true);
-    setForm({ name_ku: product.name_ku, name_ar: product.name_ar, name_en: product.name_en, slug: product.slug, category_id: product.category_id ?? '', base_price_iqd: String(product.base_price_iqd), compare_at_price_iqd: product.compare_at_price_iqd == null ? '' : String(product.compare_at_price_iqd), stock_quantity: String(product.stock_quantity), description_ku: product.description_ku ?? '' });
-  };
-
-  const save = async () => {
+  const edit = async (product: VendorProduct) => {
     if (!user) return;
     setMessage(null);
     try {
-      const base = Number(form.base_price_iqd);
-      const compare = form.compare_at_price_iqd ? Number(form.compare_at_price_iqd) : null;
-      const stock = Math.max(0, Math.floor(Number(form.stock_quantity)));
-      if (!form.name_ku || !form.name_ar || !form.name_en || !form.slug || !Number.isFinite(base)) throw new Error('ناو، slug و نرخ پێویستن.');
-      if (compare !== null && compare < base) throw new Error('نرخی پێشوو نابێت لە نرخی ئێستا کەمتر بێت.');
+      const [variants, images] = await Promise.all([
+        getVendorVariants(user.id, product.id),
+        getVendorProductImages(user.id, product.id),
+      ]);
+      setEditingVariants(variants);
+      setEditingImages(images);
+      setEditing(product);
+      setForm({
+        name_ku: product.name_ku, name_ar: product.name_ar, name_en: product.name_en, slug: product.slug,
+        category_id: product.category_id ?? '', base_price_iqd: String(product.base_price_iqd),
+        compare_at_price_iqd: product.compare_at_price_iqd == null ? '' : String(product.compare_at_price_iqd),
+        stock_quantity: String(product.stock_quantity), description_ku: product.description_ku ?? '',
+        apparel_product_type: product.apparel_product_type ?? '', brand: product.brand ?? '', material: product.material ?? '',
+        country_of_origin: product.country_of_origin ?? '', season: product.season ?? '', seller_location: product.seller_location ?? '',
+      });
+      setShowForm(true);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'وردەکاریی بەرهەم نەخوێندرایەوە.');
+    }
+  };
+
+  const save = async (data: ProductFormPayload) => {
+    if (!user) return;
+    setMessage(null);
+    try {
+      const base = Number(data.base_price_iqd);
+      const compare = data.compare_at_price_iqd.trim() ? Number(data.compare_at_price_iqd) : null;
+      const apparel = isApparelCategory(data.category_id, categories);
+      const apparelType = apparel && data.apparel_product_type ? data.apparel_product_type as ApparelProductType : null;
+      const combinations = apparel ? data.colors.flatMap((color) => data.sizes
+        .filter((size) => data.matrix[comboKey(color.key, size)]?.enabled)
+        .map((size) => ({ color, size, cell: data.matrix[comboKey(color.key, size)] }))) : [];
+      const totalMatrixStock = combinations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.cell.stock))), 0);
+      const stock = apparel ? totalMatrixStock : Math.max(0, Math.floor(Number(data.stock_quantity)));
+
+      if (!data.name_ku.trim() || !data.name_ar.trim() || !data.name_en.trim() || !data.slug.trim() || !Number.isFinite(base) || base < 0) {
+        throw new Error('ناوی بەرهەم، slug و نرخ پێویستن.');
+      }
+      if (compare !== null && (!Number.isFinite(compare) || compare < base)) throw new Error('نرخی پێشوو نابێت لە نرخی ئێستا کەمتر بێت.');
+      if (!Number.isFinite(Number(data.stock_quantity)) && !apparel) throw new Error('ژمارەی کۆگا دروست نییە.');
+      if (apparel && !apparelType) throw new Error('جۆری بەرهەم هەڵبژێرە.');
+      if (apparel && data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
+      if (apparel && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی بەرهەم زیاد بکە.');
+      if (apparel && (!data.colors.length || !data.sizes.length || combinations.length === 0)) throw new Error('لانیکەم یەک ڕەنگ، یەک قەبارە و یەک تێکەڵەی ڕەنگ × قەبارە دیاری بکە.');
+      if (apparel && data.colors.some((color) => !/^#[0-9A-Fa-f]{6}$/.test(color.hex))) throw new Error('کۆدی HEX ـی ڕەنگێک دروست نییە.');
+      if (apparel && combinations.some((item) => !Number.isFinite(Number(item.cell.stock)) || Number(item.cell.stock) < 0 || (item.cell.price.trim() !== '' && (!Number.isFinite(Number(item.cell.price)) || Number(item.cell.price) < 0)))) {
+        throw new Error('نرخی تایبەت و ژمارەی کۆگا دەبێت ژمارەی دروست و نەرێنی نەبن.');
+      }
+      for (const file of data.imageFiles) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+          throw new Error('وێنەکان دەبێت JPG/PNG/WebP بن و هەر یەکەیان لە ٥MB زیاتر نەبێت.');
+        }
+      }
+
+      const productInput = {
+        name_ku: data.name_ku.trim(), name_ar: data.name_ar.trim(), name_en: data.name_en.trim(),
+        slug: data.slug.trim(), category_id: data.category_id || null, base_price_iqd: base,
+        compare_at_price_iqd: compare, stock_quantity: stock, description_ku: data.description_ku.trim(),
+        apparel_product_type: apparelType,
+        brand: apparel ? data.brand.trim() || null : null,
+        material: apparel ? data.material.trim() || null : null,
+        country_of_origin: apparel ? data.country_of_origin.trim() || null : null,
+        season: apparel && data.season ? data.season as 'summer' | 'winter' | 'all_seasons' : null,
+        seller_location: apparel ? data.seller_location.trim() || null : null,
+      };
+
+      let savedProduct: VendorProduct;
       if (editing) {
-        await updateVendorProduct(user.id, editing.id, { name_ku: form.name_ku, name_ar: form.name_ar, name_en: form.name_en, slug: form.slug, category_id: form.category_id || null, base_price_iqd: base, compare_at_price_iqd: compare, stock_quantity: stock, description_ku: form.description_ku });
-        setMessage('بەرهەم نوێکرایەوە.');
+        savedProduct = await updateVendorProduct(user.id, editing.id, productInput);
       } else {
         if (!selectedStore) throw new Error('سەرەتا فرۆشگایەک هەڵبژێرە.');
-        await createVendorProduct(user.id, { store_id: selectedStore.id, category_id: form.category_id || null, name_ku: form.name_ku, name_ar: form.name_ar, name_en: form.name_en, slug: form.slug, base_price_iqd: base, compare_at_price_iqd: compare, stock_quantity: stock, description_ku: form.description_ku });
-        setMessage('بەرهەم دروستکرا و بە دۆخی draft هەڵگیرا.');
+        savedProduct = await createVendorProduct(user.id, { ...productInput, store_id: selectedStore.id });
+        // Keep the saved draft as the edit target if a later image/variant request fails;
+        // retrying will update this draft rather than creating a duplicate product.
+        setEditing(savedProduct);
       }
-      resetForm(); await refresh();
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'هەڵەیەک ڕوویدا.'); }
+
+      const uploadedImages: VendorProductImage[] = [];
+      if (apparel) {
+        for (const file of data.imageFiles) {
+          const path = await uploadProductImage(user.id, savedProduct.id, file);
+          uploadedImages.push(await addVendorProductImage(user.id, savedProduct.id, path));
+        }
+
+        const allImages = [...editingImages, ...uploadedImages];
+        const resolveImage = (imageRef: string) => {
+          if (!imageRef) return null;
+          if (imageRef.startsWith('path:')) return imageRef.slice(5);
+          if (imageRef.startsWith('new:')) return uploadedImages[Number(imageRef.slice(4))]?.storage_path ?? null;
+          return null;
+        };
+
+        const previousMatrix = editingVariants.filter((item) => item.color_name_ku && item.size_label);
+        const activeKeys = new Set<string>();
+        for (const combo of combinations) {
+          const uniqueKey = combo.color.name_ku.toLocaleLowerCase() + '|' + combo.size.toLocaleLowerCase();
+          activeKeys.add(uniqueKey);
+          const customPrice = combo.cell.price.trim() ? Number(combo.cell.price) : null;
+          const variantInput = {
+            name_ku: combo.color.name_ku + ' · ' + combo.size,
+            name_ar: combo.color.name_ar + ' · ' + combo.size,
+            name_en: combo.color.name_en + ' · ' + combo.size,
+            price_iqd: customPrice,
+            stock_quantity: Math.floor(Number(combo.cell.stock)),
+            is_active: true,
+            color_name_ku: combo.color.name_ku,
+            color_hex: combo.color.hex.toUpperCase(),
+            size_label: combo.size,
+            color_image_storage_path: resolveImage(combo.color.imageRef),
+          };
+          const existingVariant = previousMatrix.find((item) =>
+            item.color_name_ku?.toLocaleLowerCase() === combo.color.name_ku.toLocaleLowerCase()
+            && item.size_label?.toLocaleLowerCase() === combo.size.toLocaleLowerCase());
+          if (existingVariant) {
+            await updateVendorVariant(user.id, existingVariant.id, variantInput);
+          } else {
+            await createVendorVariant(user.id, { product_id: savedProduct.id, ...variantInput });
+          }
+        }
+        for (const oldVariant of previousMatrix) {
+          const key = oldVariant.color_name_ku!.toLocaleLowerCase() + '|' + oldVariant.size_label!.toLocaleLowerCase();
+          if (!activeKeys.has(key) && oldVariant.is_active) {
+            // Retire a removed combination without deleting rows referenced by a cart/order.
+            await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
+          }
+        }
+        setEditingImages(allImages);
+        setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
+        setMessage('بەرهەم پاشەکەوت کرا و وێنە و تێکەڵەکانی ڕەنگ × قەبارە لە Supabase هەڵگیرا. دۆخی بەرهەم draft ـە تا بە پرۆسەی approval چالاک بکرێت.');
+      } else {
+        setMessage(editing ? 'بەرهەم نوێکرایەوە.' : 'بەرهەم دروستکرا و بە دۆخی draft هەڵگیرا.');
+      }
+
+      resetForm();
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'پاشەکەوتکردنی بەرهەم سەرکەوتوو نەبوو.');
+    }
   };
 
   const remove = async (product: VendorProduct) => {
@@ -92,21 +255,191 @@ export function VendorProductsPage() {
         {message ? <div className="mt-5 rounded-2xl bg-[var(--shakh-blue)]/8 px-4 py-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{message}</div> : null}
       </section>
 
-      {showForm ? <ProductForm form={form} setForm={setForm} categories={categories} editing={editing} onCancel={resetForm} onSave={() => void save()} /> : null}
+      {showForm ? <ProductForm key={editing?.id ?? 'new'} form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} onCancel={resetForm} onSave={(payload) => void save(payload)} /> : null}
 
       <section className="space-y-3">
-        {loading ? <div className="rounded-[30px] bg-white p-12 text-center text-sm font-bold text-black/45">بارکردن...</div> : products.length === 0 ? <div className="rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-bg)] text-black/30"><Boxes size={24} /></div><h2 className="mt-4 text-lg font-black">هێشتا بەرهەم نییە</h2><p className="mt-2 text-sm leading-7 text-black/45">یەکەم بەرهەم دروست بکە؛ هەموو بەرهەمە نوێکان بە `draft` دەستپێدەکەن تا approval سیستەمەکە دواتر status ـیان بگۆڕێت.</p></div> : products.map((product) => <VendorProductRow key={product.id} product={product} userId={user?.id ?? ''} onEdit={() => edit(product)} onDelete={() => void remove(product)} />)}
+        {loading ? <div className="rounded-[30px] bg-white p-12 text-center text-sm font-bold text-black/45">بارکردن...</div> : products.length === 0 ? <div className="rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-bg)] text-black/30"><Boxes size={24} /></div><h2 className="mt-4 text-lg font-black">هێشتا بەرهەم نییە</h2><p className="mt-2 text-sm leading-7 text-black/45">یەکەم بەرهەم دروست بکە؛ هەموو بەرهەمە نوێکان بە `draft` دەستپێدەکەن تا approval سیستەمەکە دواتر status ـیان بگۆڕێت.</p></div> : products.map((product) => <VendorProductRow key={product.id} product={product} userId={user?.id ?? ''} onEdit={() => void edit(product)} onDelete={() => void remove(product)} />)}
       </section>
     </div>
   );
 }
 
-function ProductForm({ form, setForm, categories, editing, onCancel, onSave }: { form: ReturnType<typeof useState>[0] & { name_ku: string; name_ar: string; name_en: string; slug: string; category_id: string; base_price_iqd: string; compare_at_price_iqd: string; stock_quantity: string; description_ku: string }; setForm: React.Dispatch<React.SetStateAction<any>>; categories: Category[]; editing: VendorProduct | null; onCancel: () => void; onSave: () => void }) {
-  const f = (key: keyof typeof form, value: string) => setForm((current: typeof form) => ({ ...current, [key]: value }));
-  return <section className="rounded-[30px] border border-black/[0.06] bg-white p-6 shadow-[0_14px_45px_rgba(16,22,35,.04)] sm:p-8"><div className="flex items-center justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">{editing ? 'Edit' : 'Create'}</div><h2 className="mt-1 text-xl font-black">{editing ? 'دەستکاری بەرهەم' : 'دروستکردنی بەرهەم'}</h2></div><button onClick={onCancel} className="grid size-10 place-items-center rounded-xl bg-[var(--shakh-bg)]"><X size={18} /></button></div><div className="mt-7 grid gap-4 md:grid-cols-2"><Field label="ناوی کوردی" value={form.name_ku} onChange={(v) => f('name_ku', v)} dir="rtl" /><Field label="ناوی عەرەبی" value={form.name_ar} onChange={(v) => f('name_ar', v)} dir="rtl" /><Field label="English name" value={form.name_en} onChange={(v) => f('name_en', v)} dir="ltr" /><Field label="Slug" value={form.slug} onChange={(v) => f('slug', v.toLowerCase().replace(/[^a-z0-9-]/g, '-'))} dir="ltr" /><label><span className="text-xs font-black text-black/55">Category</span><select value={form.category_id} onChange={(e) => f('category_id', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">بێ category</option>{categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name_ku}</option>)}</select></label><Field label="Stock" value={form.stock_quantity} onChange={(v) => f('stock_quantity', v)} dir="ltr" inputMode="numeric" /><Field label="نرخی IQD" value={form.base_price_iqd} onChange={(v) => f('base_price_iqd', v)} dir="ltr" inputMode="decimal" /><Field label="نرخی پێشوو" value={form.compare_at_price_iqd} onChange={(v) => f('compare_at_price_iqd', v)} dir="ltr" inputMode="decimal" /><label className="md:col-span-2"><span className="text-xs font-black text-black/55">وەسفی کوردی</span><textarea value={form.description_ku} onChange={(e) => f('description_ku', e.target.value)} rows={4} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label></div><div className="mt-6 flex flex-wrap gap-3"><button onClick={onSave} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white"><Save size={17} /> پاشەکەوتکردن</button><button onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black">هەڵوەشاندنەوە</button></div></section>;
+function ProductForm({ form, setForm, categories, editing, editingVariants, existingImages, onCancel, onSave }: {
+  form: ProductFormState;
+  setForm: Dispatch<SetStateAction<ProductFormState>>;
+  categories: Category[];
+  editing: VendorProduct | null;
+  editingVariants: VendorVariant[];
+  existingImages: VendorProductImage[];
+  onCancel: () => void;
+  onSave: (data: ProductFormPayload) => void;
+}) {
+  const field = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const apparel = isApparelCategory(form.category_id, categories);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [colors, setColors] = useState<ApparelColor[]>(() => {
+    const rows = editingVariants.filter((item) => item.color_name_ku && item.size_label);
+    const seen = new Set<string>();
+    return rows.flatMap((item, index) => {
+      const key = item.color_name_ku!.toLocaleLowerCase();
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [colorFromVariant(item, index)];
+    });
+  });
+  const [sizes, setSizes] = useState<string[]>(() => [...new Set(editingVariants.filter((item) => item.color_name_ku && item.size_label).map((item) => item.size_label!))]);
+  const [matrix, setMatrix] = useState<Record<string, MatrixCell>>(() => Object.fromEntries(
+    editingVariants.filter((item) => item.color_name_ku && item.size_label).map((item) => [
+      comboKey(colorsKeyFromVariant(item, editingVariants), item.size_label!),
+      { enabled: item.is_active, stock: String(item.stock_quantity), price: item.price_iqd == null ? '' : String(item.price_iqd) },
+    ]),
+  ));
+  const [newColorName, setNewColorName] = useState('');
+  const [newColorEnglish, setNewColorEnglish] = useState('');
+  const [newColorHex, setNewColorHex] = useState('#6B7280');
+  const [newSize, setNewSize] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  function colorsKeyFromVariant(variant: VendorVariant, rows: VendorVariant[]): string {
+    const colorIndex = rows.filter((item) => item.color_name_ku && item.size_label)
+      .findIndex((item) => item.color_name_ku?.toLocaleLowerCase() === variant.color_name_ku?.toLocaleLowerCase());
+    const unique = rows.filter((item) => item.color_name_ku && item.size_label)
+      .filter((item, index, all) => all.findIndex((other) => other.color_name_ku?.toLocaleLowerCase() === item.color_name_ku?.toLocaleLowerCase()) === index);
+    const matching = unique.find((item) => item.color_name_ku?.toLocaleLowerCase() === variant.color_name_ku?.toLocaleLowerCase());
+    const preset = apparelColorPalette.find((item) => item.hex.toLowerCase() === (matching?.color_hex ?? '').toLowerCase());
+    return preset?.key ?? 'custom-' + unique.findIndex((item) => item.color_name_ku?.toLocaleLowerCase() === variant.color_name_ku?.toLocaleLowerCase());
+  }
+
+  const defaultSizes = defaultSizesForApparel(form.apparel_product_type as ApparelProductType | '');
+  const isShoe = isShoeType(form.apparel_product_type as ApparelProductType | '');
+  const previews = useMemo(() => imageFiles.map((file, index) => ({ file, index, url: URL.createObjectURL(file) })), [imageFiles]);
+  useEffect(() => () => { previews.forEach((item) => URL.revokeObjectURL(item.url)); }, [previews]);
+  const totalStock = colors.reduce((sum, color) => sum + sizes.reduce((inner, size) => {
+    const cell = matrix[comboKey(color.key, size)];
+    return inner + (cell?.enabled ? Math.max(0, Math.floor(Number(cell.stock) || 0)) : 0);
+  }, 0), 0);
+
+  const updateCell = (key: string, patch: Partial<MatrixCell>) => setMatrix((current) => ({
+    ...current, [key]: { enabled: false, stock: '0', price: '', ...current[key], ...patch },
+  }));
+
+  const togglePresetColor = (preset: typeof apparelColorPalette[number]) => {
+    setColors((current) => current.some((item) => item.key === preset.key)
+      ? current.filter((item) => item.key !== preset.key)
+      : [...current, { ...preset, imageRef: '' }]);
+  };
+
+  const addCustomColor = () => {
+    const name = newColorName.trim();
+    if (!name) { setLocalError('ناوی ڕەنگی تایبەت بنووسە.'); return; }
+    if (colors.some((item) => item.name_ku.toLocaleLowerCase() === name.toLocaleLowerCase())) { setLocalError('ئەم ڕەنگە پێشتر زیادکراوە.'); return; }
+    if (!/^#[0-9A-Fa-f]{6}$/.test(newColorHex)) { setLocalError('کۆدی ڕەنگ دروست نییە.'); return; }
+    const english = newColorEnglish.trim() || name;
+    setColors((current) => [...current, { key: 'custom-' + Date.now().toString(36), name_ku: name, name_ar: english, name_en: english, hex: newColorHex.toUpperCase(), imageRef: '', custom: true }]);
+    setNewColorName(''); setNewColorEnglish(''); setNewColorHex('#6B7280'); setLocalError(null);
+  };
+
+  const toggleSize = (size: string) => setSizes((current) => current.includes(size) ? current.filter((item) => item !== size) : [...current, size]);
+  const addCustomSize = () => {
+    const size = newSize.trim();
+    if (!size) return;
+    if (!sizes.some((item) => item.toLocaleLowerCase() === size.toLocaleLowerCase())) setSizes((current) => [...current, size]);
+    setNewSize('');
+  };
+
+  const addImages = (files: FileList | null) => {
+    if (!files?.length) return;
+    const next = [...imageFiles, ...Array.from(files)];
+    const capacity = Math.max(0, 8 - existingImages.length);
+    if (next.length > capacity) { setLocalError(`تەنها ${capacity} وێنەی نوێ دەتوانیت زیاد بکەیت؛ کۆی وێنەکان نابێت لە ٨ زیاتر بێت.`); return; }
+    setImageFiles(next); setLocalError(null);
+  };
+
+  return <section className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_14px_45px_rgba(16,22,35,.04)] sm:p-8" dir="rtl">
+    <div className="flex items-center justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">{editing ? 'دەستکاری' : 'بەرهەمی نوێ'}</div><h2 className="mt-1 text-xl font-black">{editing ? 'دەستکاری بەرهەم' : 'دروستکردنی بەرهەم'}</h2><p className="mt-2 text-sm leading-6 text-black/45">تایبەتمەندییە نوێکان زیادکراون؛ فۆڕمی کۆنی بەرهەم و variants ـیش هەر بەردەوامە.</p></div><button onClick={onCancel} className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-bg)]" aria-label="داخستن"><X size={18} /></button></div>
+
+    <div className="mt-7 grid gap-4 md:grid-cols-2">
+      <Field label="ناوی بەرهەم بە کوردی *" value={form.name_ku} onChange={(v) => field('name_ku', v)} dir="rtl" />
+      <Field label="ناوی بەرهەم بە عەرەبی *" value={form.name_ar} onChange={(v) => field('name_ar', v)} dir="rtl" />
+      <Field label="Product name (English) *" value={form.name_en} onChange={(v) => field('name_en', v)} dir="ltr" />
+      <Field label="Slug *" value={form.slug} onChange={(v) => field('slug', v.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '-'))} dir="ltr" />
+      <label><span className="text-xs font-black text-black/55">بەشی بازاڕ *</span><select value={form.category_id} onChange={(e) => field('category_id', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">بەشێک هەڵبژێرە</option>{categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.parent_id ? '↳ ' : ''}{cat.name_ku}</option>)}</select></label>
+      <Field label="نرخی فرۆشتن (د.ع) *" value={form.base_price_iqd} onChange={(v) => field('base_price_iqd', v)} dir="ltr" inputMode="decimal" />
+      <Field label="نرخی پێش داشکاندن (د.ع)" value={form.compare_at_price_iqd} onChange={(v) => field('compare_at_price_iqd', v)} dir="ltr" inputMode="decimal" />
+      {!apparel ? <Field label="کۆی کۆگا" value={form.stock_quantity} onChange={(v) => field('stock_quantity', v)} dir="ltr" inputMode="numeric" /> : <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگا بە شێوەی خۆکار</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">کۆی دانەکانی تێکەڵەکانی ڕەنگ × قەبارە</div></div>}
+      <label className="md:col-span-2"><span className="text-xs font-black text-black/55">وەسفی بەرهەم بە کوردی</span><textarea value={form.description_ku} onChange={(e) => field('description_ku', e.target.value)} rows={4} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>
+    </div>
+
+    {apparel ? <div className="mt-8 space-y-7 border-t border-black/[0.07] pt-7">
+      <div className="flex items-center gap-2"><Tag size={19} className="text-[var(--shakh-orange)]" /><h3 className="text-lg font-black">زانیاریی جل‌وبەرگ</h3></div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <label><span className="text-xs font-black text-black/55">جۆری بەرهەم *</span><select value={form.apparel_product_type} onChange={(e) => {
+          const next = e.target.value;
+          const previous = defaultSizesForApparel(form.apparel_product_type as ApparelProductType | '');
+          const customSizes = sizes.filter((size) => !previous.includes(size));
+          field('apparel_product_type', next);
+          if (!sizes.length || customSizes.length === 0) setSizes(defaultSizesForApparel(next as ApparelProductType | ''));
+        }} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">جۆرێک هەڵبژێرە</option>{apparelTypeOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+        <Field label="براند یان ناوی کۆمپانیا" value={form.brand} onChange={(v) => field('brand', v)} />
+        <Field label="جۆری پارچە / ماددە" value={form.material} onChange={(v) => field('material', v)} />
+        <Field label="وڵاتی دروستکردن" value={form.country_of_origin} onChange={(v) => field('country_of_origin', v)} />
+        <label><span className="text-xs font-black text-black/55">وەرزی بەکارهێنان</span><select value={form.season} onChange={(e) => field('season', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">هەڵبژاردەیی</option>{apparelSeasonOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+        <Field label="شوێنی فرۆشیار" value={form.seller_location} onChange={(v) => field('seller_location', v)} />
+      </div>
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <div className="flex items-center gap-2"><PaletteIcon /><div><h4 className="font-black">ڕەنگەکان</h4><p className="mt-1 text-xs leading-5 text-black/40">تەنها ئەو ڕەنگانە هەڵبژێرە کە لە کۆگادا بەردەستن.</p></div></div>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {apparelColorPalette.map((item) => {
+            const active = colors.some((color) => color.key === item.key);
+            return <button type="button" key={item.key} onClick={() => togglePresetColor(item)} className={`flex items-center gap-2 rounded-2xl border p-3 text-start text-sm font-bold transition ${active ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/5' : 'border-black/10 bg-white'}`}><span className="grid size-7 shrink-0 place-items-center rounded-full border border-black/10" style={{ backgroundColor: item.hex }}>{active ? <Check size={15} className={item.key === 'white' || item.key === 'yellow' || item.key === 'beige' ? 'text-black' : 'text-white'} /> : null}</span><span>{item.name_ku}</span></button>;
+          })}
+        </div>
+        <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><Field label="ڕەنگی تایبەت" value={newColorName} onChange={setNewColorName} /><Field label="ناوی ئینگلیزی (هەڵبژاردەیی)" value={newColorEnglish} onChange={setNewColorEnglish} dir="ltr" /><label className="flex flex-col"><span className="text-xs font-black text-black/55">نیشانەی ڕەنگ</span><input aria-label="کۆدی ڕەنگ" type="color" value={newColorHex} onChange={(e) => setNewColorHex(e.target.value)} className="mt-2 h-12 w-full cursor-pointer rounded-xl border border-black/10 bg-white p-1" /></label></div>
+          <button type="button" onClick={addCustomColor} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> زیادکردنی ڕەنگی تایبەت</button>
+        </div>
+        {colors.length ? <div className="mt-4 space-y-3">{colors.map((color) => <div key={color.key} className="grid gap-3 rounded-2xl border border-black/[0.06] p-3 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-center"><span className="size-9 rounded-xl border border-black/10" style={{ backgroundColor: color.hex }} /><div className="min-w-0"><div className="font-black">{color.name_ku}</div><div className="text-[11px] text-black/40" dir="ltr">{color.hex}</div></div><label><span className="text-[11px] font-bold text-black/45">وێنەی ئەم ڕەنگە</span><select value={color.imageRef} onChange={(e) => setColors((current) => current.map((item) => item.key === color.key ? { ...item, imageRef: e.target.value } : item))} className="mt-1 h-10 w-full rounded-xl border border-black/10 bg-white px-2 text-xs font-bold"><option value="">وێنەی تایبەت نییە</option>{existingImages.map((image, index) => <option key={image.id} value={'path:' + image.storage_path}>وێنەی پێشوو {index + 1}</option>)}{previews.map((preview) => <option key={preview.index} value={'new:' + preview.index}>وێنەی نوێ {preview.index + 1}</option>)}</select></label><button type="button" onClick={() => setColors((current) => current.filter((item) => item.key !== color.key))} className="grid size-9 place-items-center rounded-xl bg-red-50 text-red-600" aria-label="لابردنی ڕەنگ"><X size={16} /></button></div>)}</div> : <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-xs font-bold text-amber-800">هێشتا هیچ ڕەنگێکت هەڵنەبژاردووە.</p>}
+      </div>
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <div className="flex items-center gap-2"><Ruler size={19} className="text-[var(--shakh-blue)]" /><div><h4 className="font-black">قەبارەکان</h4><p className="mt-1 text-xs leading-5 text-black/40">{isShoe ? 'قەبارەی پێڵاو بە ژمارە هەڵبژێرە؛ دەتوانیت قەبارەی تر زیاد بکەیت.' : 'قەبارەی ڕاستەقینەی بەردەست هەڵبژێرە؛ قەبارەی نادیار زیاد مەکە.'}</p></div></div>
+        {defaultSizes.length ? <div className="mt-4 flex flex-wrap gap-2">{defaultSizes.map((size) => <button type="button" key={size} onClick={() => toggleSize(size)} className={`min-w-12 rounded-xl border px-3 py-2.5 text-sm font-black ${sizes.includes(size) ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)] text-white' : 'border-black/10 bg-white text-black/60'}`}>{size}</button>)}</div> : null}
+        <div className="mt-4 flex gap-2"><input value={newSize} onChange={(e) => setNewSize(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSize(); } }} placeholder={isShoe ? 'قەبارەی ژمارەیی یان تایبەت' : 'XS، M، قەبارەی تەمەن، یان تایبەت'} className="h-11 min-w-0 flex-1 rounded-xl border border-black/10 bg-[var(--shakh-bg)] px-3 text-sm font-bold" /><button type="button" onClick={addCustomSize} className="inline-flex items-center gap-1 rounded-xl bg-[var(--shakh-blue)] px-4 text-xs font-black text-white"><Plus size={15} /> زیادکردن</button></div>
+        {sizes.filter((size) => !defaultSizes.includes(size)).length ? <div className="mt-3 flex flex-wrap gap-2">{sizes.filter((size) => !defaultSizes.includes(size)).map((size) => <button key={size} type="button" onClick={() => toggleSize(size)} className="inline-flex items-center gap-2 rounded-xl border border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/5 px-3 py-2 text-xs font-black">{size}<X size={13} /></button>)}</div> : null}
+      </div>
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <div className="flex items-center gap-2"><Boxes size={19} className="text-[var(--shakh-orange)]" /><div><h4 className="font-black">کۆگا: ڕەنگ × قەبارە</h4><p className="mt-1 text-xs leading-5 text-black/40">تەنها تێکەڵەی ڕاستەقینەکان چالاک بکە. کۆگا و نرخی تایبەت بۆ هەر تێکەڵەیەک جیاوازن.</p></div></div>
+        {!colors.length || !sizes.length ? <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm text-black/45">سەرەتا ڕەنگ و قەبارە هەڵبژێرە.</div> : <div className="mt-4 max-h-[560px] space-y-2 overflow-y-auto pe-1">{colors.flatMap((color) => sizes.map((size) => {
+          const key = comboKey(color.key, size);
+          const cell = matrix[key] ?? { enabled: false, stock: '0', price: '' };
+          return <div key={key} className={`rounded-2xl border p-3 ${cell.enabled ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/[0.035]' : 'border-black/[0.06]'}`}><div className="flex flex-wrap items-center justify-between gap-3"><label className="flex min-w-0 items-center gap-3"><input type="checkbox" checked={cell.enabled} onChange={(e) => updateCell(key, { enabled: e.target.checked })} className="size-4 accent-[var(--shakh-blue)]" /><span className="size-7 shrink-0 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} /><span className="text-sm font-black">{color.name_ku} · {size}</span></label><span className={`text-[11px] font-black ${cell.enabled ? 'text-[var(--shakh-blue)]' : 'text-black/30'}`}>{cell.enabled ? 'لە کۆگادا' : 'چالاک نییە'}</span></div>{cell.enabled ? <div className="mt-3 grid gap-3 sm:grid-cols-2"><Field label="دانەی بەردەست" value={cell.stock} onChange={(value) => updateCell(key, { stock: value })} dir="ltr" inputMode="numeric" /><Field label="نرخی تایبەتی (ئەگەر جیاوازە)" value={cell.price} onChange={(value) => updateCell(key, { price: value })} dir="ltr" inputMode="decimal" /></div> : null}</div>;
+        })}</div>}
+      </div>
+
+      <div className="rounded-3xl border border-dashed border-black/15 p-4 sm:p-5">
+        <div className="flex items-center gap-2"><ImagePlus size={19} className="text-[var(--shakh-orange)]" /><div><h4 className="font-black">وێنەکانی بەرهەم *</h4><p className="mt-1 text-xs leading-5 text-black/40">تا ٨ وێنە؛ JPG/PNG/WebP، هەر وێنەیەک تا ٥MB. دەتوانیت وێنەیەک بۆ ڕەنگێک دیاری بکەیت.</p></div></div>
+        <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white"><Upload size={16} /> هەڵبژاردنی وێنەکان<input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => { addImages(e.target.files); e.currentTarget.value = ''; }} className="sr-only" disabled={imageFiles.length + existingImages.length >= 8} /></label>
+        <span className="ms-3 text-xs font-bold text-black/40">{existingImages.length + imageFiles.length}/8 وێنە</span>
+        {previews.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{previews.map((preview) => <div key={preview.index} className="relative overflow-hidden rounded-2xl border border-black/[0.06]"><img src={preview.url} alt={preview.file.name} className="aspect-square w-full object-cover" /><div className="truncate px-2 py-2 text-[10px] font-bold text-black/45">{preview.file.name}</div><button type="button" onClick={() => { setImageFiles((items) => items.filter((_, index) => index !== preview.index)); setLocalError(null); }} className="absolute end-2 top-2 grid size-8 place-items-center rounded-full bg-black/70 text-white" aria-label="لابردنی وێنە"><X size={14} /></button></div>)}</div> : null}
+        {existingImages.length ? <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">{existingImages.map((image) => <img key={image.id} src={getProductImageUrl(image.storage_path)} alt={image.alt_ku ?? ''} className="aspect-square w-full rounded-xl object-cover" />)}</div> : null}
+      </div>
+    </div> : null}
+
+    {localError ? <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{localError}</div> : null}
+    <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => { setLocalError(null); onSave({ ...form, imageFiles, colors, sizes, matrix }); }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white"><Save size={17} /> پاشەکەوتکردن</button><button type="button" onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black">هەڵوەشاندنەوە</button></div>
+    {apparel ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان وەک پێشوو بە دۆخی draft هەڵدەگیرێن؛ هەموو زانیاری، وێنە و کۆگاکان لە Supabase پاشەکەوت دەکرێن.</p> : null}
+  </section>;
 }
 
-function Field({ label, value, onChange, dir, inputMode }: { label: string; value: string; onChange: (value: string) => void; dir?: 'ltr' | 'rtl'; inputMode?: 'numeric' | 'decimal' }) { return <label><span className="text-xs font-black text-black/55">{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} dir={dir} inputMode={inputMode} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>; }
+function PaletteIcon() {
+  return <span className="grid size-9 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Tag size={17} /></span>;
+}
+
+function Field({ label, value, onChange, dir, inputMode }: { label: string; value: string; onChange: (value: string) => void; dir?: 'ltr' | 'rtl'; inputMode?: 'numeric' | 'decimal' }) {
+  return <label><span className="text-xs font-black text-black/55">{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} dir={dir} inputMode={inputMode} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>;
+}
 
 function VendorProductRow({ product, userId, onEdit, onDelete }: { product: VendorProduct; userId: string; onEdit: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
