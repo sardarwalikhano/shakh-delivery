@@ -55,7 +55,7 @@ export async function getProducts(options?: { search?: string; categoryId?: stri
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active)')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active)')
     .eq('slug', slug)
     .eq('status', 'active')
     .eq('stores.status', 'active')
@@ -96,7 +96,7 @@ export async function toggleWishlist(userId: string, productId: string, active: 
 export async function getWishlist(userId: string): Promise<Product[]> {
   const { data, error } = await supabase
     .from('wishlists')
-    .select('product_id,products!inner(id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active),images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order))')
+    .select('product_id,products!inner(id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active),images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order))')
     .eq('user_id', userId);
 
   if (error) throw error;
