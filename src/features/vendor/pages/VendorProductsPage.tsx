@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { addVendorProductImage, createVendorProduct, createVendorVariant, deleteDraftProduct, deleteVendorProductImage, deleteVendorVariant, getVendorProductImages, getVendorProducts, getVendorStores, getVendorVariants, updateVendorProduct, updateVendorVariant, type VendorProduct, type VendorProductImage, type VendorStore, type VendorVariant } from '../api';
 import { supabase } from '@/lib/supabase/client';
+import { ImageUploadField } from '@/components/media/ImageUploadField';
 import { deleteProductImage, getProductImageUrl, uploadProductImage } from '@/lib/storage/catalogMedia';
 import { apparelColorPalette, apparelSeasonOptions, apparelTypeOptions, defaultSizesForApparel, isShoeType, type ApparelColor, type ApparelProductType } from '@/lib/catalog/apparel';
 
@@ -138,7 +139,7 @@ export function VendorProductsPage() {
       if (compare !== null && (!Number.isFinite(compare) || compare < base)) throw new Error('نرخی پێشوو نابێت لە نرخی ئێستا کەمتر بێت.');
       if (!Number.isFinite(Number(data.stock_quantity)) && !apparel) throw new Error('ژمارەی کۆگا دروست نییە.');
       if (apparel && !apparelType) throw new Error('جۆری بەرهەم هەڵبژێرە.');
-      if (apparel && data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
+      if (data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
       if (apparel && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی بەرهەم زیاد بکە.');
       if (apparel && (!data.colors.length || !data.sizes.length || combinations.length === 0)) throw new Error('لانیکەم یەک ڕەنگ، یەک قەبارە و یەک تێکەڵەی ڕەنگ × قەبارە دیاری بکە.');
       if (apparel && data.colors.some((color) => !/^#[0-9A-Fa-f]{6}$/.test(color.hex))) throw new Error('کۆدی HEX ـی ڕەنگێک دروست نییە.');
@@ -174,13 +175,13 @@ export function VendorProductsPage() {
       }
 
       const uploadedImages: VendorProductImage[] = [];
-      if (apparel) {
-        for (const file of data.imageFiles) {
-          const path = await uploadProductImage(user.id, savedProduct.id, file);
-          uploadedImages.push(await addVendorProductImage(user.id, savedProduct.id, path));
-        }
+      for (const file of data.imageFiles) {
+        const path = await uploadProductImage(user.id, savedProduct.id, file);
+        uploadedImages.push(await addVendorProductImage(user.id, savedProduct.id, path));
+      }
+      const allImages = [...editingImages, ...uploadedImages];
 
-        const allImages = [...editingImages, ...uploadedImages];
+      if (apparel) {
         const resolveImage = (imageRef: string) => {
           if (!imageRef) return null;
           if (imageRef.startsWith('path:')) return imageRef.slice(5);
@@ -224,9 +225,13 @@ export function VendorProductsPage() {
         }
         setEditingImages(allImages);
         setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
+        setEditingImages(allImages);
         setMessage('بەرهەم پاشەکەوت کرا و وێنە و تێکەڵەکانی ڕەنگ × قەبارە لە Supabase هەڵگیرا. دۆخی بەرهەم draft ـە تا بە پرۆسەی approval چالاک بکرێت.');
       } else {
-        setMessage(editing ? 'بەرهەم نوێکرایەوە.' : 'بەرهەم دروستکرا و بە دۆخی draft هەڵگیرا.');
+        setEditingImages(allImages);
+        setMessage(editing
+          ? `بەرهەم نوێکرایەوە${uploadedImages.length ? ' و وێنەکان لە Supabase پاشەکەوت کران.' : '.'}`
+          : `بەرهەم دروستکرا و بە دۆخی draft هەڵگیرا${uploadedImages.length ? '؛ وێنەکانیش لە Supabase پاشەکەوت کران.' : '.'}`);
       }
 
       resetForm();
@@ -272,7 +277,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   editingVariants: VendorVariant[];
   existingImages: VendorProductImage[];
   onCancel: () => void;
-  onSave: (data: ProductFormPayload) => void;
+  onSave: (data: ProductFormPayload) => Promise<void> | void;
 }) {
   const field = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const apparel = isApparelCategory(form.category_id, categories);
@@ -299,6 +304,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const [newColorHex, setNewColorHex] = useState('#6B7280');
   const [newSize, setNewSize] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function colorsKeyFromVariant(variant: VendorVariant, _rows: VendorVariant[]): string {
     const preset = apparelColorPalette.find((item) => item.hex.toLowerCase() === (variant.color_hex ?? '').toLowerCase());
@@ -342,12 +348,15 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     setNewSize('');
   };
 
-  const addImages = (files: FileList | null) => {
-    if (!files?.length) return;
-    const next = [...imageFiles, ...Array.from(files)];
-    const capacity = Math.max(0, 8 - existingImages.length);
-    if (next.length > capacity) { setLocalError(`تەنها ${capacity} وێنەی نوێ دەتوانیت زیاد بکەیت؛ کۆی وێنەکان نابێت لە ٨ زیاتر بێت.`); return; }
-    setImageFiles(next); setLocalError(null);
+  const updateImageFiles = (nextFiles: File[]) => {
+    setColors((current) => current.map((color) => {
+      if (!color.imageRef.startsWith('new:')) return color;
+      const oldFile = imageFiles[Number(color.imageRef.slice(4))];
+      const nextIndex = oldFile ? nextFiles.indexOf(oldFile) : -1;
+      return { ...color, imageRef: nextIndex < 0 ? '' : 'new:' + nextIndex };
+    }));
+    setImageFiles(nextFiles);
+    setLocalError(null);
   };
 
   return <section className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_14px_45px_rgba(16,22,35,.04)] sm:p-8" dir="rtl">
@@ -364,6 +373,20 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       {!apparel ? <Field label="کۆی کۆگا" value={form.stock_quantity} onChange={(v) => field('stock_quantity', v)} dir="ltr" inputMode="numeric" /> : <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگا بە شێوەی خۆکار</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">کۆی دانەکانی تێکەڵەکانی ڕەنگ × قەبارە</div></div>}
       <label className="md:col-span-2"><span className="text-xs font-black text-black/55">وەسفی بەرهەم بە کوردی</span><textarea value={form.description_ku} onChange={(e) => field('description_ku', e.target.value)} rows={4} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>
     </div>
+
+    <ImageUploadField
+      files={imageFiles}
+      onChange={updateImageFiles}
+      maxFiles={8}
+      required={apparel}
+      label={apparel ? 'وێنەکانی جل‌وبەرگ' : 'وێنەکانی بەرهەم'}
+      hint="وێنە لە کامێرا یان گەلەری هەڵبژێرە؛ تا ٨ وێنە. وێنەی سەرەکی لە لیستی وێنە پاشەکەوتکراوەکاندا یەکەمە."
+      existingImages={existingImages.map((image, index) => ({
+        id: image.id,
+        url: getProductImageUrl(image.storage_path),
+        label: image.alt_ku || `وێنەی ${index + 1}`,
+      }))}
+    />
 
     {apparel ? <div className="mt-8 space-y-7 border-t border-black/[0.07] pt-7">
       <div className="flex items-center gap-2"><Tag size={19} className="text-[var(--shakh-orange)]" /><h3 className="text-lg font-black">زانیاریی جل‌وبەرگ</h3></div>
@@ -413,17 +436,11 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
         })}</div>}
       </div>
 
-      <div className="rounded-3xl border border-dashed border-black/15 p-4 sm:p-5">
-        <div className="flex items-center gap-2"><ImagePlus size={19} className="text-[var(--shakh-orange)]" /><div><h4 className="font-black">وێنەکانی بەرهەم *</h4><p className="mt-1 text-xs leading-5 text-black/40">تا ٨ وێنە؛ JPG/PNG/WebP، هەر وێنەیەک تا ٥MB. دەتوانیت وێنەیەک بۆ ڕەنگێک دیاری بکەیت.</p></div></div>
-        <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white"><Upload size={16} /> هەڵبژاردنی وێنەکان<input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => { addImages(e.target.files); e.currentTarget.value = ''; }} className="sr-only" disabled={imageFiles.length + existingImages.length >= 8} /></label>
-        <span className="ms-3 text-xs font-bold text-black/40">{existingImages.length + imageFiles.length}/8 وێنە</span>
-        {previews.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{previews.map((preview) => <div key={preview.index} className="relative overflow-hidden rounded-2xl border border-black/[0.06]"><img src={preview.url} alt={preview.file.name} className="aspect-square w-full object-cover" /><div className="truncate px-2 py-2 text-[10px] font-bold text-black/45">{preview.file.name}</div><button type="button" onClick={() => { setImageFiles((items) => items.filter((_, index) => index !== preview.index)); setLocalError(null); }} className="absolute end-2 top-2 grid size-8 place-items-center rounded-full bg-black/70 text-white" aria-label="لابردنی وێنە"><X size={14} /></button></div>)}</div> : null}
-        {existingImages.length ? <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">{existingImages.map((image) => <img key={image.id} src={getProductImageUrl(image.storage_path)} alt={image.alt_ku ?? ''} className="aspect-square w-full rounded-xl object-cover" />)}</div> : null}
-      </div>
+
     </div> : null}
 
     {localError ? <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{localError}</div> : null}
-    <div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => { setLocalError(null); onSave({ ...form, imageFiles, colors, sizes, matrix }); }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white"><Save size={17} /> پاشەکەوتکردن</button><button type="button" onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black">هەڵوەشاندنەوە</button></div>
+    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
     {apparel ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان وەک پێشوو بە دۆخی draft هەڵدەگیرێن؛ هەموو زانیاری، وێنە و کۆگاکان لە Supabase پاشەکەوت دەکرێن.</p> : null}
   </section>;
 }
