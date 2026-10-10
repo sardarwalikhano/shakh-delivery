@@ -245,7 +245,8 @@ export function validateVehicleListing(draft: VehicleListingDraft): string | nul
   if (draft.make.trim().length < 1 || draft.make.trim().length > 100) return 'ناوی کۆمپانیا / براند بنووسە.';
   if (draft.model.trim().length < 1 || draft.model.trim().length > 100) return 'ناوی مۆدێل بنووسە.';
   if (draft.trim.trim().length > 100) return 'زانیاریی تریم زۆر درێژە.';
-  if (draft.manufacturing_year && draft.manufacturing_year !== 'unknown') {
+  if (!draft.manufacturing_year) return 'ساڵی دروستکردن هەڵبژێرە یان «نازانم».';
+  if (draft.manufacturing_year !== 'unknown') {
     const year = Number(draft.manufacturing_year);
     if (!Number.isInteger(year) || year < 1886 || year > new Date().getFullYear() + 1) return 'ساڵی دروستکردن دروست نییە.';
   }
