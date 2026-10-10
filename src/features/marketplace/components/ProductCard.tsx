@@ -17,6 +17,7 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
   const soldOut = product.stock_quantity <= 0;
 
   const add = () => {
+    if (product.variants.length > 0) { navigate(`/product/${product.slug}`); return; }
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/product/${product.slug}` } });
       return;
@@ -66,7 +67,12 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
             <Store size={13} /> <span className="truncate">{product.store.name_ku}</span>
           </div>
         ) : null}
-        <div className="mt-4 flex items-center justify-between gap-3">
+        {product.brand || product.quantity_value != null ? <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-black/45">
+          {product.brand ? <span>{product.brand}</span> : null}
+          {product.quantity_value != null && product.quantity_unit ? <span className="rounded-lg bg-[var(--shakh-bg)] px-2 py-1">{product.quantity_value.toLocaleString('en-US')} {({g:'گرام',kg:'کیلۆگرام',ml:'ملیلتر',l:'لیتر',pack:'پاکێت',piece:'دانە',carton:'کارتۆن'} as Record<string,string>)[product.quantity_unit]}</span> : null}
+        </div> : null}
+        <div className="mt-3 text-[11px] font-bold text-black/45">{soldOut ? 'لە کۆگا نەماوە' : `بەردەست: ${product.stock_quantity.toLocaleString('en-US')} دانە`}</div>
+        <div className="mt-3 flex items-center justify-between gap-3">
           <div>
             <div className="text-base font-black tabular-nums">{product.base_price_iqd.toLocaleString('en-US')} <span className="text-xs text-black/40">د.ع</span></div>
             {product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd ? <div className="mt-0.5 text-xs text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
