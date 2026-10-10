@@ -19,7 +19,7 @@ export type ApparelColor = {
   name_ar: string;
   name_en: string;
   hex: string;
-  imageIndex: string;
+  imageRef: string;
   custom?: boolean;
 };
 
