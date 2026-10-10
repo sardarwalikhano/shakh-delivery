@@ -141,15 +141,27 @@ export function CreatePostPage() {
   );
 
   const toggleColor = (color: ApparelColor) => {
-    setColors((current) => current.some((item) => item.hex.toLowerCase() === color.hex.toLowerCase())
+    const removing = colors.some((item) => item.hex.toLowerCase() === color.hex.toLowerCase());
+    setColors((current) => removing
       ? current.filter((item) => item.hex.toLowerCase() !== color.hex.toLowerCase())
       : [...current, color]);
+    if (removing) {
+      setVariantDrafts((current) => Object.fromEntries(
+        Object.entries(current).filter(([key]) => !key.startsWith(color.hex.toLowerCase() + '::')),
+      ));
+    }
   };
 
   const toggleSize = (size: string) => {
-    setSizes((current) => current.some((item) => item.toLowerCase() === size.toLowerCase())
+    const removing = sizes.some((item) => item.toLowerCase() === size.toLowerCase());
+    setSizes((current) => removing
       ? current.filter((item) => item.toLowerCase() !== size.toLowerCase())
       : [...current, size]);
+    if (removing) {
+      setVariantDrafts((current) => Object.fromEntries(
+        Object.entries(current).filter(([key]) => !key.endsWith('::' + size.trim().toLocaleLowerCase())),
+      ));
+    }
   };
 
   const updateVariant = (key: string, patch: Partial<VariantDraft>) => {
@@ -337,7 +349,11 @@ export function CreatePostPage() {
               </div>
 
               <Field label="١. جۆری بەرهەم">
-                <select className={inputClass} value={apparelType} onChange={(event) => { setApparelType(event.target.value as ApparelType); setSizes([]); }} required>
+                <select className={inputClass} value={apparelType} onChange={(event) => {
+                    setApparelType(event.target.value as ApparelType);
+                    setSizes([]);
+                    setVariantDrafts({});
+                  }} required>
                   {apparelTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </Field>
@@ -483,7 +499,7 @@ export function CreatePostPage() {
                 </Field>
                 <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
                   <div className="text-xs font-bold text-black/40">نرخی پێشبینیکراو دوای داشکاندن</div>
-                  <div className="mt-1 text-xl font-black">{price.trim() && Number(price) > 0 ? Math.round(Number(price.replace(/,/g, '')) * (100 - Math.min(99, Math.max(0, Number(discountPercent) || 0))) / 100).toLocaleString('en-US') : '—'} <span className="text-xs text-black/40">د.ع</span></div>
+                  <div className="mt-1 text-xl font-black">{price.trim() && Number(price.replace(/,/g, '')) > 0 ? Math.round(Number(price.replace(/,/g, '')) * (100 - Math.min(99, Math.max(0, Number(discountPercent) || 0))) / 100).toLocaleString('en-US') : '—'} <span className="text-xs text-black/40">د.ع</span></div>
                 </div>
               </div>
             </section>
