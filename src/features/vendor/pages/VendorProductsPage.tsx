@@ -1,4 +1,4 @@
-import { Boxes, Check, ChevronDown, Edit3, ImagePlus, PackagePlus, Plus, Ruler, Save, Tag, Trash2, Upload, X } from 'lucide-react';
+import { Boxes, Check, ChevronDown, Edit3, PackagePlus, Plus, Ruler, Save, Tag, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
@@ -223,7 +223,6 @@ export function VendorProductsPage() {
             await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
           }
         }
-        setEditingImages(allImages);
         setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
         setEditingImages(allImages);
         setMessage('بەرهەم پاشەکەوت کرا و وێنە و تێکەڵەکانی ڕەنگ × قەبارە لە Supabase هەڵگیرا. دۆخی بەرهەم draft ـە تا بە پرۆسەی approval چالاک بکرێت.');
@@ -379,6 +378,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       onChange={updateImageFiles}
       maxFiles={8}
       required={apparel}
+      disabled={saving}
       label={apparel ? 'وێنەکانی جل‌وبەرگ' : 'وێنەکانی بەرهەم'}
       hint="وێنە لە کامێرا یان گەلەری هەڵبژێرە؛ تا ٨ وێنە. وێنەی سەرەکی لە لیستی وێنە پاشەکەوتکراوەکاندا یەکەمە."
       existingImages={existingImages.map((image, index) => ({
