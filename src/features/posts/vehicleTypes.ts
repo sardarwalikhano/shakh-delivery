@@ -58,7 +58,7 @@ export type VehicleListingRecord = {
   price_amount: number;
   currency: 'IQD' | 'USD';
   discount_percent: number;
-  price_negotiable: boolean;
+  price_negotiable: boolean | null;
   exterior_color: string | null;
   interior_color: string | null;
   mileage_km: number | null;
@@ -254,7 +254,7 @@ export function validateVehicleListing(draft: VehicleListingDraft): string | nul
   if (!['IQD', 'USD'].includes(draft.currency)) return 'دراوی نرخ هەڵبژێرە.';
   const discount = Number(draft.discount_percent);
   if (draft.discount_percent.trim() === '' || !Number.isInteger(discount) || discount < 0 || discount > 99) return 'داشکاندن لە ٠ تا ٩٩٪ دیاری بکە؛ ئەگەر نییە ٠ هەڵبژێرە.';
-  if (!['yes', 'no'].includes(draft.price_negotiable)) return 'دیاری بکە نرخ جێگۆڕکێی تێدایە یان نا.';
+  if (!['yes', 'no', 'unknown'].includes(draft.price_negotiable)) return 'دیاری بکە نرخ جێگۆڕکێی تێدایە یان نا، یان نازانم هەڵبژێرە.';
   if (!['new', 'used', 'unknown'].includes(draft.vehicle_condition)) return 'دۆخی ئۆتۆمبێل هەڵبژێرە.';
   if (!['local', 'imported', 'unknown'].includes(draft.origin)) return 'ناوخۆیی یان هاوردەکراو دیاری بکە، یان نازانم هەڵبژێرە.';
   if (!['yes', 'no', 'unknown'].includes(draft.accident_history)) return 'بارودۆخی ڕووداوی پێشوو دیاری بکە.';
@@ -296,7 +296,7 @@ export function vehicleListingToDatabase(draft: VehicleListingDraft) {
     price_amount: Number(draft.price_amount),
     currency: draft.currency,
     discount_percent: Number(draft.discount_percent),
-    price_negotiable: draft.price_negotiable === 'yes',
+    price_negotiable: draft.price_negotiable === 'yes' ? true : draft.price_negotiable === 'no' ? false : null,
     exterior_color: optionalText(draft.exterior_color),
     interior_color: optionalText(draft.interior_color),
     mileage_km: optionalNumber(draft.mileage_km),
