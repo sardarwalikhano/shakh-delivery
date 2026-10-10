@@ -5,7 +5,7 @@ import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { addVendorProductImage, createVendorProduct, createVendorVariant, deleteDraftProduct, deleteVendorProductImage, deleteVendorVariant, getVendorProductImages, getVendorProducts, getVendorStores, getVendorVariants, updateVendorProduct, updateVendorVariant, type VendorProduct, type VendorProductImage, type VendorStore, type VendorVariant } from '../api';
 import { supabase } from '@/lib/supabase/client';
 import { deleteProductImage, getProductImageUrl, uploadProductImage } from '@/lib/storage/catalogMedia';
-import { apparelColorPalette, apparelSeasonOptions, apparelTypeOptions, apparelTypeLabelsKu, defaultSizesForApparel, isShoeType, type ApparelColor, type ApparelProductType } from '@/lib/catalog/apparel';
+import { apparelColorPalette, apparelSeasonOptions, apparelTypeOptions, defaultSizesForApparel, isShoeType, type ApparelColor, type ApparelProductType } from '@/lib/catalog/apparel';
 
 type Category = { id: string; parent_id: string | null; name_ku: string; name_ar: string; name_en: string; slug: string };
 type ProductFormState = {
@@ -38,10 +38,10 @@ function isApparelCategory(categoryId: string, categories: Category[]): boolean 
   return false;
 }
 
-function colorFromVariant(variant: VendorVariant, index: number): ApparelColor {
+function colorFromVariant(variant: VendorVariant): ApparelColor {
   const preset = apparelColorPalette.find((item) => item.hex.toLowerCase() === (variant.color_hex ?? '').toLowerCase());
   return {
-    key: preset?.key ?? 'custom-' + index,
+    key: preset?.key ?? 'custom-' + (variant.color_name_ku ?? variant.name_ku).toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, '-'),
     name_ku: variant.color_name_ku ?? variant.name_ku,
     name_ar: variant.name_ar || variant.name_ku,
     name_en: variant.name_en || variant.name_ku,
@@ -125,9 +125,10 @@ export function VendorProductsPage() {
       const compare = data.compare_at_price_iqd.trim() ? Number(data.compare_at_price_iqd) : null;
       const apparel = isApparelCategory(data.category_id, categories);
       const apparelType = apparel && data.apparel_product_type ? data.apparel_product_type as ApparelProductType : null;
-      const combinations = apparel ? data.colors.flatMap((color) => data.sizes
-        .filter((size) => data.matrix[comboKey(color.key, size)]?.enabled)
-        .map((size) => ({ color, size, cell: data.matrix[comboKey(color.key, size)] }))) : [];
+      const combinations = apparel ? data.colors.flatMap((color) => data.sizes.flatMap((size) => {
+        const cell = data.matrix[comboKey(color.key, size)];
+        return cell?.enabled ? [{ color, size, cell }] : [];
+      })) : [];
       const totalMatrixStock = combinations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.cell.stock))), 0);
       const stock = apparel ? totalMatrixStock : Math.max(0, Math.floor(Number(data.stock_quantity)));
 
@@ -170,7 +171,6 @@ export function VendorProductsPage() {
         savedProduct = await createVendorProduct(user.id, { ...productInput, store_id: selectedStore.id });
         // Keep the saved draft as the edit target if a later image/variant request fails;
         // retrying will update this draft rather than creating a duplicate product.
-        setEditing(savedProduct);
       }
 
       const uploadedImages: VendorProductImage[] = [];
@@ -284,7 +284,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       const key = item.color_name_ku!.toLocaleLowerCase();
       if (seen.has(key)) return [];
       seen.add(key);
-      return [colorFromVariant(item, index)];
+      return [colorFromVariant(item)];
     });
   });
   const [sizes, setSizes] = useState<string[]>(() => [...new Set(editingVariants.filter((item) => item.color_name_ku && item.size_label).map((item) => item.size_label!))]);
@@ -300,14 +300,9 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const [newSize, setNewSize] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  function colorsKeyFromVariant(variant: VendorVariant, rows: VendorVariant[]): string {
-    const colorIndex = rows.filter((item) => item.color_name_ku && item.size_label)
-      .findIndex((item) => item.color_name_ku?.toLocaleLowerCase() === variant.color_name_ku?.toLocaleLowerCase());
-    const unique = rows.filter((item) => item.color_name_ku && item.size_label)
-      .filter((item, index, all) => all.findIndex((other) => other.color_name_ku?.toLocaleLowerCase() === item.color_name_ku?.toLocaleLowerCase()) === index);
-    const matching = unique.find((item) => item.color_name_ku?.toLocaleLowerCase() === variant.color_name_ku?.toLocaleLowerCase());
-    const preset = apparelColorPalette.find((item) => item.hex.toLowerCase() === (matching?.color_hex ?? '').toLowerCase());
-    return preset?.key ?? 'custom-' + unique.findIndex((item) => item.color_name_ku?.toLocaleLowerCase() === variant.color_name_ku?.toLocaleLowerCase());
+  function colorsKeyFromVariant(variant: VendorVariant, _rows: VendorVariant[]): string {
+    const preset = apparelColorPalette.find((item) => item.hex.toLowerCase() === (variant.color_hex ?? '').toLowerCase());
+    return preset?.key ?? 'custom-' + (variant.color_name_ku ?? variant.name_ku).toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, '-');
   }
 
   const defaultSizes = defaultSizesForApparel(form.apparel_product_type as ApparelProductType | '');
