@@ -67,7 +67,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   const productId = data.id as string;
   const [{ data: imageData, error: imageError }, { data: variantData, error: variantError }] = await Promise.all([
     supabase.from('product_images').select('id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order').eq('product_id', productId).order('sort_order', { ascending: true }),
-    supabase.from('product_variants').select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path').eq('product_id', productId).eq('is_active', true).order('created_at', { ascending: true }),
+    supabase.from('product_variants').select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date').eq('product_id', productId).eq('is_active', true).order('created_at', { ascending: true }),
   ]);
 
   if (imageError) throw imageError;
