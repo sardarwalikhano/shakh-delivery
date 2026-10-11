@@ -6,6 +6,7 @@ import type { Product, ProductVariant } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getProductImageUrl } from '@/lib/storage/catalogMedia';
 import { formatSupermarketQuantity, isSupermarketItemExpired, supermarketTypeLabel } from '@/lib/catalog/supermarket';
+import { isRestaurantMenuAvailable, restaurantDietaryLabels, restaurantMenuCategoryLabels } from '@/lib/catalog/restaurant';
 import { supabase } from '@/lib/supabase/client';
 
 export function ProductDetailPage() {
@@ -14,6 +15,7 @@ export function ProductDetailPage() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [variant, setVariant] = useState<ProductVariant | null>(null);
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
   const [wishlisted, setWishlisted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -22,7 +24,8 @@ export function ProductDetailPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void (slug ? getProductBySlug(slug).then((item) => { if (!cancelled) { setProduct(item); setVariant(item?.variants[0] ?? null); } }).catch(() => { if (!cancelled) setProduct(null); }).finally(() => { if (!cancelled) setLoading(false); }) : Promise.resolve());
+    setSelectedOptionIds([]);
+    void (slug ? getProductBySlug(slug).then((item) => { if (!cancelled) { setProduct(item); setVariant(item?.variants[0] ?? null); setSelectedOptionIds([]); } }).catch(() => { if (!cancelled) setProduct(null); }).finally(() => { if (!cancelled) setLoading(false); }) : Promise.resolve());
     return () => { cancelled = true; };
   }, [slug]);
 
@@ -38,6 +41,15 @@ export function ProductDetailPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images', filter: 'product_id=eq.' + product.id }, () => {
         void getProductBySlug(product.slug).then((next) => { if (next) setProduct(next); }).catch(() => {});
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_details', filter: 'product_id=eq.' + product.id }, () => {
+        void getProductBySlug(product.slug).then((next) => { if (next) setProduct(next); }).catch(() => {});
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_option_groups', filter: 'product_id=eq.' + product.id }, () => {
+        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setSelectedOptionIds((current) => current.filter((id) => next.restaurantOptionGroups.some((group) => group.options.some((option) => option.id === id))); } }).catch(() => {});
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_options' }, () => {
+        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setSelectedOptionIds((current) => current.filter((id) => next.restaurantOptionGroups.some((group) => group.options.some((option) => option.id === id))); } }).catch(() => {});
+      })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [product?.id]);
@@ -50,19 +62,40 @@ export function ProductDetailPage() {
   if (loading) return <div className="grid min-h-[65dvh] place-items-center"><div className="text-sm font-bold text-black/45">بارکردن...</div></div>;
   if (!product) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="text-2xl font-black">بەرهەم نەدۆزرایەوە</h1><Link className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white" to="/search">گەڕانەوە بۆ بازاڕ</Link></div>;
 
-  const price = variant?.price_iqd ?? product.base_price_iqd;
-  const maxStock = variant?.stock_quantity ?? product.stock_quantity;
-  const expired = isSupermarketItemExpired(product.expiry_date) || isSupermarketItemExpired(variant?.expiry_date);
-  const canBuy = maxStock > 0 && !expired && (variant?.is_active ?? true);
+  const restaurant = product.restaurantMenu;
+  const menuAvailable = restaurant
+    ? isRestaurantMenuAvailable(restaurant.is_available, restaurant.available_from, restaurant.available_until)
+    : false;
+  const basePrice = variant?.price_iqd ?? product.base_price_iqd;
+  const selectedOptions = product.restaurantOptionGroups.flatMap((group) => group.options.filter((option) => selectedOptionIds.includes(option.id)));
+  const selectedOptionsPrice = selectedOptions.reduce((sum, option) => sum + Number(option.price_iqd), 0);
+  const price = basePrice + selectedOptionsPrice;
+  const maxStock = restaurant ? 99 : (variant?.stock_quantity ?? product.stock_quantity);
+  const expired = !restaurant && (isSupermarketItemExpired(product.expiry_date) || isSupermarketItemExpired(variant?.expiry_date));
+  const optionSelectionValid = !restaurant || product.restaurantOptionGroups.every((group) => {
+    const count = selectedOptionIds.filter((id) => group.options.some((option) => option.id === id)).length;
+    return count >= group.min_select && count <= group.max_select;
+  });
+  const canBuy = restaurant
+    ? menuAvailable && (variant?.is_active ?? true)
+    : maxStock > 0 && !expired && (variant?.is_active ?? true);
 
   const buy = async () => {
     setMessage(null);
+    if (!optionSelectionValid) {
+      setMessage('تکایە هەڵبژاردە پێویستەکانی خواردن دیاری بکە.');
+      return;
+    }
+    if (!canBuy) {
+      setMessage(restaurant ? 'ئەم خواردنە لە ئێستادا بەردەست نییە.' : 'ئەم بەرهەمە بەردەست نییە.');
+      return;
+    }
     if (!isAuthenticated || !user) {
       navigate('/login', { state: { from: `/product/${product.slug}` } });
       return;
     }
     try {
-      await addToCart(user.id, product.id, variant?.id ?? null, Math.min(quantity, maxStock), price);
+      await addToCart(user.id, product.id, variant?.id ?? null, Math.min(quantity, maxStock), price, selectedOptionIds);
       setMessage('بەرهەمەکە زیادکرا بۆ سەبەتە.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'زیادکردن بۆ سەبەتە سەرنەکەوت.');
@@ -103,17 +136,50 @@ export function ProductDetailPage() {
             {product.expiry_date ? <p className={`mt-2 text-xs font-semibold ${isSupermarketItemExpired(product.expiry_date) ? 'text-red-600' : 'text-black/45'}`}>بەرواری بەسەرچوون: {product.expiry_date}{isSupermarketItemExpired(product.expiry_date) ? ' · بەسەرچووە' : ''}</p> : null}
             {variant?.manufacturing_date ? <p className="mt-2 text-xs font-semibold text-black/45">بەرواری بەرهەمهێنانی وەشان: {variant.manufacturing_date}</p> : null}
             {variant?.expiry_date ? <p className={`mt-2 text-xs font-semibold ${isSupermarketItemExpired(variant.expiry_date) || expired ? 'text-red-600' : 'text-black/45'}`}>بەرواری بەسەرچوونی وەشان: {variant.expiry_date}{isSupermarketItemExpired(variant.expiry_date) || expired ? ' · بەسەرچووە' : ''}</p> : null}
-            {product.ingredients ? <p className="mt-3 text-sm leading-7 text-black/60">پێکهاتەکان: {product.ingredients}</p> : null}
-            {product.allergen_warnings ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">هۆشداریی ئەلێرژی: {product.allergen_warnings}</p> : null}
+            {restaurant ? <div className="mt-5 space-y-3 rounded-2xl bg-[var(--shakh-bg)] p-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-black"><span className="rounded-full bg-white px-3 py-2">{restaurantMenuCategoryLabels[restaurant.menu_category] ?? 'خواردن'}</span><span>{restaurant.prep_time_minutes} خولەک بۆ ئامادەکردن</span><span className={menuAvailable ? 'text-emerald-700' : 'text-red-600'}>{menuAvailable ? 'بەردەستە' : 'لە ئێستادا بەردەست نییە'}</span></div>
+              {restaurant.available_from && restaurant.available_until ? <p className="text-xs font-bold text-black/50">کاتی بەردەستبوون: {restaurant.available_from.slice(0,5)} – {restaurant.available_until.slice(0,5)}</p> : null}
+              {restaurant.ingredients ? <p className="text-sm leading-7 text-black/70"><strong>پێکهاتەکان:</strong> {restaurant.ingredients}</p> : null}
+              {restaurant.allergen_warnings ? <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold leading-6 text-amber-800">هۆشداریی ئەلێرژی: {restaurant.allergen_warnings}</p> : null}
+              {restaurant.dietary_tags.length ? <div className="flex flex-wrap gap-2">{restaurant.dietary_tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-2 text-xs font-bold text-black/55">{restaurantDietaryLabels[tag] ?? tag}</span>)}</div> : null}
+              {restaurant.spice_level > 0 ? <p className="text-xs font-bold text-[var(--shakh-orange)]">ئاستی توندی: {['','کەم','مامناوەند','زۆر توند'][restaurant.spice_level] ?? 'توند'}</p> : null}
+            </div> : null}
+            {!restaurant && product.ingredients ? <p className="mt-3 text-sm leading-7 text-black/60">پێکهاتەکان: {product.ingredients}</p> : null}
+            {!restaurant && product.allergen_warnings ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">هۆشداریی ئەلێرژی: {product.allergen_warnings}</p> : null}
             {product.storage_instructions ? <p className="mt-3 text-sm leading-7 text-black/60">ڕێنمایی هەڵگرتن: {product.storage_instructions}</p> : null}
             {product.cleaning_type ? <p className="mt-3 text-sm leading-7 text-black/60">جۆری پاککەرەوە: {product.cleaning_type}</p> : null}
-            <div className="mt-6 flex flex-wrap items-end gap-3"><div className="text-3xl font-black tabular-nums">{price.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{product.compare_at_price_iqd && product.compare_at_price_iqd > price && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.round((1 - price / product.compare_at_price_iqd) * 100)}٪ داشکاندن</span></> : null}</div>
+            <div className="mt-6 flex flex-wrap items-end gap-3"><div><div className="text-3xl font-black tabular-nums">{price.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{restaurant && selectedOptionsPrice > 0 ? <div className="mt-1 text-xs font-bold text-black/45">زیادکراوەکان: +{selectedOptionsPrice.toLocaleString('en-US')} د.ع</div> : null}</div>{!restaurant && product.compare_at_price_iqd && product.compare_at_price_iqd > price && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.round((1 - price / product.compare_at_price_iqd) * 100)}٪ داشکاندن</span></> : null}</div>
 
+            {restaurant && restaurant.is_available && product.restaurantOptionGroups.length ? <div className="mt-7 space-y-4">
+              <div><h2 className="text-lg font-black">زیادکراوە و هەڵبژاردەکان</h2><p className="mt-1 text-xs leading-6 text-black/45">نرخ بە پێی قەبارە و زیادکراوە هەڵبژێردراوەکان دەگۆڕێت. هەڵبژاردەی پێویست دیاری بکە.</p></div>
+              {product.restaurantOptionGroups.map((group) => {
+                const groupSelected = selectedOptionIds.filter((id) => group.options.some((option) => option.id === id));
+                return <section key={group.id} className="rounded-2xl border border-black/[0.07] p-4">
+                  <div className="flex items-center justify-between gap-2"><h3 className="font-black">{group.name_ku}</h3><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-[10px] font-black text-black/50">{group.is_required ? 'پێویستە' : 'ئارەزوومەندانە'} · {group.min_select}–{group.max_select}</span></div>
+                  <div className="mt-3 space-y-2">{group.options.map((option) => {
+                    const checked = selectedOptionIds.includes(option.id);
+                    const canSelectMore = checked || groupSelected.length < group.max_select;
+                    return <label key={option.id} className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition ${checked ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/[0.04]' : 'border-black/[0.06]'} ${!canSelectMore ? 'opacity-45' : ''}`}>
+                      <span className="flex min-w-0 items-center gap-3"><input type={group.max_select === 1 ? 'radio' : 'checkbox'} name={'restaurant-group-' + group.id} checked={checked} disabled={!canSelectMore} onChange={() => {
+                        setSelectedOptionIds((current) => {
+                          if (checked) return current.filter((id) => id !== option.id);
+                          if (group.max_select === 1) return [...current.filter((id) => !group.options.some((candidate) => candidate.id === id)), option.id];
+                          if (groupSelected.length >= group.max_select) return current;
+                          return [...current, option.id];
+                        });
+                        setMessage(null);
+                      }} className="size-4 shrink-0 accent-[var(--shakh-blue)]" /><span className="text-sm font-bold">{option.name_ku}</span></span>
+                      <span className="shrink-0 text-sm font-black tabular-nums">{Number(option.price_iqd) > 0 ? '+' + Number(option.price_iqd).toLocaleString('en-US') + ' د.ع' : 'بەخۆڕایی'}</span>
+                    </label>;
+                  })}</div>
+                </section>;
+              })}
+            </div> : null}
             {product.variants.length ? (
               <div className="mt-7"><div className="text-sm font-black">قەبارە، تام و وەشانەکان</div><div className="mt-3 grid gap-2 sm:grid-cols-2">{product.variants.map((item) => { const itemExpired = isSupermarketItemExpired(product.expiry_date) || isSupermarketItemExpired(item.expiry_date); const itemPrice = item.price_iqd ?? product.base_price_iqd; return <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1); setMessage(null); }} className={`rounded-2xl border p-3 text-start transition ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8' : 'border-black/10 bg-white'}`}><span className="block text-sm font-black">{item.name_ku}</span>{formatSupermarketQuantity(item.quantity_value, item.quantity_unit, item.package_count) ? <span className="mt-1 block text-xs font-bold text-black/50">{formatSupermarketQuantity(item.quantity_value, item.quantity_unit, item.package_count)}</span> : null}{item.flavor ? <span className="mt-1 block text-xs font-bold text-[var(--shakh-blue)]">تام: {item.flavor}</span> : null}<span className="mt-2 flex flex-wrap items-center gap-2 text-xs font-black"><span>{itemPrice.toLocaleString('en-US')} د.ع</span><span className={item.stock_quantity > 0 && !itemExpired ? 'text-emerald-700' : 'text-red-600'}>{itemExpired ? 'بەسەرچووە' : item.stock_quantity > 0 ? `${item.stock_quantity.toLocaleString('en-US')} دانە بەردەستە` : 'کۆگا بەتاڵە'}</span></span></button>; })}</div></div>
             ) : null}
 
-            <div className="mt-7 flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] p-3 text-sm font-bold"><span className={`grid size-9 place-items-center rounded-xl ${canBuy ? 'bg-emerald-500/10 text-emerald-700' : 'bg-red-500/10 text-red-700'}`}><Check size={17} /></span>{expired ? 'بەرواری بەسەرچوونی بەرهەم تێپەڕیوە' : canBuy ? `${maxStock} دانە بەردەستە` : 'ئەم بەرهەمە بەردەست نییە'}</div>
+            <div className="mt-7 flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] p-3 text-sm font-bold"><span className={`grid size-9 place-items-center rounded-xl ${canBuy ? 'bg-emerald-500/10 text-emerald-700' : 'bg-red-500/10 text-red-700'}`}><Check size={17} /></span>{restaurant ? (menuAvailable ? 'بەردەستە بۆ داواکردن' : 'لە کاتی ئێستادا داواکردن بەردەست نییە') : expired ? 'بەرواری بەسەرچوونی بەرهەم تێپەڕیوە' : canBuy ? `${maxStock} دانە بەردەستە` : 'ئەم بەرهەمە بەردەست نییە'}</div>
             <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr]">
               <div className="flex h-12 items-center rounded-2xl border border-black/10 bg-white"><button aria-label="کەمکردنەوەی ژمارە" className="grid size-12 place-items-center text-xl" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><span className="w-8 text-center font-black">{quantity}</span><button aria-label="زیادکردنی ژمارە" disabled={quantity >= maxStock || !canBuy} className="grid size-12 place-items-center text-xl disabled:opacity-30" onClick={() => setQuantity((value) => Math.min(maxStock, value + 1))}>+</button></div>
               <button disabled={!canBuy} onClick={() => void buy()} className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"><ShoppingBag size={18} /> زیادکردن بۆ سەبەتە</button>
