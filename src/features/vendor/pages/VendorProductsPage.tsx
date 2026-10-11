@@ -406,7 +406,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const apparel = isApparelCategory(form.category_id, categories);
   const supermarket = isSupermarketCategory(form.category_id, categories);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [marketVariants, setMarketVariants] = useState<SupermarketVariantDraft[]>(() => editingVariants.filter((item) => !(item.color_name_ku && item.size_label)).map((item) => ({
+  const [marketVariants, setMarketVariants] = useState<SupermarketVariantDraft[]>(() => editingVariants.filter((item) => !(item.color_name_ku && item.size_label) && item.is_active).map((item) => ({
     id: item.id, name_ku: item.name_ku, name_ar: item.name_ar, name_en: item.name_en, sku: item.sku ?? '', barcode: item.barcode ?? '',
     quantity_value: item.quantity_value == null ? '' : String(item.quantity_value), quantity_unit: item.quantity_unit ?? '',
     package_count: item.package_count == null ? '' : String(item.package_count), flavor: item.flavor ?? '',
