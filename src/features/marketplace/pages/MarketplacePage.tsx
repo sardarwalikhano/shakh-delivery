@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { listActivePosts } from '@/features/posts/api';
 import type { Post, PostCategory } from '@/features/posts/types';
-import { postCategoryLabels } from '@/features/posts/labels';
+import { postCategoryLabels, postRoleLabels } from '@/features/posts/labels';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
 
 const postCategorySlugs: Record<PostCategory, string> = {
@@ -46,13 +46,12 @@ export function MarketplacePage() {
   const [postsRevision, setPostsRevision] = useState(0);
 
   const selectedCategory = useMemo(() => categories.find((item) => item.slug === categorySlug) ?? null, [categories, categorySlug]);
-  const selectedCategoryLabel = useMemo(
-    () => selectedCategory?.name_ku
-      ?? (Object.keys(postCategorySlugs) as PostCategory[]).find((key) => postCategorySlugs[key] === categorySlug)
-        ? selectedCategory?.name_ku ?? postCategoryLabels[(Object.keys(postCategorySlugs) as PostCategory[]).find((key) => postCategorySlugs[key] === categorySlug) as PostCategory]
-        : 'بازاڕ',
-    [categorySlug, selectedCategory],
-  );
+  const selectedCategoryLabel = useMemo(() => {
+    if (selectedCategory) return selectedCategory.name_ku;
+    const matchedPostCategory = (Object.keys(postCategorySlugs) as PostCategory[])
+      .find((postCategory) => postCategorySlugs[postCategory] === categorySlug);
+    return matchedPostCategory ? postCategoryLabels[matchedPostCategory] : 'بازاڕ';
+  }, [categorySlug, selectedCategory]);
 
   const categoryOptions = useMemo(() => {
     const bySlug = new Map<string, CategoryOption>();
@@ -230,7 +229,7 @@ export function MarketplacePage() {
                     <div className="p-5">
                       <div className="flex items-center justify-between gap-2 text-[11px] font-black">
                         <span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[var(--shakh-orange)]">{postCategoryLabels[post.category]}</span>
-                        <span className="text-black/30">{postRoleLabelsFallback(post.publisher_role)}</span>
+                        <span className="text-black/30">{postRoleLabels[post.publisher_role]}</span>
                       </div>
                       <h3 className="mt-4 line-clamp-2 text-lg font-black group-hover:text-[var(--shakh-blue)]">{post.title}</h3>
                       <p className="mt-2 line-clamp-3 text-sm leading-7 text-black/50">{post.content || '—'}</p>
@@ -261,18 +260,3 @@ export function MarketplacePage() {
   );
 }
 
-function postRoleLabelsFallback(role: Post['publisher_role']): string {
-  const labels: Record<Post['publisher_role'], string> = {
-    super_admin: 'سوپەر ئەدمین',
-    admin: 'ئەدمین',
-    customer: 'کڕیار',
-    captain: 'کاپتن',
-    restaurant_vendor: 'فرۆشیاری ڕێستوران',
-    fashion_vendor: 'فرۆشیاری جل و بەرگ',
-    supermarket_vendor: 'فرۆشیاری سوپەرمارکێت',
-    car_dealer: 'فرۆشیاری ئۆتۆمبێل',
-    umrah_agency: 'ئەژانسی عومرە',
-    support: 'پشتیوانی',
-  };
-  return labels[role] ?? role;
-}
