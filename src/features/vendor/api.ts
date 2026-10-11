@@ -40,6 +40,18 @@ export type VendorProduct = {
   country_of_origin: string | null;
   season: 'summer' | 'winter' | 'all_seasons' | null;
   seller_location: string | null;
+  supermarket_type: 'food' | 'beverage' | 'cleaning' | 'daily_essentials' | 'fresh_food' | 'other' | null;
+  quantity_value: number | null;
+  quantity_unit: 'g' | 'kg' | 'ml' | 'l' | 'pack' | 'piece' | 'carton' | null;
+  package_count: number | null;
+  barcode: string | null;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
+  storage_instructions: string | null;
+  ingredients: string | null;
+  allergen_warnings: string | null;
+  flavor: string | null;
+  cleaning_type: string | null;
   category?: { name_ku: string; name_ar: string; name_en: string } | null;
 };
 
@@ -67,15 +79,23 @@ export type VendorVariant = {
   color_hex: string | null;
   size_label: string | null;
   color_image_storage_path: string | null;
+  quantity_value: number | null;
+  quantity_unit: 'g' | 'kg' | 'ml' | 'l' | 'pack' | 'piece' | 'carton' | null;
+  package_count: number | null;
+  flavor: string | null;
+  barcode: string | null;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
 };
 
-const vendorRoles: AppRole[] = ['restaurant_vendor', 'fashion_vendor', 'car_dealer', 'umrah_agency'];
+const vendorRoles: AppRole[] = ['restaurant_vendor', 'fashion_vendor', 'supermarket_vendor', 'car_dealer', 'umrah_agency'];
 
-function isVendorRole(role: AppRole | null): role is AppRole {
-  return role !== null && vendorRoles.includes(role);
+function isVendorRole(role: AppRole | AppRole[] | null): boolean {
+  const roles = Array.isArray(role) ? role : role ? [role] : [];
+  return roles.some((candidate) => vendorRoles.includes(candidate));
 }
 
-export async function getVendorStores(userId: string, role: AppRole | null): Promise<VendorStore[]> {
+export async function getVendorStores(userId: string, role: AppRole | AppRole[] | null): Promise<VendorStore[]> {
   if (!isVendorRole(role)) return [];
   const { data, error } = await supabase
     .from('stores')
@@ -111,7 +131,7 @@ export async function updateVendorStore(userId: string, storeId: string, input: 
 export async function getVendorProducts(userId: string, storeId?: string): Promise<VendorProduct[]> {
   let query = supabase
     .from('products')
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,categories(name_ku,name_ar,name_en),stores!inner(owner_id)')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,categories(name_ku,name_ar,name_en),stores!inner(owner_id)')
     .eq('stores.owner_id', userId)
     .order('created_at', { ascending: false });
   if (storeId) query = query.eq('store_id', storeId);
@@ -142,23 +162,26 @@ export async function createVendorProduct(userId: string, input: {
   country_of_origin?: string | null;
   season?: 'summer' | 'winter' | 'all_seasons' | null;
   seller_location?: string | null;
+  supermarket_type?: VendorProduct['supermarket_type']; quantity_value?: number | null; quantity_unit?: VendorProduct['quantity_unit'];
+  package_count?: number | null; barcode?: string | null; manufacturing_date?: string | null; expiry_date?: string | null;
+  storage_instructions?: string | null; ingredients?: string | null; allergen_warnings?: string | null; flavor?: string | null; cleaning_type?: string | null;
 }): Promise<VendorProduct> {
   const { data, error } = await supabase
     .from('products')
     .insert({ ...input, status: 'draft', currency: 'IQD' })
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type')
     .single();
   if (error) throw error;
   await assertStoreOwner(userId, input.store_id);
   return data as VendorProduct;
 }
 
-export async function updateVendorProduct(userId: string, productId: string, input: Partial<Pick<VendorProduct, 'category_id' | 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'description_ku' | 'description_ar' | 'description_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'is_featured' | 'apparel_product_type' | 'brand' | 'material' | 'country_of_origin' | 'season' | 'seller_location'>>): Promise<VendorProduct> {
+export async function updateVendorProduct(userId: string, productId: string, input: Partial<Pick<VendorProduct, 'category_id' | 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'description_ku' | 'description_ar' | 'description_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'is_featured' | 'apparel_product_type' | 'brand' | 'material' | 'country_of_origin' | 'season' | 'seller_location' | 'supermarket_type' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'barcode' | 'manufacturing_date' | 'expiry_date' | 'storage_instructions' | 'ingredients' | 'allergen_warnings' | 'flavor' | 'cleaning_type'>>): Promise<VendorProduct> {
   const { data, error } = await supabase
     .from('products')
     .update(input)
     .eq('id', productId)
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type')
     .single();
   if (error) throw error;
   await assertProductOwner(userId, productId);
@@ -175,7 +198,7 @@ export async function getVendorVariants(userId: string, productId: string): Prom
   await assertProductOwner(userId, productId);
   const { data, error } = await supabase
     .from('product_variants')
-    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path')
+    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date')
     .eq('product_id', productId)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -194,18 +217,19 @@ export async function createVendorVariant(userId: string, input: {
   color_hex?: string | null;
   size_label?: string | null;
   color_image_storage_path?: string | null;
+  quantity_value?: number | null; quantity_unit?: VendorVariant['quantity_unit']; package_count?: number | null; flavor?: string | null; barcode?: string | null; manufacturing_date?: string | null; expiry_date?: string | null;
 }): Promise<VendorVariant> {
   await assertProductOwner(userId, input.product_id);
   const { data, error } = await supabase
     .from('product_variants')
     .insert({ ...input, is_active: true })
-    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path')
+    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date')
     .single();
   if (error) throw error;
   return data as VendorVariant;
 }
 
-export async function updateVendorVariant(userId: string, variantId: string, input: Partial<Pick<VendorVariant, 'name_ku' | 'name_ar' | 'name_en' | 'sku' | 'price_iqd' | 'stock_quantity' | 'is_active' | 'color_name_ku' | 'color_hex' | 'size_label' | 'color_image_storage_path'>>): Promise<VendorVariant> {
+export async function updateVendorVariant(userId: string, variantId: string, input: Partial<Pick<VendorVariant, 'name_ku' | 'name_ar' | 'name_en' | 'sku' | 'price_iqd' | 'stock_quantity' | 'is_active' | 'color_name_ku' | 'color_hex' | 'size_label' | 'color_image_storage_path' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'barcode' | 'manufacturing_date' | 'expiry_date'>>): Promise<VendorVariant> {
   const { data: existing, error: lookupError } = await supabase.from('product_variants').select('product_id').eq('id', variantId).single();
   if (lookupError) throw lookupError;
   await assertProductOwner(userId, existing.product_id as string);
@@ -213,7 +237,7 @@ export async function updateVendorVariant(userId: string, variantId: string, inp
     .from('product_variants')
     .update(input)
     .eq('id', variantId)
-    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path')
+    .select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date')
     .single();
   if (error) throw error;
   return data as VendorVariant;

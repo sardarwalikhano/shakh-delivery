@@ -5,9 +5,10 @@ type ProductRow = Omit<Product, 'store' | 'category' | 'images' | 'variants'> & 
   stores: StoreSummary[];
   categories: Category[];
   images?: Product['images'];
+  variants?: Product['variants'];
 };
 
-function mapProduct(row: ProductRow, images: Product['images'] = [], variants: ProductVariant[] = []): Product {
+function mapProduct(row: ProductRow, images: Product['images'] = row.images ?? [], variants: ProductVariant[] = row.variants ?? []): Product {
   return {
     ...row,
     store: row.stores?.[0] ?? null,
@@ -22,7 +23,6 @@ export async function getCategories(): Promise<Category[]> {
     .from('categories')
     .select('id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active')
     .eq('is_active', true)
-    .is('parent_id', null)
     .order('sort_order', { ascending: true });
 
   if (error) throw error;
@@ -33,7 +33,7 @@ export async function getProducts(options?: { search?: string; categoryId?: stri
   const limit = Math.min(Math.max(options?.limit ?? 48, 1), 60);
   let query = supabase
     .from('products')
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active),images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active),images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order),variants:product_variants(id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date)')
     .eq('status', 'active')
     .eq('stores.status', 'active')
     .order('created_at', { ascending: false })
@@ -44,7 +44,22 @@ export async function getProducts(options?: { search?: string; categoryId?: stri
     const safe = search.replace(/[%_]/g, '\\$&');
     query = query.or(`name_ku.ilike.%${safe}%,name_ar.ilike.%${safe}%,name_en.ilike.%${safe}%`);
   }
-  if (options?.categoryId) query = query.eq('category_id', options.categoryId);
+  if (options?.categoryId) {
+    const { data: categoryRows, error: categoryError } = await supabase.from('categories').select('id,parent_id').eq('is_active', true);
+    if (categoryError) throw categoryError;
+    const all = (categoryRows ?? []) as Array<{ id: string; parent_id: string | null }>;
+    const selectedIds = new Set<string>([options.categoryId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const row of all) {
+        if (row.parent_id && selectedIds.has(row.parent_id) && !selectedIds.has(row.id)) {
+          selectedIds.add(row.id); changed = true;
+        }
+      }
+    }
+    query = query.in('category_id', [...selectedIds]);
+  }
   if (options?.featured) query = query.eq('is_featured', true);
 
   const { data, error } = await query;
@@ -55,7 +70,7 @@ export async function getProducts(options?: { search?: string; categoryId?: stri
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active)')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active)')
     .eq('slug', slug)
     .eq('status', 'active')
     .eq('stores.status', 'active')
@@ -67,7 +82,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   const productId = data.id as string;
   const [{ data: imageData, error: imageError }, { data: variantData, error: variantError }] = await Promise.all([
     supabase.from('product_images').select('id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order').eq('product_id', productId).order('sort_order', { ascending: true }),
-    supabase.from('product_variants').select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path').eq('product_id', productId).eq('is_active', true).order('created_at', { ascending: true }),
+    supabase.from('product_variants').select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date').eq('product_id', productId).eq('is_active', true).order('created_at', { ascending: true }),
   ]);
 
   if (imageError) throw imageError;
@@ -96,7 +111,7 @@ export async function toggleWishlist(userId: string, productId: string, active: 
 export async function getWishlist(userId: string): Promise<Product[]> {
   const { data, error } = await supabase
     .from('wishlists')
-    .select('product_id,products!inner(id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active),images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order))')
+    .select('product_id,products!inner(id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,stores!inner(id,name_ku,name_ar,name_en,slug,logo_url,status),categories(id,parent_id,name_ku,name_ar,name_en,slug,icon_key,sort_order,is_active),images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order),variants:product_variants(id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date))')
     .eq('user_id', userId);
 
   if (error) throw error;
@@ -127,7 +142,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
 
   const { data, error } = await supabase
     .from('cart_items')
-    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,stock_quantity),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity)')
+    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,quantity_value,quantity_unit,package_count,flavor)')
     .eq('cart_id', cartData.id)
     .order('created_at', { ascending: false });
 
@@ -141,8 +156,8 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
       variant_id: string | null;
       quantity: number;
       added_price_iqd: number;
-      products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'stock_quantity'>>;
-      product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity'>>;
+      products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count'> & { images: Product['images'] }>;
+      product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor'>>;
     }>).map((item) => ({
       id: item.id,
       cart_id: item.cart_id,
@@ -150,7 +165,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
       variant_id: item.variant_id,
       quantity: item.quantity,
       added_price_iqd: item.added_price_iqd,
-      product: item.products?.[0] ?? null,
+      product: item.products?.[0] ? { ...item.products[0], images: item.products[0].images ?? [] } : null,
       variant: item.product_variants?.[0] ?? null,
     })),
   };

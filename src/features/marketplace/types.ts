@@ -44,6 +44,18 @@ export type Product = {
   country_of_origin: string | null;
   season: 'summer' | 'winter' | 'all_seasons' | null;
   seller_location: string | null;
+  supermarket_type: 'food' | 'beverage' | 'cleaning' | 'daily_essentials' | 'fresh_food' | 'other' | null;
+  quantity_value: number | null;
+  quantity_unit: 'g' | 'kg' | 'ml' | 'l' | 'pack' | 'piece' | 'carton' | null;
+  package_count: number | null;
+  barcode: string | null;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
+  storage_instructions: string | null;
+  ingredients: string | null;
+  allergen_warnings: string | null;
+  flavor: string | null;
+  cleaning_type: string | null;
   store: StoreSummary | null;
   category: Category | null;
   images: ProductImage[];
@@ -74,6 +86,13 @@ export type ProductVariant = {
   color_hex: string | null;
   size_label: string | null;
   color_image_storage_path: string | null;
+  quantity_value: number | null;
+  quantity_unit: 'g' | 'kg' | 'ml' | 'l' | 'pack' | 'piece' | 'carton' | null;
+  package_count: number | null;
+  flavor: string | null;
+  barcode: string | null;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
 };
 
 export type Cart = {
@@ -89,6 +108,6 @@ export type CartItem = {
   variant_id: string | null;
   quantity: number;
   added_price_iqd: number;
-  product: Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'stock_quantity'> | null;
-  variant: Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity'> | null;
+  product: (Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count'> & { images: Product['images'] }) | null;
+  variant: Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor'> | null;
 };

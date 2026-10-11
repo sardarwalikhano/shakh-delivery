@@ -9,6 +9,7 @@ export type AppRole =
   | 'captain'
   | 'restaurant_vendor'
   | 'fashion_vendor'
+  | 'supermarket_vendor'
   | 'car_dealer'
   | 'umrah_agency'
   | 'support';
