@@ -23,6 +23,7 @@ export const postRoleLabels: Record<AppRole, string> = {
   restaurant_vendor: 'فرۆشیاری ڕێستوران',
   fashion_vendor: 'فرۆشیاری جلوبەرگ',
   car_dealer: 'فرۆشیاری ئۆتۆمبێل',
+  supermarket_vendor: 'فرۆشیاری سوپەرمارکێت',
   umrah_agency: 'ئەژانسی عومرە',
   support: 'پشتیوانی',
 };
