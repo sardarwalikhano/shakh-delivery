@@ -186,7 +186,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
 
   const { data, error } = await supabase
     .from('cart_items')
-    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,selected_option_ids,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,expiry_date,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,quantity_value,quantity_unit,package_count,flavor,expiry_date)')
+    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,selected_option_ids,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,expiry_date,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,is_active,quantity_value,quantity_unit,package_count,flavor,expiry_date)')
     .eq('cart_id', cartData.id)
     .order('created_at', { ascending: false });
 
@@ -200,21 +200,25 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
     added_price_iqd: number;
     selected_option_ids: string[];
     products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date' | 'restaurantMenu'> & { images: Product['images'] }>;
-    product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'>>;
+    product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'is_active' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'>>;
   }>);
 
   const optionIds = [...new Set(rows.flatMap((item) => item.selected_option_ids ?? []))];
   const optionsById = new Map<string, CartSelectedOption>();
   if (optionIds.length) {
     const { data: optionRows, error: optionError } = await supabase.from('restaurant_menu_options')
-      .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order,restaurant_menu_option_groups(name_ku)')
+      .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order,restaurant_menu_option_groups(name_ku,is_active)')
       .in('id', optionIds);
     if (optionError) throw optionError;
     for (const option of (optionRows ?? []) as Array<CartSelectedOption & { restaurant_menu_option_groups: { name_ku: string } | Array<{ name_ku: string }> | null }>) {
       const linkedGroup = Array.isArray(option.restaurant_menu_option_groups)
         ? option.restaurant_menu_option_groups[0]
         : option.restaurant_menu_option_groups;
-      optionsById.set(option.id, { ...option, group_name_ku: linkedGroup?.name_ku ?? 'زیادکراوە' });
+      optionsById.set(option.id, {
+        ...option,
+        group_name_ku: linkedGroup?.name_ku ?? 'زیادکراوە',
+        group_is_active: linkedGroup?.is_active ?? false,
+      });
     }
   }
 
@@ -234,7 +238,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
         added_price_iqd: item.added_price_iqd,
         selected_option_ids: selectedOptionIds,
         selectedOptions,
-        hasUnavailableOptions: selectedOptions.length !== selectedOptionIds.length,
+        hasUnavailableOptions: selectedOptions.length !== selectedOptionIds.length || selectedOptions.some((option) => !option.is_active || !option.is_available || !option.group_is_active),
         product: product ? { ...product, restaurantMenu: menuDetails.get(product.id) ?? null, images: product.images ?? [] } : null,
         variant: item.product_variants?.[0] ?? null,
       };
