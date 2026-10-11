@@ -210,7 +210,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
       .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order,restaurant_menu_option_groups(name_ku,is_active)')
       .in('id', optionIds);
     if (optionError) throw optionError;
-    for (const option of (optionRows ?? []) as Array<CartSelectedOption & { restaurant_menu_option_groups: { name_ku: string } | Array<{ name_ku: string }> | null }>) {
+    for (const option of (optionRows ?? []) as Array<Omit<CartSelectedOption, 'group_name_ku' | 'group_is_active'> & { restaurant_menu_option_groups: { name_ku: string; is_active: boolean } | Array<{ name_ku: string; is_active: boolean }> | null }>) {
       const linkedGroup = Array.isArray(option.restaurant_menu_option_groups)
         ? option.restaurant_menu_option_groups[0]
         : option.restaurant_menu_option_groups;
