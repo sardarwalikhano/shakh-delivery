@@ -5,7 +5,7 @@ import { addToCart, getProductBySlug, isWishlisted, toggleWishlist } from '../ap
 import type { Product, ProductVariant } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getProductImageUrl } from '@/lib/storage/catalogMedia';
-import { formatSupermarketQuantity, isSupermarketItemExpired, supermarketTypeLabel, supermarketUnitLabel } from '@/lib/catalog/supermarket';
+import { formatSupermarketQuantity, isSupermarketItemExpired, supermarketTypeLabel } from '@/lib/catalog/supermarket';
 import { supabase } from '@/lib/supabase/client';
 
 export function ProductDetailPage() {
