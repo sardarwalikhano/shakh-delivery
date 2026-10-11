@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
-import type { Cart, CartItem, Category, Product, ProductVariant, StoreSummary } from './types';
+import type { Cart, CartItem, Category, Product, ProductVariant, RestaurantMenuDetails, RestaurantMenuOption, RestaurantMenuOptionGroup, CartSelectedOption, StoreSummary } from './types';
 
-type ProductRow = Omit<Product, 'store' | 'category' | 'images' | 'variants'> & {
+type ProductRow = Omit<Product, 'store' | 'category' | 'images' | 'variants' | 'restaurantMenu' | 'restaurantOptionGroups'> & {
   stores: StoreSummary[];
   categories: Category[];
   images?: Product['images'];
@@ -12,6 +12,8 @@ function mapProduct(
   row: ProductRow,
   images: Product['images'] = row.images ?? [],
   variants: ProductVariant[] = (row.variants ?? []).filter((item) => item.is_active),
+  restaurantMenu: RestaurantMenuDetails | null = null,
+  restaurantOptionGroups: RestaurantMenuOptionGroup[] = [],
 ): Product {
   return {
     ...row,
@@ -19,7 +21,18 @@ function mapProduct(
     category: row.categories?.[0] ?? null,
     images,
     variants: variants.filter((item) => item.is_active),
+    restaurantMenu,
+    restaurantOptionGroups,
   };
+}
+
+async function getRestaurantMenuDetailsByProductIds(productIds: string[]): Promise<Map<string, RestaurantMenuDetails>> {
+  if (!productIds.length) return new Map();
+  const { data, error } = await supabase.from('restaurant_menu_details')
+    .select('product_id,menu_category,ingredients,allergen_warnings,dietary_tags,spice_level,prep_time_minutes,is_available,available_from,available_until')
+    .in('product_id', productIds);
+  if (error) throw error;
+  return new Map(((data ?? []) as RestaurantMenuDetails[]).map((item) => [item.product_id, item]));
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -68,7 +81,9 @@ export async function getProducts(options?: { search?: string; categoryId?: stri
 
   const { data, error } = await query;
   if (error) throw error;
-  return ((data ?? []) as ProductRow[]).map((row) => mapProduct(row, row.images ?? []));
+  const rows = (data ?? []) as ProductRow[];
+  const menuDetails = await getRestaurantMenuDetailsByProductIds(rows.map((row) => row.id));
+  return rows.map((row) => mapProduct(row, row.images ?? [], row.variants ?? [], menuDetails.get(row.id) ?? null));
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
@@ -84,15 +99,41 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   if (!data) return null;
 
   const productId = data.id as string;
-  const [{ data: imageData, error: imageError }, { data: variantData, error: variantError }] = await Promise.all([
+  const [
+    { data: imageData, error: imageError },
+    { data: variantData, error: variantError },
+    { data: menuData, error: menuError },
+  ] = await Promise.all([
     supabase.from('product_images').select('id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order').eq('product_id', productId).order('sort_order', { ascending: true }),
     supabase.from('product_variants').select('id,product_id,name_ku,name_ar,name_en,sku,price_iqd,stock_quantity,is_active,color_name_ku,color_hex,size_label,color_image_storage_path,quantity_value,quantity_unit,package_count,flavor,barcode,manufacturing_date,expiry_date').eq('product_id', productId).eq('is_active', true).order('created_at', { ascending: true }),
+    supabase.from('restaurant_menu_details').select('product_id,menu_category,ingredients,allergen_warnings,dietary_tags,spice_level,prep_time_minutes,is_available,available_from,available_until').eq('product_id', productId).maybeSingle(),
   ]);
 
   if (imageError) throw imageError;
   if (variantError) throw variantError;
+  if (menuError) throw menuError;
 
-  return mapProduct(data as ProductRow, (imageData ?? []) as Product['images'], (variantData ?? []) as ProductVariant[]);
+  const restaurantMenu = (menuData ?? null) as RestaurantMenuDetails | null;
+  let restaurantOptionGroups: RestaurantMenuOptionGroup[] = [];
+  if (restaurantMenu) {
+    const { data: groupData, error: groupError } = await supabase.from('restaurant_menu_option_groups')
+      .select('id,product_id,name_ku,name_ar,name_en,is_required,min_select,max_select,sort_order,is_active')
+      .eq('product_id', productId).eq('is_active', true).order('sort_order', { ascending: true });
+    if (groupError) throw groupError;
+    const groups = (groupData ?? []) as Omit<RestaurantMenuOptionGroup, 'options'>[];
+    if (groups.length) {
+      const { data: optionData, error: optionError } = await supabase.from('restaurant_menu_options')
+        .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order')
+        .in('group_id', groups.map((group) => group.id))
+        .eq('is_active', true).eq('is_available', true)
+        .order('sort_order', { ascending: true });
+      if (optionError) throw optionError;
+      const options = (optionData ?? []) as RestaurantMenuOption[];
+      restaurantOptionGroups = groups.map((group) => ({ ...group, options: options.filter((option) => option.group_id === group.id) }));
+    }
+  }
+
+  return mapProduct(data as ProductRow, (imageData ?? []) as Product['images'], (variantData ?? []) as ProductVariant[], restaurantMenu, restaurantOptionGroups);
 }
 
 export async function isWishlisted(userId: string, productId: string): Promise<boolean> {
@@ -119,10 +160,9 @@ export async function getWishlist(userId: string): Promise<Product[]> {
     .eq('user_id', userId);
 
   if (error) throw error;
-  return ((data ?? []).map((row: { products: ProductRow[] }) => {
-    const product = row.products?.[0];
-    return product ? mapProduct(product, product.images ?? []) : null;
-  }).filter((product): product is Product => Boolean(product)));
+  const rows = (data ?? []).map((row: { products: ProductRow[] }) => row.products?.[0]).filter((product): product is ProductRow => Boolean(product));
+  const menuDetails = await getRestaurantMenuDetailsByProductIds(rows.map((product) => product.id));
+  return rows.map((product) => mapProduct(product, product.images ?? [], product.variants ?? [], menuDetails.get(product.id) ?? null));
 }
 
 async function getOrCreateCart(userId: string): Promise<Cart> {
