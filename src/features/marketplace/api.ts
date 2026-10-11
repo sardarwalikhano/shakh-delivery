@@ -222,7 +222,17 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
     }
   }
 
-  const menuDetails = await getRestaurantMenuDetailsByProductIds(rows.map((item) => item.product_id));
+  const productIds = [...new Set(rows.map((item) => item.product_id))];
+  const [menuDetails, activeVariantResult] = await Promise.all([
+    getRestaurantMenuDetailsByProductIds(productIds),
+    productIds.length
+      ? supabase.from('product_variants').select('product_id').in('product_id', productIds).eq('is_active', true)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (activeVariantResult.error) throw activeVariantResult.error;
+  const productsWithActiveVariants = new Set(
+    ((activeVariantResult.data ?? []) as Array<{ product_id: string }>).map((variant) => variant.product_id),
+  );
   return {
     cart: cartData as Cart,
     items: rows.map((item) => {
@@ -239,6 +249,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
         selected_option_ids: selectedOptionIds,
         selectedOptions,
         hasUnavailableOptions: selectedOptions.length !== selectedOptionIds.length || selectedOptions.some((option) => !option.is_active || !option.is_available || !option.group_is_active),
+        requiresVariantSelection: Boolean(product && menuDetails.has(product.id) && productsWithActiveVariants.has(product.id) && !item.variant_id),
         product: product ? { ...product, restaurantMenu: menuDetails.get(product.id) ?? null, images: product.images ?? [] } : null,
         variant: item.product_variants?.[0] ?? null,
       };
