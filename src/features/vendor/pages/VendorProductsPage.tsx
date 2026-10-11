@@ -2,7 +2,7 @@ import { Boxes, Check, ChevronDown, Edit3, ImagePlus, PackagePlus, Plus, Ruler, 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
-import { addVendorProductImage, createVendorProduct, createVendorVariant, deleteDraftProduct, deleteVendorProductImage, deleteVendorVariant, getVendorProductImages, getVendorProducts, getVendorStores, getVendorVariants, updateVendorProduct, updateVendorVariant, type VendorProduct, type VendorProductImage, type VendorStore, type VendorVariant } from '../api';
+import { addVendorProductImage, createVendorProduct, createVendorVariant, deleteDraftProduct, deleteVendorProductImage, deleteVendorVariant, getRestaurantMenuConfiguration, getVendorProductImages, getVendorProducts, getVendorStores, getVendorVariants, saveRestaurantMenuDetails, saveRestaurantMenuOptionGroups, updateVendorProduct, updateVendorVariant, type RestaurantMenuDetails, type RestaurantMenuGroupDraft, type VendorProduct, type VendorProductImage, type VendorStore, type VendorVariant } from '../api';
 import { supabase } from '@/lib/supabase/client';
 import { ImageUploadField } from '@/components/media/ImageUploadField';
 import { deleteProductImage, getProductImageUrl, uploadProductImage } from '@/lib/storage/catalogMedia';
@@ -23,11 +23,33 @@ type SupermarketVariantDraft = {
   quantity_value: string; quantity_unit: string; package_count: string; flavor: string;
   price_iqd: string; stock_quantity: string; manufacturing_date: string; expiry_date: string;
 };
-type ProductFormPayload = ProductFormState & { imageFiles: File[]; colors: ApparelColor[]; sizes: string[]; matrix: Record<string, MatrixCell>; marketVariants: SupermarketVariantDraft[] };
+type RestaurantMenuDetailsInput = Omit<RestaurantMenuDetails, 'product_id'>;
+type RestaurantSizeDraft = { id?: string; name_ku: string; name_ar: string; name_en: string; price_iqd: string };
+type ProductFormPayload = ProductFormState & {
+  imageFiles: File[];
+  colors: ApparelColor[];
+  sizes: string[];
+  matrix: Record<string, MatrixCell>;
+  marketVariants: SupermarketVariantDraft[];
+  restaurantDetails: RestaurantMenuDetailsInput;
+  restaurantSizes: RestaurantSizeDraft[];
+  restaurantGroups: RestaurantMenuGroupDraft[];
+};
 
 const emptyMarketVariant = (unit = ''): SupermarketVariantDraft => ({
   name_ku: '', name_ar: '', name_en: '', sku: '', barcode: '', quantity_value: '', quantity_unit: unit,
   package_count: '1', flavor: '', price_iqd: '', stock_quantity: '0', manufacturing_date: '', expiry_date: '',
+});
+const emptyRestaurantMenuDetails = (): RestaurantMenuDetailsInput => ({
+  menu_category: 'main_course',
+  ingredients: '',
+  allergen_warnings: '',
+  dietary_tags: [],
+  spice_level: 0,
+  prep_time_minutes: 15,
+  is_available: true,
+  available_from: null,
+  available_until: null,
 });
 const emptyForm = (): ProductFormState => ({
   name_ku: '', name_ar: '', name_en: '', slug: '', category_id: '', base_price_iqd: '',
@@ -90,6 +112,8 @@ export function VendorProductsPage() {
   const [editing, setEditing] = useState<VendorProduct | null>(null);
   const [editingVariants, setEditingVariants] = useState<VendorVariant[]>([]);
   const [editingImages, setEditingImages] = useState<VendorProductImage[]>([]);
+  const [editingRestaurantDetails, setEditingRestaurantDetails] = useState<RestaurantMenuDetailsInput | null>(null);
+  const [editingRestaurantGroups, setEditingRestaurantGroups] = useState<RestaurantMenuGroupDraft[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState<ProductFormState>(emptyForm);
 
@@ -117,20 +141,42 @@ export function VendorProductsPage() {
 
   const resetForm = () => {
     setFormKey((value) => value + 1);
-    setEditing(null); setEditingVariants([]); setEditingImages([]); setShowForm(false); setForm(emptyForm());
+    setEditing(null); setEditingVariants([]); setEditingImages([]); setEditingRestaurantDetails(null); setEditingRestaurantGroups([]); setShowForm(false); setForm(emptyForm());
   };
 
   const edit = async (product: VendorProduct) => {
     if (!user) return;
     setMessage(null);
     try {
-      const [variants, images] = await Promise.all([
+      const [variants, images, restaurantMenu] = await Promise.all([
         getVendorVariants(user.id, product.id),
         getVendorProductImages(user.id, product.id),
+        roles.includes('restaurant_vendor')
+          ? getRestaurantMenuConfiguration(user.id, product.id)
+          : Promise.resolve({ details: null, groups: [] }),
       ]);
       setFormKey((value) => value + 1);
       setEditingVariants(variants);
       setEditingImages(images);
+      setEditingRestaurantDetails(restaurantMenu.details ? {
+        menu_category: restaurantMenu.details.menu_category,
+        ingredients: restaurantMenu.details.ingredients ?? '',
+        allergen_warnings: restaurantMenu.details.allergen_warnings ?? '',
+        dietary_tags: restaurantMenu.details.dietary_tags ?? [],
+        spice_level: restaurantMenu.details.spice_level,
+        prep_time_minutes: restaurantMenu.details.prep_time_minutes,
+        is_available: restaurantMenu.details.is_available,
+        available_from: restaurantMenu.details.available_from,
+        available_until: restaurantMenu.details.available_until,
+      } : null);
+      setEditingRestaurantGroups(restaurantMenu.groups.map((group) => ({
+        id: group.id, name_ku: group.name_ku, name_ar: group.name_ar, name_en: group.name_en,
+        is_required: group.is_required, min_select: group.min_select, max_select: group.max_select,
+        options: group.options.map((option) => ({
+          id: option.id, name_ku: option.name_ku, name_ar: option.name_ar, name_en: option.name_en,
+          price_iqd: Number(option.price_iqd), is_available: option.is_available,
+        })),
+      })));
       setEditing(product);
       setForm({
         name_ku: product.name_ku, name_ar: product.name_ar, name_en: product.name_en, slug: product.slug,
@@ -383,7 +429,7 @@ export function VendorProductsPage() {
         {message ? <div className="mt-5 rounded-2xl bg-[var(--shakh-blue)]/8 px-4 py-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{message}</div> : null}
       </section>
 
-      {showForm ? <ProductForm key={formKey} form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} onCancel={resetForm} onSave={(payload) => save(payload)} /> : null}
+      {showForm ? <ProductForm key={formKey} form={form} setForm={setForm} categories={categories} editing={editing} editingVariants={editingVariants} existingImages={editingImages} restaurantRole={roles.includes('restaurant_vendor')} initialRestaurantDetails={editingRestaurantDetails} initialRestaurantGroups={editingRestaurantGroups} onCancel={resetForm} onSave={(payload) => save(payload)} /> : null}
 
       <section className="space-y-3">
         {loading ? <div className="rounded-[30px] bg-white p-12 text-center text-sm font-bold text-black/45">بارکردن...</div> : products.length === 0 ? <div className="rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center"><div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-bg)] text-black/30"><Boxes size={24} /></div><h2 className="mt-4 text-lg font-black">هێشتا بەرهەم نییە</h2><p className="mt-2 text-sm leading-7 text-black/45">یەکەم بەرهەم دروست بکە؛ هەموو بەرهەمە نوێکان بە `draft` دەستپێدەکەن تا approval سیستەمەکە دواتر status ـیان بگۆڕێت.</p></div> : products.map((product) => <VendorProductRow key={product.id} product={product} userId={user?.id ?? ''} onEdit={() => void edit(product)} onDelete={() => void remove(product)} />)}
