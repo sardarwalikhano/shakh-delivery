@@ -259,11 +259,14 @@ export async function getMyPosts(authorId: string): Promise<Post[]> {
 }
 
 export async function getActivePostById(postId: string): Promise<Post | null> {
+  // RLS exposes active posts to permitted viewers and inactive posts only to
+  // their owner or a post manager. This allows owners to repair archived posts
+  // without making archived/deleted rows public.
   const { data, error } = await supabase
     .from('posts')
     .select('*, vehicle_listing:vehicle_listings(*)')
     .eq('id', postId)
-    .eq('status', 'active')
+    .neq('status', 'deleted')
     .maybeSingle();
 
   if (error) throw error;
