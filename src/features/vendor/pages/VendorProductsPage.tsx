@@ -250,14 +250,20 @@ export function VendorProductsPage() {
         const menu = data.restaurantDetails;
         if (!Number.isInteger(menu.prep_time_minutes) || menu.prep_time_minutes < 0 || menu.prep_time_minutes > 1440) throw new Error('کاتی ئامادەکردن دەبێت لە نێوان ٠ تا ١٤٤٠ خولەک بێت.');
         if ((menu.available_from && !menu.available_until) || (!menu.available_from && menu.available_until)) throw new Error('هەردوو کاتی دەستپێک و کۆتایی بەردەستبوون پێکەوە دیاری بکە.');
-        if (data.restaurantSizes.some((item) => !item.name_ku.trim() || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) <= 0)))) throw new Error('ناوی قەبارە و نرخی تایبەتی قەبارەکان پشکنین بکە.');
+        if (menu.available_from && menu.available_until && menu.available_from === menu.available_until) throw new Error('کاتی دەستپێک و کۆتایی نابێت یەکسان بن؛ بۆ بەردەستبوونی هەموو کات، هەردوو خانە بەتاڵ بهێڵە.');
+        const restaurantSizeKeys = data.restaurantSizes.map((item) => item.name_ku.trim().toLocaleLowerCase());
+        if (data.restaurantSizes.some((item) => !item.name_ku.trim() || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) <= 0))) || new Set(restaurantSizeKeys).size !== restaurantSizeKeys.length) throw new Error('ناوی قەبارەکان دەبێت پڕ و بێ دووبارە بن؛ نرخی تایبەتیش ئەگەر هەیە دەبێت لە سفر گەورەتر بێت.');
         if (data.restaurantGroups.some((group) =>
           !group.name_ku.trim()
           || !Number.isInteger(group.min_select) || !Number.isInteger(group.max_select)
-          || group.min_select < 0 || group.max_select < 1 || group.min_select > group.max_select
+          || group.min_select < 0 || group.min_select > 20
+          || group.max_select < 1 || group.max_select > 20
+          || group.min_select > group.max_select
+          || group.min_select > group.options.length
+          || group.options.length === 0
           || (group.is_required && group.min_select < 1)
           || group.options.some((option) => !option.name_ku.trim() || !Number.isFinite(Number(option.price_iqd)) || Number(option.price_iqd) < 0)
-        )) throw new Error('ناو، نرخ و مەرجی هەڵبژاردنی قەبارە و زیادکراوەکان پشکنین بکە.');
+        )) throw new Error('گروپی زیادکراوە دەبێت ناو و لانیکەم یەک هەڵبژاردەی دروستی هەبێت؛ ژمارەی کەمترین/زۆرترین لە ٠–٢٠ بێت و نرخەکان نەرێنی نەبن.');
       }
       if (supermarket && marketVariants.some((item) => !item.name_ku.trim() || !Number.isFinite(Number(item.stock_quantity)) || Number(item.stock_quantity) < 0 || !Number.isInteger(Number(item.stock_quantity)) || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) <= 0)) || (item.quantity_value.trim() && (!Number.isFinite(Number(item.quantity_value)) || Number(item.quantity_value) <= 0)) || (item.package_count.trim() && (!Number.isInteger(Number(item.package_count)) || Number(item.package_count) <= 0)) || (Boolean(item.quantity_value.trim()) !== Boolean(item.quantity_unit)) || (item.manufacturing_date && item.expiry_date && item.expiry_date < item.manufacturing_date))) throw new Error('ناو و کۆگای وەشانەکان پشکنین بکە؛ نرخی تایبەت ئەگەر بەکاربهێنرێت دەبێت لە سفر گەورەتر بێت، قەبارە و یەکە پێکەوە بن، و بەروارەکان ڕێک بن.');
       if (data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
