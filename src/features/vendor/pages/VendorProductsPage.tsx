@@ -301,10 +301,12 @@ export function VendorProductsPage() {
             await createVendorVariant(user.id, { product_id: savedProduct.id, ...variantInput });
           }
         }
-        for (const oldVariant of previousMatrix) {
-          const key = oldVariant.color_name_ku!.toLocaleLowerCase() + '|' + oldVariant.size_label!.toLocaleLowerCase();
+        for (const oldVariant of editingVariants) {
+          const key = oldVariant.color_name_ku && oldVariant.size_label
+            ? oldVariant.color_name_ku.toLocaleLowerCase() + '|' + oldVariant.size_label.toLocaleLowerCase()
+            : '';
           if (!activeKeys.has(key) && oldVariant.is_active) {
-            // Retire a removed combination without deleting rows referenced by a cart/order.
+            // Retire removed/foreign variant rows without deleting historical cart/order references.
             await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
           }
         }
@@ -346,6 +348,15 @@ export function VendorProductsPage() {
         setEditingImages(allImages);
         setMessage('کاڵای سوپەرمارکێت، وەشانەکان، نرخ و ستۆک لە Supabase پاشەکەوت کران. دۆخی کاڵای نوێ draft ـە تا بە پرۆسەی approval چالاک بکرێت.');
       } else {
+        const movingFromManagedVariants = Boolean(editing?.category_id && (
+          isApparelCategory(editing.category_id, categories) || isSupermarketCategory(editing.category_id, categories)
+        ));
+        if (movingFromManagedVariants) {
+          for (const oldVariant of editingVariants) {
+            if (oldVariant.is_active) await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
+          }
+          setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
+        }
         setEditingImages(allImages);
         setMessage(editing
           ? `بەرهەم نوێکرایەوە${uploadedImages.length ? ' و وێنەکان لە Supabase پاشەکەوت کران.' : '.'}`
