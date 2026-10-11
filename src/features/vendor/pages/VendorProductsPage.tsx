@@ -653,6 +653,79 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       }))}
     />
 
+
+    {restaurantMenu ? <div className="mt-8 space-y-6 border-t border-black/[0.07] pt-7">
+      <div className="flex items-start gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Tag size={20} /></div>
+        <div><h3 className="text-lg font-black">مێنیوی چێشتخانە</h3><p className="mt-1 text-xs leading-6 text-black/45">قەبارە، پێکهاتە، کاتی ئامادەکردن و زیادکراوەکان لە Supabase هەڵدەگیرێن. بەردەستبوونیش بە شێوەی ڕاستەقینە لە کاتی داواکاری پشکنین دەکرێت.</p></div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <label><span className="text-xs font-black text-black/55">پۆلی مێنیو *</span><select value={restaurantDetails.menu_category} onChange={(e) => updateRestaurantDetails({ menu_category: e.target.value as RestaurantMenuDetailsInput['menu_category'] })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold">
+          <option value="main_course">خواردنی سەرەکی</option><option value="appetizer">پێشخواردن</option><option value="salad">سالات</option><option value="dessert">شیرینی</option><option value="beverage">خواردنەوە</option><option value="kids">خواردنی منداڵان</option><option value="combo">کۆمبۆ / کۆمەڵەخواردن</option><option value="other">جۆری تر</option>
+        </select></label>
+        <Field label="کاتی ئامادەکردن (خولەک) *" value={String(restaurantDetails.prep_time_minutes)} onChange={(value) => updateRestaurantDetails({ prep_time_minutes: value === '' ? 0 : Number(value) })} dir="ltr" inputMode="numeric" />
+        <label className="flex items-center justify-between gap-3 rounded-2xl border border-black/10 p-4">
+          <span><span className="block text-sm font-black">ئەم خواردنە بەردەستە</span><span className="mt-1 block text-xs text-black/45">ئەگەر ناچالاک بێت، داواکاریی نوێ وەرناگرێت؛ دواتر دەتوانیت چالاکی بکەیتەوە.</span></span>
+          <input type="checkbox" checked={restaurantDetails.is_available} onChange={(e) => updateRestaurantDetails({ is_available: e.target.checked })} className="size-5 accent-[var(--shakh-blue)]" />
+        </label>
+        <label><span className="text-xs font-black text-black/55">لە کاتژمێر (ئارەزوومەندانە)</span><input type="time" value={restaurantDetails.available_from ?? ''} onChange={(e) => updateRestaurantDetails({ available_from: e.target.value || null })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold" /></label>
+        <label><span className="text-xs font-black text-black/55">تا کاتژمێر (ئارەزوومەندانە)</span><input type="time" value={restaurantDetails.available_until ?? ''} onChange={(e) => updateRestaurantDetails({ available_until: e.target.value || null })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold" /></label>
+        <label><span className="text-xs font-black text-black/55">ئاستی توندی</span><select value={restaurantDetails.spice_level} onChange={(e) => updateRestaurantDetails({ spice_level: Number(e.target.value) })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value={0}>توند نییە</option><option value={1}>کەم</option><option value={2}>مامناوەند</option><option value={3}>زۆر توند</option></select></label>
+        <label className="md:col-span-2"><span className="text-xs font-black text-black/55">پێکهاتەکان و وەسفی خواردن</span><textarea value={restaurantDetails.ingredients ?? ''} onChange={(e) => updateRestaurantDetails({ ingredients: e.target.value })} rows={3} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm leading-7 outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" placeholder="وەک برنج، مریشک، پەنیر، سۆس..." /></label>
+        <label className="md:col-span-2"><span className="text-xs font-black text-black/55">هۆشداریی ئەلێرژی / پێکهاتەی هەستیارکەر</span><textarea value={restaurantDetails.allergen_warnings ?? ''} onChange={(e) => updateRestaurantDetails({ allergen_warnings: e.target.value })} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm leading-7 outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" placeholder="وەک شیر، هێلکە، گەنم، گوێز..." /></label>
+      </div>
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <h4 className="font-black">تایبەتمەندیی خواردن</h4>
+        <p className="mt-1 text-xs leading-6 text-black/45">هەر خاڵێک تەنها ئەگەر ڕاستەقینەیە بۆ ئەم خواردنە هەڵبژێرە.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {([
+            ['vegetarian','گیاخواردن'],['vegan','ڤیگان'],['contains_meat','گوشت تێدایە'],
+            ['spicy','توند'],['gluten_free','بێ گلوتین'],['dairy_free','بێ بەرهەمی شیر'],['halal','حەڵاڵ'],
+          ] as Array<[string,string]>).map(([tag,label]) => <label key={tag} className="flex items-center gap-2 rounded-xl bg-[var(--shakh-bg)] px-3 py-3 text-sm font-bold"><input type="checkbox" checked={restaurantDetails.dietary_tags.includes(tag)} onChange={(e) => updateRestaurantDetails({ dietary_tags: e.target.checked ? [...new Set([...restaurantDetails.dietary_tags,tag])] : restaurantDetails.dietary_tags.filter((item) => item !== tag) })} className="size-4 accent-[var(--shakh-blue)]" />{label}</label>)}
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h4 className="font-black">قەبارە و نرخەکان</h4><p className="mt-1 text-xs leading-6 text-black/45">نموونە: بچووک، مامناوەند، گەورە. هەر قەبارەیەک دەتوانێت نرخێکی تایبەتی هەبێت؛ ئەگەر نرخ بەتاڵ بێت، نرخی سەرەکی بەکاردێت.</p></div><button type="button" onClick={() => setRestaurantSizes((current) => [...current,{ name_ku:'',name_ar:'',name_en:'',price_iqd:'' }])} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-3 text-xs font-black text-white"><Plus size={15} /> زیادکردنی قەبارە</button></div>
+        {restaurantSizes.length ? <div className="mt-4 space-y-3">{restaurantSizes.map((size,index) => <div key={size.id ?? 'new-size-'+index} className="grid gap-3 rounded-2xl border border-black/[0.07] p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_auto] sm:items-end">
+          <Field label="ناوی قەبارە بە کوردی *" value={size.name_ku} onChange={(value) => updateRestaurantSize(index,{name_ku:value})} />
+          <Field label="ناوی عەرەبی" value={size.name_ar} onChange={(value) => updateRestaurantSize(index,{name_ar:value})} />
+          <Field label="ناوی ئینگلیزی" value={size.name_en} onChange={(value) => updateRestaurantSize(index,{name_en:value})} dir="ltr" />
+          <Field label="نرخی قەبارە (د.ع)" value={size.price_iqd} onChange={(value) => updateRestaurantSize(index,{price_iqd:value})} dir="ltr" inputMode="decimal" />
+          <button type="button" onClick={() => setRestaurantSizes((current) => current.filter((_,position) => position !== index))} className="grid size-11 place-items-center rounded-xl bg-red-50 text-red-600" aria-label="لابردنی قەبارە"><X size={16} /></button>
+        </div>)}</div> : <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm leading-6 text-black/45">قەبارەی تایبەت نییە؛ نرخی سەرەکی بۆ ئەم خواردنە بەکاردێت.</div>}
+      </div>
+
+      <div className="rounded-3xl border border-black/[0.06] p-4 sm:p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h4 className="font-black">زیادکراوەکان و کۆمبۆ</h4><p className="mt-1 text-xs leading-6 text-black/45">گروپێک بۆ پەنیر، سۆس، گوشت، پەتاتە یان خواردنەوە دروست بکە. کەمترین و زۆرترین ژمارە دیاری بکە؛ نرخەکان لە کاتی داواکاری لە داتابەیس پشتڕاست دەکرێنەوە.</p></div><button type="button" onClick={() => setRestaurantGroups((current) => [...current,{ name_ku:'',name_ar:'',name_en:'',is_required:false,min_select:0,max_select:1,options:[] }])} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-3 text-xs font-black text-white"><Plus size={15} /> زیادکردنی گروپ</button></div>
+        {restaurantGroups.length ? <div className="mt-4 space-y-4">{restaurantGroups.map((group,groupIndex) => <article key={group.id ?? 'new-group-'+groupIndex} className="rounded-2xl border border-black/[0.08] p-4">
+          <div className="flex items-center justify-between gap-3"><h5 className="font-black">گروپی {groupIndex+1}</h5><button type="button" onClick={() => setRestaurantGroups((current) => current.filter((_,position) => position !== groupIndex))} className="grid size-9 place-items-center rounded-xl bg-red-50 text-red-600" aria-label="لابردنی گروپ"><Trash2 size={15} /></button></div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <Field label="ناوی گروپ *" value={group.name_ku} onChange={(value) => updateRestaurantGroup(groupIndex,{name_ku:value})} />
+            <label className="flex items-center gap-3 rounded-xl bg-[var(--shakh-bg)] px-3 py-2"><input type="checkbox" checked={group.is_required} onChange={(e) => updateRestaurantGroup(groupIndex,{is_required:e.target.checked,min_select:e.target.checked ? Math.max(1,group.min_select) : 0})} className="size-4 accent-[var(--shakh-blue)]" /><span className="text-sm font-bold">هەڵبژاردن پێویستە</span></label>
+            <Field label="کەمترین هەڵبژاردن" value={String(group.min_select)} onChange={(value) => updateRestaurantGroup(groupIndex,{min_select:Math.max(0,Math.floor(Number(value)||0))})} dir="ltr" inputMode="numeric" />
+            <Field label="زۆرترین هەڵبژاردن" value={String(group.max_select)} onChange={(value) => updateRestaurantGroup(groupIndex,{max_select:Math.max(1,Math.floor(Number(value)||1))})} dir="ltr" inputMode="numeric" />
+          </div>
+          <div className="mt-4 space-y-3">{group.options.map((option,optionIndex) => <div key={option.id ?? groupIndex+'-'+optionIndex} className="grid gap-3 rounded-xl bg-[var(--shakh-bg)] p-3 sm:grid-cols-[1fr_140px_auto_auto] sm:items-end">
+            <Field label="ناوی زیادکراوە *" value={option.name_ku} onChange={(value) => updateRestaurantOption(groupIndex,optionIndex,{name_ku:value})} />
+            <Field label="نرخ (د.ع)" value={String(option.price_iqd)} onChange={(value) => updateRestaurantOption(groupIndex,optionIndex,{price_iqd:value === '' ? 0 : Number(value)})} dir="ltr" inputMode="decimal" />
+            <label className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-bold"><input type="checkbox" checked={option.is_available} onChange={(e) => updateRestaurantOption(groupIndex,optionIndex,{is_available:e.target.checked})} className="size-4 accent-[var(--shakh-blue)]" />بەردەست</label>
+            <button type="button" onClick={() => updateRestaurantGroup(groupIndex,{options:group.options.filter((_,position) => position !== optionIndex)})} className="grid size-10 place-items-center rounded-lg bg-white text-red-600" aria-label="لابردنی زیادکراوە"><X size={15} /></button>
+          </div>)}</div>
+          <button type="button" onClick={() => updateRestaurantGroup(groupIndex,{options:[...group.options,{name_ku:'',name_ar:'',name_en:'',price_iqd:0,is_available:true}]})} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-black/10 px-3 py-2 text-xs font-black"><Plus size={14} /> زیادکردنی زیادکراوە</button>
+        </article>)}</div> : <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm leading-6 text-black/45">زیادکراوەی تایبەت نییە؛ کڕیار تەنها قەبارە و نرخ هەڵدەبژێرێت.</div>}
+      </div>
+
+      <div className="rounded-3xl border border-[var(--shakh-blue)]/20 bg-[var(--shakh-blue)]/[0.035] p-4 sm:p-5">
+        <div className="text-xs font-black text-[var(--shakh-blue)]">پێشبینینی پۆست پێش پاشەکەوتکردن</div>
+        <div className="mt-3 flex flex-wrap items-start justify-between gap-3"><div><div className="text-lg font-black">{form.name_ku || 'ناوی خواردن'}</div><div className="mt-1 text-sm text-black/50">{({main_course:'خواردنی سەرەکی',appetizer:'پێشخواردن',dessert:'شیرینی',beverage:'خواردنەوە',salad:'سالات',kids:'خواردنی منداڵان',combo:'کۆمبۆ / کۆمەڵەخواردن',other:'جۆری تر'} as Record<string,string>)[restaurantDetails.menu_category]} · {restaurantDetails.prep_time_minutes} خولەک</div></div><div className="text-end"><div className="text-xl font-black">{Number(form.base_price_iqd||0).toLocaleString('en-US')} د.ع</div><div className={restaurantDetails.is_available ? 'mt-1 text-xs font-bold text-emerald-700' : 'mt-1 text-xs font-bold text-red-600'}>{restaurantDetails.is_available ? 'بەردەست' : 'ناچالاک'}</div></div></div>
+        <div className="mt-3 text-xs font-bold text-black/50">{restaurantSizes.length} قەبارە · {restaurantGroups.length} گروپی زیادکراوە · {restaurantGroups.reduce((sum,group) => sum+group.options.length,0)} زیادکراوە</div>
+        <div className="mt-2 text-xs leading-6 text-black/45">پاشەکەوتکردن زانیارییەکان لە داتابەیس هەڵدەگرێت؛ پۆست بە دۆخی draft دەمێنێتەوە تا پرۆسەی پەسەندکردنی بەڕێوەبەر تەواو بێت.</div>
+      </div>
+    </div> : null}
+
     {supermarket ? <div className="mt-8 space-y-6 border-t border-black/[0.07] pt-7">
       <div className="flex items-start gap-3"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><PackagePlus size={20} /></div><div><h3 className="text-lg font-black">زانیاری تایبەتی سوپەرمارکێت</h3><p className="mt-1 text-xs leading-6 text-black/45">تەنها زانیاریی گونجاو بە جۆری کاڵاکە تۆمار دەکرێت؛ نرخ و کۆگا بە Supabase پەیوەستن.</p></div></div>
       <div className="grid gap-4 md:grid-cols-2">
