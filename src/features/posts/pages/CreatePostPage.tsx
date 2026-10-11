@@ -91,11 +91,13 @@ export function CreatePostPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const nextTargets = await getAllowedPostTargets();
       setTargets(nextTargets);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'نەتوانرا دەسەڵاتەکانی پۆستکردن بخوێندرێنەوە.');
+      setTargets([]);
+      setError(nextError instanceof Error ? nextError.message : 'نەتوانرا کاتەگۆرییەکانی پۆستکردن بخوێندرێنەوە.');
     } finally {
       setLoading(false);
     }
@@ -105,7 +107,9 @@ export function CreatePostPage() {
 
   const roles = useMemo(() => [...new Set(targets.map((item) => item.publisher_role))], [targets]);
   const preferredRole = useMemo(
-    () => roles.find((item) => item !== 'customer' && item !== 'super_admin') ?? roles[0] ?? '',
+    () => roles.includes('super_admin')
+      ? 'super_admin'
+      : roles.find((item) => item !== 'customer') ?? roles[0] ?? '',
     [roles],
   );
   const categories = useMemo(() => [...new Set(targets.map((item) => item.category))], [targets]);
@@ -348,7 +352,26 @@ export function CreatePostPage() {
   if (loading) return <AuthPageShell><div className="mx-auto max-w-xl text-center text-sm font-bold text-black/50">پشکنینی دەسەڵاتی پۆستکردن...</div></AuthPageShell>;
 
   if (!targets.length) {
-    return <AuthPageShell><AuthCard title="پۆستکردن بەردەست نییە" description="ئەم هەژمارە هیچ Role ـێکی ڕێگەپێدراو بۆ پۆستکردنی نییە."><AuthFeedback error="هیچ category ـێکت بۆ پۆستکردن نییە." /></AuthCard></AuthPageShell>;
+    return (
+      <AuthPageShell>
+        <AuthCard
+          title={error ? 'کاتەگۆرییەکانی پۆستکردن بار نەبوون' : 'پۆستکردن بەردەست نییە'}
+          description={error
+            ? 'هەڵەیەک لە خوێندنەوەی Role و کاتەگۆرییەکاندا ڕوویدا؛ ئەمە بە تەنها بەڵگەی نەبوونی مۆڵەت نییە.'
+            : 'ئەم هەژمارە هیچ کاتەگۆرییەکی پەسەندکراوی بۆ پۆستکردن نییە.'}
+        >
+          <AuthFeedback error={error ?? 'هیچ کاتەگۆرییەک بۆ پۆستکردن دیاری نەکراوە. ئەگەر سوپەر ئەدمینیت، ڕێکخستنی role_post_categories بپشکنە.'} />
+          <button
+            type="button"
+            onClick={() => { void load(); }}
+            disabled={loading}
+            className={primaryButtonClass}
+          >
+            {loading ? 'پشکنین...' : 'دووبارە هەوڵ بدەوە'}
+          </button>
+        </AuthCard>
+      </AuthPageShell>
+    );
   }
 
   return (
