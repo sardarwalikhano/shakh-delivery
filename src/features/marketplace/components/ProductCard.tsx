@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { Product } from '../types';
 import { getProductImageUrl } from '@/lib/storage/catalogMedia';
+import { formatSupermarketQuantity, isSupermarketItemExpired } from '@/lib/catalog/supermarket';
 
 type Props = {
   product: Product;
@@ -14,9 +15,18 @@ type Props = {
 export function ProductCard({ product, wishlisted = false, onToggleWishlist, onAdd }: Props) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const expired = Boolean(product.expiry_date && product.expiry_date < new Date().toISOString().slice(0, 10));
-  const soldOut = product.stock_quantity <= 0 || expired;
-  const hasVariants = product.variants.some((item) => item.is_active);
+  const expired = isSupermarketItemExpired(product.expiry_date);
+  const variants = product.variants.filter((item) => item.is_active);
+  const hasVariants = variants.length > 0;
+  const availableVariants = variants.filter((item) => item.stock_quantity > 0 && !expired && !isSupermarketItemExpired(item.expiry_date));
+  const effectiveStock = expired ? 0 : hasVariants ? availableVariants.reduce((sum, item) => sum + item.stock_quantity, 0) : product.stock_quantity;
+  const soldOut = effectiveStock <= 0;
+  const variantPrices = availableVariants.map((item) => item.price_iqd ?? product.base_price_iqd);
+  const displayPrice = hasVariants && variantPrices.length ? Math.min(...variantPrices) : product.base_price_iqd;
+  const displayPriceMax = hasVariants && variantPrices.length ? Math.max(...variantPrices) : displayPrice;
+  const showVariantPriceRange = hasVariants && displayPriceMax > displayPrice;
+  const hasVariantPriceOverrides = variants.some((item) => item.price_iqd != null && item.price_iqd !== product.base_price_iqd);
+  const showProductDiscount = !hasVariantPriceOverrides && Boolean(product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd);
 
   const add = () => {
     if (!isAuthenticated) {
@@ -53,9 +63,9 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
         <button onClick={toggleWishlist} className={`absolute end-3 top-3 grid size-10 place-items-center rounded-full border border-white/80 bg-white/90 shadow-sm transition ${wishlisted ? 'text-[var(--shakh-orange)]' : 'text-black/55 hover:text-[var(--shakh-orange)]'}`} aria-label={wishlisted ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'}>
           <Heart size={18} fill={wishlisted ? 'currentColor' : 'none'} />
         </button>
-        {product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd ? (
+        {showProductDiscount ? (
           <div className="absolute bottom-3 start-3 rounded-full bg-[var(--shakh-orange)] px-2.5 py-1 text-[10px] font-black text-white">
-            {Math.round((1 - product.base_price_iqd / product.compare_at_price_iqd) * 100)}٪ داشکاندن
+            {Math.round((1 - product.base_price_iqd / (product.compare_at_price_iqd ?? product.base_price_iqd)) * 100)}٪ داشکاندن
           </div>
         ) : null}
       </div>
@@ -65,8 +75,8 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
           <h3 className="line-clamp-2 min-h-12 text-sm font-black leading-6 text-[var(--shakh-ink)]">{product.name_ku}</h3>
         </Link>
         {product.brand ? <div className="mt-1 text-xs font-bold text-black/45">{product.brand}</div> : null}
-        {product.quantity_value != null && product.quantity_unit ? <div className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{product.quantity_value.toLocaleString('en-US')} {({ g: 'گرام', kg: 'کیلۆگرام', ml: 'ملیلتر', l: 'لیتر', pack: 'پاکێت', piece: 'دانە', carton: 'کارتۆن' } as Record<string, string>)[product.quantity_unit]}{product.package_count && product.package_count > 1 ? ` · ${product.package_count} پاکێت` : ''}</div> : null}
-        <div className="mt-2 text-[11px] font-bold text-black/40">{expired ? 'بەسەرچووە' : product.stock_quantity > 0 ? `${product.stock_quantity.toLocaleString('en-US')} دانە لە کۆگادا` : 'کۆگا بەتاڵە'}</div>
+        {formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count) ? <div className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count)}</div> : null}
+        <div className={`mt-2 text-[11px] font-bold ${soldOut ? 'text-red-600' : 'text-black/40'}`}>{expired ? 'بەسەرچووە' : soldOut ? 'کۆگا بەتاڵە' : hasVariants && !variantPrices.length ? 'هیچ وەشانێکی بەردەست نییە' : `${effectiveStock.toLocaleString('en-US')} دانە بەردەستە`}</div>
         {product.store ? (
           <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-black/40">
             <Store size={13} /> <span className="truncate">{product.store.name_ku}</span>
@@ -74,8 +84,8 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
         ) : null}
         <div className="mt-4 flex items-center justify-between gap-3">
           <div>
-            <div className="text-base font-black tabular-nums">{product.base_price_iqd.toLocaleString('en-US')} <span className="text-xs text-black/40">د.ع</span></div>
-            {product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd ? <div className="mt-0.5 text-xs text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
+            <div className="text-base font-black tabular-nums">{showVariantPriceRange ? `لە ${displayPrice.toLocaleString('en-US')} تا ${displayPriceMax.toLocaleString('en-US')}` : hasVariants && !variantPrices.length ? product.base_price_iqd.toLocaleString('en-US') : displayPrice.toLocaleString('en-US')} <span className="text-xs text-black/40">د.ع</span></div>
+            {showProductDiscount && !showVariantPriceRange && product.compare_at_price_iqd ? <div className="mt-0.5 text-xs text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
           </div>
           <button disabled={soldOut} onClick={add} className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30" aria-label="زیادکردن بۆ سەبەتە">
             {soldOut ? <span className="text-[10px] font-black">نەماوە</span> : <Plus size={20} />}
