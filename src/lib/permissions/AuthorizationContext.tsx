@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 
@@ -19,6 +19,7 @@ type AuthorizationContextValue = {
   roles: AppRole[];
   permissions: ReadonlySet<string>;
   loading: boolean;
+  error: string | null;
   hasPermission: (permission: string) => boolean;
   refresh: () => Promise<void>;
 };
@@ -26,27 +27,71 @@ type AuthorizationContextValue = {
 const AuthorizationContext = createContext<AuthorizationContextValue | null>(null);
 
 export function AuthorizationProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [permissions, setPermissions] = useState<ReadonlySet<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    const currentRequestId = ++requestId.current;
+    const userId = user?.id ?? null;
+
+    setIsLoading(true);
+    setResolvedUserId(null);
+    setError(null);
     setRoles([]);
     setPermissions(new Set());
-    if (!user) { setLoading(false); return; }
 
-    const roleResult = await supabase.from('user_roles').select('role').eq('user_id', user.id).order('created_at', { ascending: true });
-    if (roleResult.error) { setLoading(false); return; }
+    if (!userId) {
+      if (currentRequestId === requestId.current) setIsLoading(false);
+      return;
+    }
 
-    const nextRoles = (roleResult.data ?? []).map((item) => item.role as AppRole);
-    if (nextRoles.length === 0) { setLoading(false); return; }
+    try {
+      const roleResult = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
 
-    const permissionResult = await supabase.from('role_permissions').select('permission_code').in('role', nextRoles);
-    setRoles(nextRoles);
-    setPermissions(new Set((permissionResult.data ?? []).map((item) => item.permission_code)));
-    setLoading(false);
+      if (currentRequestId !== requestId.current) return;
+      if (roleResult.error) throw roleResult.error;
+
+      const nextRoles = (roleResult.data ?? []).map((item) => item.role as AppRole);
+      if (nextRoles.length === 0) {
+        // An empty result is a real authorization result only after Supabase has
+        // successfully completed the query for the current authenticated user.
+        setRoles([]);
+        setPermissions(new Set());
+        setResolvedUserId(userId);
+        return;
+      }
+
+      const permissionResult = await supabase
+        .from('role_permissions')
+        .select('permission_code')
+        .in('role', nextRoles);
+
+      if (currentRequestId !== requestId.current) return;
+      if (permissionResult.error) throw permissionResult.error;
+
+      setRoles(nextRoles);
+      setPermissions(new Set((permissionResult.data ?? []).map((item) => item.permission_code)));
+      setResolvedUserId(userId);
+    } catch {
+      if (currentRequestId !== requestId.current) return;
+      // A failed permission query must not be treated as a confirmed lack of
+      // permission; show a recoverable error in RequirePermission instead of 403.
+      setRoles([]);
+      setPermissions(new Set());
+      setError('نەتوانرا زانیاری Role و Permission لە Supabase بخوێندرێتەوە. پەیوەندیی ئینتەرنێت بپشکنە و دووبارە هەوڵ بدەوە.');
+      setResolvedUserId(userId);
+    } finally {
+      if (currentRequestId === requestId.current) setIsLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -59,9 +104,20 @@ export function AuthorizationProvider({ children }: { children: ReactNode }) {
     return () => { void supabase.removeChannel(channel); };
   }, [refresh, user]);
 
+  // Derive readiness from the current auth user, not only from an effect-driven
+  // loading flag. This prevents a brief empty-permissions render after sign-in or
+  // hard refresh from redirecting a valid user to /403 before their roles load.
+  const loading = authLoading || (Boolean(user) && (isLoading || resolvedUserId !== user?.id));
+
   const value = useMemo<AuthorizationContextValue>(() => ({
-    role: roles[0] ?? null, roles, permissions, loading, refresh, hasPermission: (permission) => permissions.has(permission),
-  }), [loading, permissions, refresh, roles]);
+    role: roles[0] ?? null,
+    roles,
+    permissions,
+    loading,
+    error,
+    refresh,
+    hasPermission: (permission) => permissions.has(permission),
+  }), [error, loading, permissions, refresh, roles]);
 
   return <AuthorizationContext.Provider value={value}>{children}</AuthorizationContext.Provider>;
 }

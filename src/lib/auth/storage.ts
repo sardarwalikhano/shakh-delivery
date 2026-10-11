@@ -7,6 +7,10 @@ function getStorage(): Storage {
     : window.localStorage;
 }
 
+function getOtherStorage(preferred: Storage): Storage {
+  return preferred === window.localStorage ? window.sessionStorage : window.localStorage;
+}
+
 export function setRememberMePreference(remember: boolean): void {
   window.localStorage.setItem(REMEMBER_ME_KEY, String(remember));
 }
@@ -22,10 +26,24 @@ export function clearAuthStorage(): void {
 
 export const authStorage = {
   getItem(key: string): string | null {
-    return getStorage().getItem(key);
+    const preferred = getStorage();
+    const value = preferred.getItem(key);
+    if (value !== null) return value;
+
+    // Migrate sessions written by an older app version or under a different
+    // remember-me choice instead of treating a valid session as a signed-out user.
+    const other = getOtherStorage(preferred);
+    const fallback = other.getItem(key);
+    if (fallback === null) return null;
+
+    preferred.setItem(key, fallback);
+    other.removeItem(key);
+    return fallback;
   },
   setItem(key: string, value: string): void {
-    getStorage().setItem(key, value);
+    const preferred = getStorage();
+    preferred.setItem(key, value);
+    getOtherStorage(preferred).removeItem(key);
   },
   removeItem(key: string): void {
     window.localStorage.removeItem(key);

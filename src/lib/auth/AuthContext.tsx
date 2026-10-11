@@ -22,20 +22,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let authEventReceived = false;
 
-    const initialize = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(data.session);
-      setLoading(false);
-      if (data.session?.user) await syncPendingProfile(data.session.user);
-    };
-
-    void initialize();
-
+    // Subscribe before reading the stored session. Supabase emits INITIAL_SESSION
+    // after its auth storage has been initialized; that event is the authoritative
+    // startup state and avoids a late getSession() result overwriting a newer event.
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (mounted) setSession(nextSession);
+      if (!mounted) return;
+      authEventReceived = true;
+      setSession(nextSession);
+      setLoading(false);
     });
+
+    // Fallback for an initialization failure so protected routes do not stay loading
+    // forever. Ignore this result once Supabase has delivered any auth state event.
+    void supabase.auth.getSession()
+      .then(({ data: sessionData }) => {
+        if (!mounted || authEventReceived) return;
+        setSession(sessionData.session);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted || authEventReceived) return;
+        setSession(null);
+        setLoading(false);
+      });
 
     return () => {
       mounted = false;

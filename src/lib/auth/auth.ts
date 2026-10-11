@@ -76,7 +76,6 @@ export async function signUp(email: string, password: string, fullName: string, 
 
 export async function signIn(email: string, password: string, rememberMe = getRememberMePreference()): Promise<AuthResult> {
   setRememberMePreference(rememberMe);
-  clearAuthStorage();
 
   const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({
