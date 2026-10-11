@@ -188,6 +188,47 @@ export async function createPost(input: {
   }
 }
 
+export type OwnedPostDetailsPatch = {
+  title: string;
+  content: string;
+  priceAmount: number | null;
+  location: string | null;
+  discountPercent: number;
+  brand?: string | null;
+  material?: string | null;
+  countryOfOrigin?: string | null;
+  season?: ApparelSeason | null;
+  itemCondition?: ApparelCondition | null;
+  apparelAudience?: ApparelAudience | null;
+};
+
+export async function updateOwnedPostDetails(postId: string, patch: OwnedPostDetailsPatch): Promise<Post> {
+  const { data, error } = await supabase.rpc('update_owned_post_details', {
+    p_post_id: postId,
+    p_title: patch.title,
+    p_content: patch.content,
+    p_price_amount: patch.priceAmount,
+    p_location: patch.location,
+    p_discount_percent: patch.discountPercent,
+    p_brand: patch.brand ?? null,
+    p_material: patch.material ?? null,
+    p_country_of_origin: patch.countryOfOrigin ?? null,
+    p_season: patch.season ?? null,
+    p_item_condition: patch.itemCondition ?? null,
+    p_apparel_audience: patch.apparelAudience ?? null,
+  });
+
+  if (error) throw error;
+  if (!data) throw new Error('Supabase هیچ وەڵامێکی بۆ پاشەکەوتکردنی پۆست نەگەڕاندەوە.');
+  return data as Post;
+}
+
+export async function softDeleteOwnedPost(postId: string): Promise<void> {
+  const { data, error } = await supabase.rpc('soft_delete_owned_post', { p_post_id: postId });
+  if (error) throw error;
+  if (data !== true) throw new Error('پۆستەکە نەشاردرایەوە. دووبارە هەوڵ بدەوە.');
+}
+
 export async function listActivePosts(): Promise<Post[]> {
   // The public feed needs only post columns. Do not couple every category
   // (food, general, beauty, delivery, etc.) to the vehicle-listing relation:
