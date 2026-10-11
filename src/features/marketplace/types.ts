@@ -144,6 +144,7 @@ export type RestaurantMenuOptionGroup = {
 
 export type CartSelectedOption = RestaurantMenuOption & {
   group_name_ku: string;
+  group_is_active: boolean;
 };
 
 export type CartItem = {
@@ -157,5 +158,5 @@ export type CartItem = {
   selectedOptions: CartSelectedOption[];
   hasUnavailableOptions: boolean;
   product: (Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date' | 'restaurantMenu'> & { images: Product['images'] }) | null;
-  variant: Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'> | null;
+  variant: Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'is_active' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'> | null;
 };
