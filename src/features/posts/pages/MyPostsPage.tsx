@@ -208,9 +208,9 @@ export function MyPostsPage() {
                 <span>فلتەری کاتەگۆری</span><span>{visiblePosts.length} پۆست</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => setCategoryFilter('all')} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>هەموو</button>
+                <button type="button" onClick={() => { setSelected(null); setCategoryFilter('all'); }} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>هەموو</button>
                 {availableCategories.map((item) => (
-                  <button key={item} type="button" onClick={() => setCategoryFilter(item)} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === item ? 'bg-[var(--shakh-orange)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>{postCategoryLabels[item]}</button>
+                  <button key={item} type="button" onClick={() => { setSelected(null); setCategoryFilter(item); }} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === item ? 'bg-[var(--shakh-orange)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>{postCategoryLabels[item]}</button>
                 ))}
               </div>
             </div>
