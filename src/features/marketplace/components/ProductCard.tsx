@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import type { Product } from '../types';
 import { getProductImageUrl } from '@/lib/storage/catalogMedia';
 import { formatSupermarketQuantity, isSupermarketItemExpired } from '@/lib/catalog/supermarket';
+import { isRestaurantMenuAvailable, restaurantMenuCategoryLabels } from '@/lib/catalog/restaurant';
 
 type Props = {
   product: Product;
@@ -16,11 +17,19 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const expired = isSupermarketItemExpired(product.expiry_date);
+  const restaurant = product.restaurantMenu;
+  const restaurantAvailable = restaurant
+    ? isRestaurantMenuAvailable(restaurant.is_available, restaurant.available_from, restaurant.available_until)
+    : false;
   const variants = product.variants.filter((item) => item.is_active);
   const hasVariants = variants.length > 0;
-  const availableVariants = variants.filter((item) => item.stock_quantity > 0 && !expired && !isSupermarketItemExpired(item.expiry_date));
-  const effectiveStock = expired ? 0 : hasVariants ? availableVariants.reduce((sum, item) => sum + item.stock_quantity, 0) : product.stock_quantity;
-  const soldOut = effectiveStock <= 0;
+  const availableVariants = restaurant
+    ? variants
+    : variants.filter((item) => item.stock_quantity > 0 && !expired && !isSupermarketItemExpired(item.expiry_date));
+  const effectiveStock = restaurant
+    ? (restaurantAvailable ? 1 : 0)
+    : expired ? 0 : hasVariants ? availableVariants.reduce((sum, item) => sum + item.stock_quantity, 0) : product.stock_quantity;
+  const soldOut = restaurant ? !restaurantAvailable : effectiveStock <= 0;
   const variantPrices = availableVariants.map((item) => item.price_iqd ?? product.base_price_iqd);
   const displayPrice = hasVariants && variantPrices.length ? Math.min(...variantPrices) : product.base_price_iqd;
   const displayPriceMax = hasVariants && variantPrices.length ? Math.max(...variantPrices) : displayPrice;
@@ -33,7 +42,7 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
       navigate('/login', { state: { from: `/product/${product.slug}` } });
       return;
     }
-    if (hasVariants) { navigate(`/product/${product.slug}`); return; }
+    if (hasVariants || restaurant) { navigate(`/product/${product.slug}`); return; }
     onAdd?.(product);
   };
 
@@ -76,7 +85,8 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
         </Link>
         {product.brand ? <div className="mt-1 text-xs font-bold text-black/45">{product.brand}</div> : null}
         {formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count) ? <div className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count)}</div> : null}
-        <div className={`mt-2 text-[11px] font-bold ${soldOut ? 'text-red-600' : 'text-black/40'}`}>{expired ? 'بەسەرچووە' : soldOut ? 'کۆگا بەتاڵە' : hasVariants && !variantPrices.length ? 'هیچ وەشانێکی بەردەست نییە' : `${effectiveStock.toLocaleString('en-US')} دانە بەردەستە`}</div>
+        {restaurant ? <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-black/45"><span className="rounded-full bg-[var(--shakh-bg)] px-2 py-1">{restaurantMenuCategoryLabels[restaurant.menu_category] ?? 'خواردن'}</span><span>{restaurant.prep_time_minutes} خولەک</span></div> : null}
+        <div className={`mt-2 text-[11px] font-bold ${soldOut ? 'text-red-600' : 'text-black/40'}`}>{restaurant ? (restaurantAvailable ? 'بەردەستە بۆ داواکردن' : 'لە ئێستادا بەردەست نییە') : expired ? 'بەسەرچووە' : soldOut ? 'کۆگا بەتاڵە' : hasVariants && !variantPrices.length ? 'هیچ وەشانێکی بەردەست نییە' : `${effectiveStock.toLocaleString('en-US')} دانە بەردەستە`}</div>
         {product.store ? (
           <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-black/40">
             <Store size={13} /> <span className="truncate">{product.store.name_ku}</span>
