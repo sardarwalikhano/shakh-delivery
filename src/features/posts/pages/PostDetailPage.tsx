@@ -1,9 +1,10 @@
 import { AlertTriangle, ArrowRight, Check, Package, Pencil, Save, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { getActivePostById, getApparelVariants, softDeleteOwnedPost, updateOwnedPostDetails } from '../api';
+import { getActivePostById, getApparelVariants, replaceOwnedPostImages, softDeleteOwnedPost, updateOwnedPostDetails } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
-import { getPostImageUrl } from '@/lib/storage/postMedia';
+import { getPostImageUrl, MAX_POST_IMAGES } from '@/lib/storage/postMedia';
+import { ImageUploadField } from '@/components/media/ImageUploadField';
 import { supabase } from '@/lib/supabase/client';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelVariant, Post } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -44,6 +45,11 @@ export function PostDetailPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [editMessage, setEditMessage] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [replacementFiles, setReplacementFiles] = useState<File[]>([]);
+  const [savingImages, setSavingImages] = useState(false);
+  const [imageSaveError, setImageSaveError] = useState<string | null>(null);
+  const [imageSaveMessage, setImageSaveMessage] = useState<string | null>(null);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +122,7 @@ export function PostDetailPage() {
   const finalPrice = Math.round(basePrice * (100 - discount) / 100);
   const currencyLabel = vehicleListing?.currency === 'USD' ? '$' : 'د.ع';
   const currentImage = activeImageIndex >= 0 ? images[activeImageIndex]?.storage_path : (selectedVariant?.image_path || images[0]?.storage_path);
+  useEffect(() => { setImageLoadError(false); }, [currentImage]);
   const colorStock = sizesForColor.reduce((sum, variant) => sum + variant.stock_quantity, 0);
   const apparelTypeLabels: Record<string, string> = {
     mens_clothing: 'جل‌وبەرگی پیاوان', womens_clothing: 'جل‌وبەرگی ئافرەتان', kids_clothing: 'جل‌وبەرگی منداڵان',
@@ -143,6 +150,9 @@ export function PostDetailPage() {
     setEditError(null);
     setEditMessage(null);
     setDeleteError(null);
+    setReplacementFiles([]);
+    setImageSaveError(null);
+    setImageSaveMessage(null);
     setIsEditing(true);
   };
 
@@ -215,6 +225,25 @@ export function PostDetailPage() {
       setDeleteError(nextError instanceof Error ? nextError.message : 'سڕینەوەی پۆست سەرکەوتوو نەبوو.');
     } finally {
       setDeletingPost(false);
+    }
+  };
+
+  const saveReplacementImages = async () => {
+    if (!ownsPost || savingImages || replacementFiles.length === 0) return;
+    setSavingImages(true);
+    setImageSaveError(null);
+    setImageSaveMessage(null);
+    try {
+      const updated = await replaceOwnedPostImages(post.id, replacementFiles);
+      setPost(updated);
+      setReplacementFiles([]);
+      setActiveImageIndex(-1);
+      setImageLoadError(false);
+      setImageSaveMessage('وێنە نوێیەکان بە سەرکەوتوویی پاشەکەوت کران.');
+    } catch (nextError) {
+      setImageSaveError(nextError instanceof Error ? nextError.message : 'پاشەکەوتکردنی وێنەکان سەرنەکەوت.');
+    } finally {
+      setSavingImages(false);
     }
   };
 
@@ -301,8 +330,51 @@ export function PostDetailPage() {
         <div className="mt-5 grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
           <div className="rounded-[30px] border border-black/[0.06] bg-white p-3 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-5">
             <div className="overflow-hidden rounded-[24px] bg-[var(--shakh-bg)]">
-              {currentImage ? <img src={getPostImageUrl(currentImage)} alt={post.title} className="aspect-square w-full object-cover" fetchPriority="high" /> : <div className="grid aspect-square place-items-center gap-2 text-sm font-bold text-black/30"><Package size={34} />وێنە بەردەست نییە</div>}
+              {currentImage && !imageLoadError ? (
+                <img
+                  src={getPostImageUrl(currentImage)}
+                  alt={post.title}
+                  onError={() => setImageLoadError(true)}
+                  className="aspect-square w-full object-cover"
+                  fetchPriority="high"
+                />
+              ) : (
+                <div className="grid aspect-square place-items-center gap-2 px-5 text-center text-sm font-bold text-black/35">
+                  <Package size={34} />
+                  <span>{images.length ? 'وێنەکە بار نەبوو؛ دەتوانیت لە دەستکاریدا جێگرتنەوەی بکەیت.' : 'هیچ وێنەیەک لەم پۆستەدا پاشەکەوت نەکراوە.'}</span>
+                  {ownsPost ? <span className="text-xs font-medium">دەستکاری پۆست بکە بۆ زیادکردنی وێنە</span> : null}
+                </div>
+              )}
             </div>
+            {ownsPost ? (
+              <section className="mt-5 rounded-2xl border border-black/[0.06] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="font-black">وێنەکانی پۆست</h2>
+                  <span className="text-xs font-bold text-black/40">{images.length}/{MAX_POST_IMAGES} وێنە تۆمارکراوە</span>
+                </div>
+                {imageSaveMessage ? <div role="status" className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm font-bold text-emerald-700">{imageSaveMessage}</div> : null}
+                {imageSaveError ? <div role="alert" className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{imageSaveError}</div> : null}
+                {isEditing ? (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-xs leading-6 text-black/45">ئەگەر وێنەی نوێ هەڵبژێریت، ئەوانەی پێشوو جێگرتەوە دەبن. ئەگەر ناتەوێت وێنەکان بگۆڕیت، ئەم بەشە بەتاڵ بهێڵە.</p>
+                    <ImageUploadField
+                      files={replacementFiles}
+                      onChange={setReplacementFiles}
+                      maxFiles={MAX_POST_IMAGES}
+                      disabled={savingImages}
+                      label="هەڵبژاردنی وێنە نوێکان"
+                      hint="JPG، PNG یان WebP؛ تا ٨ وێنە، هەر وێنەیەک تا ٥MB."
+                    />
+                    <button type="button" onClick={() => void saveReplacementImages()} disabled={savingImages || replacementFiles.length === 0} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-blue)] px-4 py-3 text-sm font-black text-white disabled:opacity-40">
+                      <Save size={16}/>{savingImages ? 'پاشەکەوتکردنی وێنەکان...' : 'پاشەکەوتکردنی وێنەکان'}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs leading-6 text-black/45">بۆ زیادکردن یان جێگرتنەوەی وێنەکان، «دەستکاری پۆست» هەڵبژێرە.</p>
+                )}
+              </section>
+            ) : null}
+
             {images.length > 1 || isVehicle ? <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={image.storage_path} className="min-w-0"><button type="button" onClick={() => setActiveImageIndex(index)} className={`block w-full overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && selectedVariant?.image_path === image.storage_path)) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>{isVehicle && image.alt_ku ? <div className="mt-1 text-center text-xs font-bold text-black/45">{image.alt_ku}</div> : null}</div>)}</div> : null}
           </div>
 
@@ -354,8 +426,9 @@ export function PostDetailPage() {
               </div>
             </div> : null}
 
-            {isApparel && selectedVariant ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
-            {isApparel && !selectedVariant ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
+            {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
+            {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
+            {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
 
             {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
               <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>
