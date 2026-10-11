@@ -177,6 +177,7 @@ export function VendorProductsPage() {
         throw new Error('ناوی بەرهەم، slug و نرخ پێویستن.');
       }
       if (compare !== null && (!Number.isFinite(compare) || compare < base)) throw new Error('نرخی پێشوو نابێت لە نرخی ئێستا کەمتر بێت.');
+      if (supermarket && base <= 0) throw new Error('نرخی فرۆشتنی کاڵای سوپەرمارکێت دەبێت لە سفر گەورەتر بێت.');
       if (!Number.isFinite(Number(data.stock_quantity)) && !apparel) throw new Error('ژمارەی کۆگا دروست نییە.');
       if (apparel && !apparelType) throw new Error('جۆری جل‌وبەرگ هەڵبژێرە.');
       if (supermarket && !['food','beverage','cleaning','daily_essentials','fresh_food','other'].includes(data.supermarket_type)) throw new Error('جۆری کاڵای سوپەرمارکێت هەڵبژێرە.');
@@ -185,7 +186,7 @@ export function VendorProductsPage() {
       if (supermarket && Boolean(data.quantity_value.trim()) !== Boolean(data.quantity_unit)) throw new Error('قەبارە و یەکە پێکەوە دیاری بکە.');
       if (supermarket && data.manufacturing_date && data.expiry_date && data.expiry_date < data.manufacturing_date) throw new Error('بەرواری بەسەرچوون نابێت پێش بەرواری بەرهەمهێنان بێت.');
       if (supermarket && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی کاڵاکە زیاد بکە.');
-      if (supermarket && marketVariants.some((item) => !item.name_ku.trim() || !Number.isFinite(Number(item.stock_quantity)) || Number(item.stock_quantity) < 0 || !Number.isInteger(Number(item.stock_quantity)) || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) < 0)) || (item.quantity_value.trim() && (!Number.isFinite(Number(item.quantity_value)) || Number(item.quantity_value) <= 0)) || (item.package_count.trim() && (!Number.isInteger(Number(item.package_count)) || Number(item.package_count) <= 0)) || (Boolean(item.quantity_value.trim()) !== Boolean(item.quantity_unit)) || (item.manufacturing_date && item.expiry_date && item.expiry_date < item.manufacturing_date))) throw new Error('ناو، نرخ، قەبارە، بەروار و کۆگای وەشانەکان پشکنین بکە. کۆگا دەبێت ژمارەیەکی تەواوی نەرێنی نەبێت.');
+      if (supermarket && marketVariants.some((item) => !item.name_ku.trim() || !Number.isFinite(Number(item.stock_quantity)) || Number(item.stock_quantity) < 0 || !Number.isInteger(Number(item.stock_quantity)) || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) <= 0)) || (item.quantity_value.trim() && (!Number.isFinite(Number(item.quantity_value)) || Number(item.quantity_value) <= 0)) || (item.package_count.trim() && (!Number.isInteger(Number(item.package_count)) || Number(item.package_count) <= 0)) || (Boolean(item.quantity_value.trim()) !== Boolean(item.quantity_unit)) || (item.manufacturing_date && item.expiry_date && item.expiry_date < item.manufacturing_date))) throw new Error('ناو و کۆگای وەشانەکان پشکنین بکە؛ نرخی تایبەت ئەگەر بەکاربهێنرێت دەبێت لە سفر گەورەتر بێت، قەبارە و یەکە پێکەوە بن، و بەروارەکان ڕێک بن.');
       if (data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
       if (apparel && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی بەرهەم زیاد بکە.');
       if (apparel && (!data.colors.length || !data.sizes.length || combinations.length === 0)) throw new Error('لانیکەم یەک ڕەنگ، یەک قەبارە و یەک تێکەڵەی ڕەنگ × قەبارە دیاری بکە.');
@@ -532,7 +533,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
         <Field label="قەبارەی تاکە کاڵا" value={form.quantity_value} onChange={(v) => field('quantity_value', v)} dir="ltr" inputMode="decimal" />
         <label><span className="text-xs font-black text-black/55">یەکە</span><select value={form.quantity_unit} onChange={(e) => field('quantity_unit', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">یەکە هەڵبژێرە</option><option value="g">گرام</option><option value="kg">کیلۆگرام</option><option value="ml">ملیلتر</option><option value="l">لیتر</option><option value="pack">پاکێت</option><option value="piece">دانە</option><option value="carton">کارتۆن</option></select></label>
         <Field label="ژمارەی دانە/پاکێت لە ناو پاکێت" value={form.package_count} onChange={(v) => field('package_count', v)} dir="ltr" inputMode="numeric" />
-        {['food','beverage','fresh_food'].includes(form.supermarket_type) ? <>
+        {['food','beverage','cleaning','fresh_food'].includes(form.supermarket_type) ? <>
           <label><span className="text-xs font-black text-black/55">بەرواری بەرهەمهێنان</span><input type="date" value={form.manufacturing_date} onChange={(e) => field('manufacturing_date', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold" /></label>
           <label><span className="text-xs font-black text-black/55">بەرواری بەسەرچوون</span><input type="date" value={form.expiry_date} onChange={(e) => field('expiry_date', e.target.value)} min={form.manufacturing_date || undefined} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold" /></label>
         </> : null}
@@ -558,9 +559,9 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
             <Field label="نرخی تایبەتی (بەتاڵ = نرخی سەرەکی)" value={item.price_iqd} onChange={(v) => updateMarketVariant(index,{price_iqd:v})} dir="ltr" inputMode="decimal" />
             <Field label="ژمارەی بەردەست لە کۆگا *" value={item.stock_quantity} onChange={(v) => updateMarketVariant(index,{stock_quantity:v})} dir="ltr" inputMode="numeric" />
             <Field label="بارکۆدی وەشان" value={item.barcode} onChange={(v) => updateMarketVariant(index,{barcode:v})} dir="ltr" />
-            <Field label="تام/وەشان" value={item.flavor} onChange={(v) => updateMarketVariant(index,{flavor:v})} />
+            {form.supermarket_type === 'beverage' ? <Field label="تام" value={item.flavor} onChange={(v) => updateMarketVariant(index,{flavor:v})} /> : null}
             <Field label="SKU (ئارەزوومەندانە)" value={item.sku} onChange={(v) => updateMarketVariant(index,{sku:v})} dir="ltr" />
-            {['food','beverage','fresh_food'].includes(form.supermarket_type) ? <>
+            {['food','beverage','cleaning','fresh_food'].includes(form.supermarket_type) ? <>
               <label><span className="text-xs font-black text-black/55">بەرهەمهێنان</span><input type="date" value={item.manufacturing_date} onChange={(e) => updateMarketVariant(index,{manufacturing_date:e.target.value})} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-3 text-sm" /></label>
               <label><span className="text-xs font-black text-black/55">بەسەرچوون</span><input type="date" min={item.manufacturing_date || undefined} value={item.expiry_date} onChange={(e) => updateMarketVariant(index,{expiry_date:e.target.value})} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-3 text-sm" /></label>
             </> : null}
