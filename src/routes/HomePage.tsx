@@ -1,7 +1,10 @@
 import { ArrowLeft, Download, ShieldCheck, Smartphone, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export function HomePage() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div>
       <section className="relative overflow-hidden bg-[var(--shakh-orange)] text-white">
@@ -20,7 +23,7 @@ export function HomePage() {
               Kurdish-first، mobile-first و PWA-ready؛ بە architecture ـێکی جیاواز لە SHAKH2027 و بنەمای پاراستنی role و data لە backend.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/login" className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 font-black text-[var(--shakh-navy)] hover:bg-white/95">
+              <Link to={isAuthenticated ? '/search' : '/login'} className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 font-black text-[var(--shakh-navy)] hover:bg-white/95">
                 دەستپێکردن <ArrowLeft size={18} />
               </Link>
               <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-bold text-white hover:bg-white/10">
