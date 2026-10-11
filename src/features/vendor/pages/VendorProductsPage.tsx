@@ -13,14 +13,25 @@ type ProductFormState = {
   name_ku: string; name_ar: string; name_en: string; slug: string; category_id: string;
   base_price_iqd: string; compare_at_price_iqd: string; stock_quantity: string; description_ku: string;
   apparel_product_type: string; brand: string; material: string; country_of_origin: string; season: string; seller_location: string;
+  supermarket_type: string; storage_instructions: string; ingredients: string; allergen_warnings: string;
 };
 type MatrixCell = { enabled: boolean; stock: string; price: string };
-type ProductFormPayload = ProductFormState & { imageFiles: File[]; colors: ApparelColor[]; sizes: string[]; matrix: Record<string, MatrixCell> };
+type SupermarketUnit = 'g' | 'kg' | 'ml' | 'l' | 'pack' | 'piece' | 'carton';
+type SupermarketVariantForm = {
+  key: string; name_ku: string; quantity_value: string; quantity_unit: SupermarketUnit | '';
+  package_count: string; stock_quantity: string; price_iqd: string; flavor: string;
+  barcode: string; manufacturing_date: string; expiry_date: string;
+};
+type ProductFormPayload = ProductFormState & {
+  imageFiles: File[]; colors: ApparelColor[]; sizes: string[]; matrix: Record<string, MatrixCell>;
+  supermarketVariants: SupermarketVariantForm[];
+};
 
 const emptyForm = (): ProductFormState => ({
   name_ku: '', name_ar: '', name_en: '', slug: '', category_id: '', base_price_iqd: '',
   compare_at_price_iqd: '', stock_quantity: '0', description_ku: '', apparel_product_type: '',
   brand: '', material: '', country_of_origin: '', season: '', seller_location: '',
+  supermarket_type: '', storage_instructions: '', ingredients: '', allergen_warnings: '',
 });
 
 function comboKey(colorKey: string, size: string): string {
@@ -30,13 +41,49 @@ function comboKey(colorKey: string, size: string): string {
 function isApparelCategory(categoryId: string, categories: Category[]): boolean {
   const fashionRoot = categories.find((item) => item.slug === 'fashion');
   if (!categoryId || !fashionRoot) return false;
-
   let current = categories.find((item) => item.id === categoryId);
   while (current) {
     if (current.id === fashionRoot.id || current.slug === 'fashion') return true;
     current = current.parent_id ? categories.find((item) => item.id === current?.parent_id) : undefined;
   }
   return false;
+}
+
+function isSupermarketCategory(categoryId: string, categories: Category[]): boolean {
+  if (!categoryId) return false;
+  let current = categories.find((item) => item.id === categoryId);
+  while (current) {
+    if (current.slug === 'supermarket') return true;
+    current = current.parent_id ? categories.find((item) => item.id === current?.parent_id) : undefined;
+  }
+  return false;
+}
+
+type SupermarketType = 'food' | 'beverage' | 'cleaning' | 'daily_essentials' | 'fresh_food' | 'other';
+const supermarketTypeOptions: Array<{ value: SupermarketType; label: string; slug: string }> = [
+  { value: 'food', label: 'خواردەمەنی', slug: 'supermarket-food' },
+  { value: 'beverage', label: 'خواردنەوە', slug: 'supermarket-drinks' },
+  { value: 'cleaning', label: 'پاککەرەوە', slug: 'supermarket-cleaning' },
+  { value: 'daily_essentials', label: 'کاڵای ڕۆژانە', slug: 'supermarket-daily' },
+  { value: 'fresh_food', label: 'خواردنی تازە', slug: 'supermarket-fresh' },
+  { value: 'other', label: 'کاڵای تری سوپەرمارکێت', slug: 'supermarket' },
+];
+const supermarketUnitOptions: Array<{ value: SupermarketUnit; label: string }> = [
+  { value: 'g', label: 'گرام' }, { value: 'kg', label: 'کیلۆگرام' }, { value: 'ml', label: 'ملیلتر' },
+  { value: 'l', label: 'لیتر' }, { value: 'pack', label: 'پاکێت' }, { value: 'piece', label: 'دانە' }, { value: 'carton', label: 'کارتۆن' },
+];
+function supermarketTypeForCategory(categoryId: string, categories: Category[]): SupermarketType | '' {
+  const slug = categories.find((category) => category.id === categoryId)?.slug;
+  return supermarketTypeOptions.find((item) => item.slug === slug)?.value ?? '';
+}
+function blankSupermarketVariant(product?: VendorProduct | null): SupermarketVariantForm {
+  return {
+    key: crypto.randomUUID(), name_ku: '', quantity_value: product?.quantity_value == null ? '' : String(product.quantity_value),
+    quantity_unit: product?.quantity_unit ?? '', package_count: product?.package_count == null ? '' : String(product.package_count),
+    stock_quantity: product && product.stock_quantity > 0 ? String(product.stock_quantity) : '0',
+    price_iqd: '', flavor: product?.flavor ?? '', barcode: product?.barcode ?? '',
+    manufacturing_date: product?.manufacturing_date ?? '', expiry_date: product?.expiry_date ?? '',
+  };
 }
 
 function colorFromVariant(variant: VendorVariant): ApparelColor {
@@ -74,7 +121,7 @@ export function VendorProductsPage() {
     try {
       const [nextStores, nextProducts, catResult] = await Promise.all([
         getVendorStores(user.id, role),
-        getVendorProducts(user.id, storeId || undefined),
+        getVendorProducts(user.id, storeId || undefined, role),
         supabase.from('categories').select('id,parent_id,name_ku,name_ar,name_en,slug').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
       if (catResult.error) throw catResult.error;
@@ -114,6 +161,8 @@ export function VendorProductsPage() {
         stock_quantity: String(product.stock_quantity), description_ku: product.description_ku ?? '',
         apparel_product_type: product.apparel_product_type ?? '', brand: product.brand ?? '', material: product.material ?? '',
         country_of_origin: product.country_of_origin ?? '', season: product.season ?? '', seller_location: product.seller_location ?? '',
+        supermarket_type: product.supermarket_type ?? supermarketTypeForCategory(product.category_id ?? '', categories),
+        storage_instructions: product.storage_instructions ?? '', ingredients: product.ingredients ?? '', allergen_warnings: product.allergen_warnings ?? '',
       });
       setShowForm(true);
     } catch (error) {
@@ -132,13 +181,16 @@ export function VendorProductsPage() {
       const base = Number(data.base_price_iqd);
       const compare = data.compare_at_price_iqd.trim() ? Number(data.compare_at_price_iqd) : null;
       const apparel = isApparelCategory(data.category_id, categories);
+      const supermarket = isSupermarketCategory(data.category_id, categories);
+      const supermarketType = supermarketTypeForCategory(data.category_id, categories);
       const apparelType = apparel && data.apparel_product_type ? data.apparel_product_type as ApparelProductType : null;
       const combinations = apparel ? data.colors.flatMap((color) => data.sizes.flatMap((size) => {
         const cell = data.matrix[comboKey(color.key, size)];
         return cell?.enabled ? [{ color, size, cell }] : [];
       })) : [];
       const totalMatrixStock = combinations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.cell.stock))), 0);
-      const stock = apparel ? totalMatrixStock : Math.max(0, Math.floor(Number(data.stock_quantity)));
+      const supermarketStock = supermarket ? data.supermarketVariants.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stock_quantity) || 0)), 0) : 0;
+      const stock = apparel ? totalMatrixStock : supermarket ? supermarketStock : Math.max(0, Math.floor(Number(data.stock_quantity)));
 
       if (!data.name_ku.trim() || !data.name_ar.trim() || !data.name_en.trim() || !data.slug.trim() || !Number.isFinite(base) || base < 0) {
         throw new Error('ناوی بەرهەم، slug و نرخ پێویستن.');
@@ -146,12 +198,28 @@ export function VendorProductsPage() {
       if (compare !== null && (!Number.isFinite(compare) || compare < base)) throw new Error('نرخی پێشوو نابێت لە نرخی ئێستا کەمتر بێت.');
       if (!Number.isFinite(Number(data.stock_quantity)) && !apparel) throw new Error('ژمارەی کۆگا دروست نییە.');
       if (apparel && !apparelType) throw new Error('جۆری بەرهەم هەڵبژێرە.');
+      if (supermarket && !supermarketType) throw new Error('بەشی لاوەکیی سوپەرمارکێت هەڵبژێرە.');
+      if (supermarket && base <= 0) throw new Error('نرخی فرۆشتن بۆ کاڵای سوپەرمارکێت دەبێت زیاتر لە سفر بێت.');
       if (data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
-      if (apparel && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی بەرهەم زیاد بکە.');
+      if ((apparel || supermarket) && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی بەرهەم زیاد بکە.');
       if (apparel && (!data.colors.length || !data.sizes.length || combinations.length === 0)) throw new Error('لانیکەم یەک ڕەنگ، یەک قەبارە و یەک تێکەڵەی ڕەنگ × قەبارە دیاری بکە.');
       if (apparel && data.colors.some((color) => !/^#[0-9A-Fa-f]{6}$/.test(color.hex))) throw new Error('کۆدی HEX ـی ڕەنگێک دروست نییە.');
       if (apparel && combinations.some((item) => !Number.isFinite(Number(item.cell.stock)) || Number(item.cell.stock) < 0 || (item.cell.price.trim() !== '' && (!Number.isFinite(Number(item.cell.price)) || Number(item.cell.price) < 0)))) {
         throw new Error('نرخی تایبەت و ژمارەی کۆگا دەبێت ژمارەی دروست و نەرێنی نەبن.');
+      }
+      if (supermarket) {
+        if (!data.supermarketVariants.length) throw new Error('لانیکەم یەک قەبارە یان وەشانی کاڵا زیاد بکە.');
+        for (const item of data.supermarketVariants) {
+          const quantity = Number(item.quantity_value);
+          const count = item.package_count.trim() ? Number(item.package_count) : null;
+          const available = Number(item.stock_quantity);
+          const price = item.price_iqd.trim() ? Number(item.price_iqd) : null;
+          if (!Number.isFinite(quantity) || quantity <= 0 || !item.quantity_unit) throw new Error('قەبارەی هەر وەشان و یەکەکەی دیاری بکە.');
+          if (!Number.isInteger(available) || available < 0) throw new Error('ژمارەی ستۆک دەبێت ژمارەیەکی تەواوی نەرێنی نەبێت.');
+          if (count !== null && (!Number.isInteger(count) || count <= 0)) throw new Error('ژمارەی پاکێت دەبێت ژمارەیەکی تەواوی ئەرێنی بێت.');
+          if (price !== null && (!Number.isFinite(price) || price <= 0)) throw new Error('نرخی تایبەتی وەشان دەبێت زیاتر لە سفر بێت.');
+          if (item.manufacturing_date && item.expiry_date && item.expiry_date < item.manufacturing_date) throw new Error('بەرواری بەسەرچوون نابێت پێش بەرواری بەرهەمهێنان بێت.');
+        }
       }
       for (const file of data.imageFiles) {
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
@@ -164,11 +232,22 @@ export function VendorProductsPage() {
         slug: data.slug.trim(), category_id: data.category_id || null, base_price_iqd: base,
         compare_at_price_iqd: compare, stock_quantity: stock, description_ku: data.description_ku.trim(),
         apparel_product_type: apparelType,
-        brand: apparel ? data.brand.trim() || null : null,
+        brand: (apparel || supermarket) ? data.brand.trim() || null : null,
         material: apparel ? data.material.trim() || null : null,
-        country_of_origin: apparel ? data.country_of_origin.trim() || null : null,
+        country_of_origin: (apparel || supermarket) ? data.country_of_origin.trim() || null : null,
         season: apparel && data.season ? data.season as 'summer' | 'winter' | 'all_seasons' : null,
         seller_location: apparel ? data.seller_location.trim() || null : null,
+        supermarket_type: supermarket ? supermarketType as SupermarketType : null,
+        quantity_value: supermarket && data.supermarketVariants[0] ? Number(data.supermarketVariants[0].quantity_value) : null,
+        quantity_unit: supermarket && data.supermarketVariants[0] ? data.supermarketVariants[0].quantity_unit || null : null,
+        package_count: supermarket && data.supermarketVariants[0]?.package_count.trim() ? Number(data.supermarketVariants[0].package_count) : null,
+        barcode: supermarket ? data.supermarketVariants[0]?.barcode.trim() || null : null,
+        manufacturing_date: supermarket ? data.supermarketVariants[0]?.manufacturing_date || null : null,
+        expiry_date: supermarket ? data.supermarketVariants[0]?.expiry_date || null : null,
+        storage_instructions: supermarket ? data.storage_instructions.trim() || null : null,
+        ingredients: supermarket ? data.ingredients.trim() || null : null,
+        allergen_warnings: supermarket ? data.allergen_warnings.trim() || null : null,
+        flavor: supermarket ? data.supermarketVariants[0]?.flavor.trim() || null : null,
       };
 
       if (editing) {
@@ -222,17 +301,62 @@ export function VendorProductsPage() {
             await createVendorVariant(user.id, { product_id: savedProduct.id, ...variantInput });
           }
         }
-        for (const oldVariant of previousMatrix) {
-          const key = oldVariant.color_name_ku!.toLocaleLowerCase() + '|' + oldVariant.size_label!.toLocaleLowerCase();
+        for (const oldVariant of editingVariants) {
+          const key = oldVariant.color_name_ku && oldVariant.size_label
+            ? oldVariant.color_name_ku.toLocaleLowerCase() + '|' + oldVariant.size_label.toLocaleLowerCase()
+            : '';
           if (!activeKeys.has(key) && oldVariant.is_active) {
-            // Retire a removed combination without deleting rows referenced by a cart/order.
+            // Retire removed/foreign variant rows without deleting historical cart/order references.
             await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
           }
         }
         setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
         setEditingImages(allImages);
         setMessage('بەرهەم پاشەکەوت کرا و وێنە و تێکەڵەکانی ڕەنگ × قەبارە لە Supabase هەڵگیرا. دۆخی بەرهەم draft ـە تا بە پرۆسەی approval چالاک بکرێت.');
+      } else if (supermarket) {
+        const previousVariants = editingVariants;
+        const activeIds = new Set<string>();
+        for (let index = 0; index < data.supermarketVariants.length; index += 1) {
+          const item = data.supermarketVariants[index];
+          const amountLabel = `${item.quantity_value} ${item.quantity_unit}${item.package_count.trim() ? ` × ${item.package_count}` : ''}`;
+          const suffix = item.flavor.trim() ? ` · ${item.flavor.trim()}` : '';
+          const variantName = item.name_ku.trim() || `${data.name_ku.trim()} · ${amountLabel}${suffix}`;
+          const barcode = item.barcode.trim() || null;
+          const variantInput = {
+            name_ku: variantName, name_ar: `${data.name_ar.trim()} · ${amountLabel}${suffix}`,
+            name_en: `${data.name_en.trim()} · ${amountLabel}${suffix}`,
+            sku: barcode || undefined, price_iqd: item.price_iqd.trim() ? Number(item.price_iqd) : null,
+            stock_quantity: Math.floor(Number(item.stock_quantity)), is_active: true,
+            quantity_value: Number(item.quantity_value), quantity_unit: item.quantity_unit as SupermarketUnit,
+            package_count: item.package_count.trim() ? Number(item.package_count) : null,
+            flavor: item.flavor.trim() || null, barcode,
+            manufacturing_date: item.manufacturing_date || null, expiry_date: item.expiry_date || null,
+            color_name_ku: null, color_hex: null, size_label: null, color_image_storage_path: null,
+          };
+          const existingVariant = previousVariants.find((previous) =>
+            (barcode && previous.barcode === barcode) ||
+            (previous.name_ku === variantName && previous.quantity_unit === item.quantity_unit && previous.quantity_value === Number(item.quantity_value)));
+          const savedVariant = existingVariant
+            ? await updateVendorVariant(user.id, existingVariant.id, variantInput)
+            : await createVendorVariant(user.id, { product_id: savedProduct.id, ...variantInput });
+          activeIds.add(savedVariant.id);
+        }
+        for (const oldVariant of previousVariants) {
+          if (oldVariant.is_active && !activeIds.has(oldVariant.id)) await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
+        }
+        setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
+        setEditingImages(allImages);
+        setMessage('کاڵای سوپەرمارکێت، وەشانەکان، نرخ و ستۆک لە Supabase پاشەکەوت کران. دۆخی کاڵای نوێ draft ـە تا بە پرۆسەی approval چالاک بکرێت.');
       } else {
+        const movingFromManagedVariants = Boolean(editing?.category_id && (
+          isApparelCategory(editing.category_id, categories) || isSupermarketCategory(editing.category_id, categories)
+        ));
+        if (movingFromManagedVariants) {
+          for (const oldVariant of editingVariants) {
+            if (oldVariant.is_active) await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
+          }
+          setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
+        }
         setEditingImages(allImages);
         setMessage(editing
           ? `بەرهەم نوێکرایەوە${uploadedImages.length ? ' و وێنەکان لە Supabase پاشەکەوت کران.' : '.'}`
@@ -307,7 +431,25 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
 }) {
   const field = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const apparel = isApparelCategory(form.category_id, categories);
+  const supermarket = isSupermarketCategory(form.category_id, categories);
+  const supermarketType = form.supermarket_type || supermarketTypeForCategory(form.category_id, categories);
+  const isFoodLike = ['food', 'fresh_food', 'beverage'].includes(supermarketType);
+  const showExpiryFields = isFoodLike;
+  const showFlavorField = ['food', 'fresh_food', 'beverage'].includes(supermarketType);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [supermarketVariants, setSupermarketVariants] = useState<SupermarketVariantForm[]>(() => {
+    const rows = editingVariants.filter((item) => item.quantity_value !== null || item.quantity_unit !== null || item.barcode !== null);
+    return rows.map((item) => ({
+      key: item.id, name_ku: item.name_ku, quantity_value: item.quantity_value == null ? '' : String(item.quantity_value),
+      quantity_unit: item.quantity_unit ?? '', package_count: item.package_count == null ? '' : String(item.package_count),
+      stock_quantity: String(item.stock_quantity), price_iqd: item.price_iqd == null ? '' : String(item.price_iqd),
+      flavor: item.flavor ?? '', barcode: item.barcode ?? '', manufacturing_date: item.manufacturing_date ?? editing?.manufacturing_date ?? '',
+      expiry_date: item.expiry_date ?? editing?.expiry_date ?? '',
+    }));
+  });
+  useEffect(() => {
+    if (supermarket && supermarketVariants.length === 0) setSupermarketVariants([blankSupermarketVariant(editing)]);
+  }, [supermarket, editing]);
   const [colors, setColors] = useState<ApparelColor[]>(() => {
     const rows = editingVariants.filter((item) => item.color_name_ku && item.size_label);
     const seen = new Set<string>();
@@ -345,6 +487,8 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     const cell = matrix[comboKey(color.key, size)];
     return inner + (cell?.enabled ? Math.max(0, Math.floor(Number(cell.stock) || 0)) : 0);
   }, 0), 0);
+  const totalSupermarketStock = supermarketVariants.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stock_quantity) || 0)), 0);
+  const updateSupermarketVariant = (key: string, patch: Partial<SupermarketVariantForm>) => setSupermarketVariants((items) => items.map((item) => item.key === key ? { ...item, ...patch } : item));
 
   const updateCell = (key: string, patch: Partial<MatrixCell>) => setMatrix((current) => {
     const previous = current[key] ?? { enabled: false, stock: '0', price: '' };
@@ -394,10 +538,14 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       <Field label="ناوی بەرهەم بە عەرەبی *" value={form.name_ar} onChange={(v) => field('name_ar', v)} dir="rtl" />
       <Field label="Product name (English) *" value={form.name_en} onChange={(v) => field('name_en', v)} dir="ltr" />
       <Field label="Slug *" value={form.slug} onChange={(v) => field('slug', v.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '-'))} dir="ltr" />
-      <label><span className="text-xs font-black text-black/55">بەشی بازاڕ *</span><select value={form.category_id} onChange={(e) => field('category_id', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">بەشێک هەڵبژێرە</option>{categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.parent_id ? '↳ ' : ''}{cat.name_ku}</option>)}</select></label>
+      <label><span className="text-xs font-black text-black/55">بەشی بازاڕ *</span><select value={form.category_id} onChange={(e) => {
+        const categoryId = e.target.value;
+        field('category_id', categoryId);
+        field('supermarket_type', supermarketTypeForCategory(categoryId, categories));
+      }} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">بەشێک هەڵبژێرە</option>{categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.parent_id ? '↳ ' : ''}{cat.name_ku}</option>)}</select></label>
       <Field label="نرخی فرۆشتن (د.ع) *" value={form.base_price_iqd} onChange={(v) => field('base_price_iqd', v)} dir="ltr" inputMode="decimal" />
       <Field label="نرخی پێش داشکاندن (د.ع)" value={form.compare_at_price_iqd} onChange={(v) => field('compare_at_price_iqd', v)} dir="ltr" inputMode="decimal" />
-      {!apparel ? <Field label="کۆی کۆگا" value={form.stock_quantity} onChange={(v) => field('stock_quantity', v)} dir="ltr" inputMode="numeric" /> : <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگا بە شێوەی خۆکار</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">کۆی دانەکانی تێکەڵەکانی ڕەنگ × قەبارە</div></div>}
+      {!apparel && !supermarket ? <Field label="کۆی کۆگا" value={form.stock_quantity} onChange={(v) => field('stock_quantity', v)} dir="ltr" inputMode="numeric" /> : apparel ? <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگا بە شێوەی خۆکار</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">کۆی دانەکانی تێکەڵەکانی ڕەنگ × قەبارە</div></div> : <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی ستۆکی وەشانەکان</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalSupermarketStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">ژمارەکە لە کۆگای وەشانە چالاکەکانی Supabase کۆدەکرێتەوە.</div></div>}
       <label className="md:col-span-2"><span className="text-xs font-black text-black/55">وەسفی بەرهەم بە کوردی</span><textarea value={form.description_ku} onChange={(e) => field('description_ku', e.target.value)} rows={4} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>
     </div>
 
@@ -405,9 +553,9 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       files={imageFiles}
       onChange={updateImageFiles}
       maxFiles={8}
-      required={apparel}
+      required={apparel || supermarket}
       disabled={saving}
-      label={apparel ? 'وێنەکانی جل‌وبەرگ' : 'وێنەکانی بەرهەم'}
+      label={apparel ? 'وێنەکانی جل‌وبەرگ' : supermarket ? 'وێنەکانی کاڵای سوپەرمارکێت' : 'وێنەکانی بەرهەم'}
       hint="وێنە لە کامێرا یان گەلەری هەڵبژێرە؛ تا ٨ وێنە. وێنەی سەرەکی لە لیستی وێنە پاشەکەوتکراوەکاندا یەکەمە."
       existingImages={existingImages.map((image, index) => ({
         id: image.id,
@@ -415,6 +563,41 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
         label: image.alt_ku || `وێنەی ${index + 1}`,
       }))}
     />
+
+    {supermarket ? <div className="mt-8 space-y-6 border-t border-black/[0.07] pt-7">
+      <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Boxes size={20} /></div><div><h3 className="text-lg font-black">وردەکاریی سوپەرمارکێت</h3><p className="mt-1 text-xs leading-5 text-black/45">بۆ هەر قەبارە یان پاکێتێک نرخ و ستۆکی جیاواز دابنێ.</p></div></div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label><span className="text-xs font-black text-black/55">جۆری کاڵا *</span><select value={form.supermarket_type || supermarketTypeForCategory(form.category_id, categories)} onChange={(e) => {
+          const option = supermarketTypeOptions.find((item) => item.value === e.target.value);
+          const target = option ? categories.find((item) => item.slug === option.slug) : null;
+          if (target) field('category_id', target.id);
+          field('supermarket_type', option?.value ?? '');
+        }} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold">{supermarketTypeOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+        <Field label="براند / کۆمپانیا" value={form.brand} onChange={(value) => field('brand', value)} />
+        <Field label="وڵاتی بەرهەمهێنان" value={form.country_of_origin} onChange={(value) => field('country_of_origin', value)} />
+        <Field label="ڕێنمایی هەڵگرتن" value={form.storage_instructions} onChange={(value) => field('storage_instructions', value)} />
+        {isFoodLike ? <><label className="sm:col-span-2"><span className="text-xs font-black text-black/55">پێکهاتەکان</span><textarea value={form.ingredients} onChange={(e) => field('ingredients', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm" placeholder="پێکهاتە سەرەکییەکان..." /></label>
+        <label className="sm:col-span-2"><span className="text-xs font-black text-black/55">هۆشداریی ئەلێرژی / زانیاریی گرنگ</span><textarea value={form.allergen_warnings} onChange={(e) => field('allergen_warnings', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm" placeholder="هۆشداریی پێویست بۆ خواردەمەنی..." /></label></> : null}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-black">وەشان، قەبارە و ستۆک</h4><p className="mt-1 text-xs text-black/45">یەکە: گرام، کیلۆگرام، ملیلتر، لیتر، پاکێت، دانە یان کارتۆن. تام، بارکۆد و بەروار بۆ هەر وەشان دەتوانرێت جیاواز بێت.</p></div><button type="button" onClick={() => setSupermarketVariants((items) => [...items, { ...blankSupermarketVariant(), quantity_value: '', quantity_unit: '', package_count: '', stock_quantity: '0', price_iqd: '', barcode: '', flavor: '', manufacturing_date: '', expiry_date: '' }])} className="inline-flex items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-xs font-black text-white"><Plus size={15} /> زیادکردنی وەشان</button></div>
+      <div className="space-y-4">{supermarketVariants.map((item, index) => <div key={item.key} className="rounded-3xl border border-black/[0.08] bg-[var(--shakh-bg)] p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3"><div><div className="text-xs font-black text-[var(--shakh-blue)]">وەشانی {index + 1}</div><div className="mt-1 text-sm font-black">{item.quantity_value && item.quantity_unit ? item.quantity_value + ' ' + item.quantity_unit : 'قەبارە و تام دیاری بکە'}</div></div><button type="button" disabled={supermarketVariants.length <= 1} onClick={() => setSupermarketVariants((items) => items.filter((row) => row.key !== item.key))} className="grid size-9 place-items-center rounded-xl bg-white text-red-600 disabled:cursor-not-allowed disabled:opacity-30" aria-label="لابردنی وەشان"><X size={16} /></button></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="ناوی وەشان / تام (هەڵبژاردەیی)" value={item.name_ku} onChange={(value) => updateSupermarketVariant(item.key, { name_ku: value })} />
+          <Field label="بڕ / قەبارە *" value={item.quantity_value} onChange={(value) => updateSupermarketVariant(item.key, { quantity_value: value })} inputMode="decimal" dir="ltr" />
+          <label><span className="text-xs font-black text-black/55">یەکە *</span><select value={item.quantity_unit} onChange={(e) => updateSupermarketVariant(item.key, { quantity_unit: e.target.value as SupermarketUnit | '' })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm font-bold"><option value="">یەکە هەڵبژێرە</option>{supermarketUnitOptions.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}</select></label>
+          <Field label="ژمارەی پاکێت (هەڵبژاردەیی)" value={item.package_count} onChange={(value) => updateSupermarketVariant(item.key, { package_count: value })} inputMode="numeric" dir="ltr" />
+          <Field label="نرخی تایبەتی ئەم وەشانە (د.ع)" value={item.price_iqd} onChange={(value) => updateSupermarketVariant(item.key, { price_iqd: value })} inputMode="decimal" dir="ltr" />
+          <Field label="ستۆکی بەردەست *" value={item.stock_quantity} onChange={(value) => updateSupermarketVariant(item.key, { stock_quantity: value })} inputMode="numeric" dir="ltr" />
+          {showFlavorField ? <Field label="تام / جۆر" value={item.flavor} onChange={(value) => updateSupermarketVariant(item.key, { flavor: value })} /> : null}
+          <Field label="بارکۆد (هەڵبژاردەیی)" value={item.barcode} onChange={(value) => updateSupermarketVariant(item.key, { barcode: value })} dir="ltr" />
+          {showExpiryFields ? <><label><span className="text-xs font-black text-black/55">بەرواری بەرهەمهێنان</span><input type="date" value={item.manufacturing_date} onChange={(e) => updateSupermarketVariant(item.key, { manufacturing_date: e.target.value })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm" /></label>
+          <label><span className="text-xs font-black text-black/55">بەرواری بەسەرچوون</span><input type="date" value={item.expiry_date} min={item.manufacturing_date || undefined} onChange={(e) => updateSupermarketVariant(item.key, { expiry_date: e.target.value })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm" /></label></> : null}
+        </div>
+      </div>)}</div>
+      {['beverage'].includes(form.supermarket_type || supermarketTypeForCategory(form.category_id, categories)) ? <p className="rounded-2xl bg-blue-50 p-3 text-xs font-bold leading-6 text-blue-800">بۆ خواردنەوەکان قەبارەی بوتڵ، تام، ژمارەی پاکێت و ستۆک بۆ هەر وەشان دیاری بکە.</p> : null}
+      {['food', 'fresh_food'].includes(form.supermarket_type || supermarketTypeForCategory(form.category_id, categories)) ? <p className="rounded-2xl bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-900">بۆ خواردنی تازە، بەرواری بەسەرچوون و هۆشداریی ئەلێرژی بە پێی زانیاریی ڕاستەقینەی پاکەت پڕ بکەرەوە.</p> : null}
+    </div> : null}
 
     {apparel ? <div className="mt-8 space-y-7 border-t border-black/[0.07] pt-7">
       <div className="flex items-center gap-2"><Tag size={19} className="text-[var(--shakh-orange)]" /><h3 className="text-lg font-black">زانیاریی جل‌وبەرگ</h3></div>
@@ -468,7 +651,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     </div> : null}
 
     {localError ? <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{localError}</div> : null}
-    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
+    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix, supermarketVariants }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
     {apparel ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان وەک پێشوو بە دۆخی draft هەڵدەگیرێن؛ هەموو زانیاری، وێنە و کۆگاکان لە Supabase پاشەکەوت دەکرێن.</p> : null}
   </section>;
 }

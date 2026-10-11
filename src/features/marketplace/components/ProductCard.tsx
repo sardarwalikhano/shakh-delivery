@@ -21,6 +21,10 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
       navigate('/login', { state: { from: `/product/${product.slug}` } });
       return;
     }
+    if (product.variants.length) {
+      navigate(`/product/${product.slug}`);
+      return;
+    }
     onAdd?.(product);
   };
 
@@ -66,13 +70,21 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
             <Store size={13} /> <span className="truncate">{product.store.name_ku}</span>
           </div>
         ) : null}
+        {product.brand ? <div className="mt-2 text-xs font-bold text-black/45">{product.brand}</div> : null}
+        {(product.quantity_value != null && product.quantity_unit) || product.variants.length ? (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {product.quantity_value != null && product.quantity_unit ? <span className="rounded-lg bg-[var(--shakh-bg)] px-2 py-1 text-[11px] font-bold text-black/60">{product.quantity_value} {({g:'گرام',kg:'کیلۆگرام',ml:'ملیلتر',l:'لیتر',pack:'پاکێت',piece:'دانە',carton:'کارتۆن'} as Record<string,string>)[product.quantity_unit] ?? product.quantity_unit}</span> : null}
+            {product.variants.length ? <span className="rounded-lg bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700">{product.variants.length} وەشان</span> : null}
+          </div>
+        ) : null}
         <div className="mt-4 flex items-center justify-between gap-3">
           <div>
+            {product.variants.some((item) => item.price_iqd != null && item.price_iqd !== product.base_price_iqd) ? <div className="text-[10px] font-bold text-black/40">نرخ بەپێی وەشان دەگۆڕێت</div> : null}
             <div className="text-base font-black tabular-nums">{product.base_price_iqd.toLocaleString('en-US')} <span className="text-xs text-black/40">د.ع</span></div>
             {product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd ? <div className="mt-0.5 text-xs text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
           </div>
-          <button disabled={soldOut} onClick={add} className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30" aria-label="زیادکردن بۆ سەبەتە">
-            {soldOut ? <span className="text-[10px] font-black">نەماوە</span> : <Plus size={20} />}
+          <button disabled={soldOut} onClick={add} className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30" aria-label={product.variants.length ? 'هەڵبژاردنی وەشان' : 'زیادکردن بۆ سەبەتە'} title={product.variants.length ? 'هەڵبژاردنی قەبارە/وەشان' : 'زیادکردن بۆ سەبەتە'}>
+            {soldOut ? <span className="text-[10px] font-black">نەماوە</span> : product.variants.length ? <span className="text-[10px] font-black">هەڵبژاردن</span> : <Plus size={20} />}
           </button>
         </div>
       </div>

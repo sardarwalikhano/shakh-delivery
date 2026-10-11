@@ -5,6 +5,11 @@ import { addToCart, getProductBySlug, isWishlisted, toggleWishlist } from '../ap
 import type { Product, ProductVariant } from '../types';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getProductImageUrl } from '@/lib/storage/catalogMedia';
+import { supabase } from '@/lib/supabase/client';
+
+const supermarketUnitLabels: Record<string, string> = {
+  g: 'گرام', kg: 'کیلۆگرام', ml: 'ملیلتر', l: 'لیتر', pack: 'پاکێت', piece: 'دانە', carton: 'کارتۆن',
+};
 
 export function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -29,12 +34,37 @@ export function ProductDetailPage() {
     void isWishlisted(user.id, product.id).then(setWishlisted).catch(() => setWishlisted(false));
   }, [product, user]);
 
+  useEffect(() => {
+    if (!product) return;
+    const refreshProduct = async () => {
+      try {
+        const latest = await getProductBySlug(product.slug);
+        if (!latest) return;
+        setProduct(latest);
+        setVariant((current) => latest.variants.find((item) => item.id === current?.id) ?? latest.variants[0] ?? null);
+        setQuantity((current) => Math.min(current, latest.variants.find((item) => item.id === variant?.id)?.stock_quantity ?? latest.stock_quantity));
+      } catch { /* keep the last confirmed catalog data visible while the network recovers */ }
+    };
+    const channel = supabase.channel('marketplace-product-' + product.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: 'id=eq.' + product.id }, () => { void refreshProduct(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: 'product_id=eq.' + product.id }, () => { void refreshProduct(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [product?.id, product?.slug]);
+
   if (loading) return <div className="grid min-h-[65dvh] place-items-center"><div className="text-sm font-bold text-black/45">بارکردن...</div></div>;
   if (!product) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="text-2xl font-black">بەرهەم نەدۆزرایەوە</h1><Link className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white" to="/search">گەڕانەوە بۆ بازاڕ</Link></div>;
 
   const price = variant?.price_iqd ?? product.base_price_iqd;
   const maxStock = variant?.stock_quantity ?? product.stock_quantity;
   const canBuy = maxStock > 0;
+  const amountValue = variant?.quantity_value ?? product.quantity_value;
+  const amountUnit = variant?.quantity_unit ?? product.quantity_unit;
+  const packageCount = variant?.package_count ?? product.package_count;
+  const flavor = variant?.flavor ?? product.flavor;
+  const barcode = variant?.barcode ?? product.barcode;
+  const manufacturingDate = variant?.manufacturing_date ?? product.manufacturing_date;
+  const expiryDate = variant?.expiry_date ?? product.expiry_date;
 
   const buy = async () => {
     setMessage(null);
@@ -78,10 +108,23 @@ export function ProductDetailPage() {
             <div className="flex items-center gap-2 text-xs font-black text-[var(--shakh-blue)]"><span>{product.category?.name_ku ?? 'بازاڕ'}</span>{product.store ? <><span className="text-black/20">/</span><span>{product.store.name_ku}</span></> : null}</div>
             <h1 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">{product.name_ku}</h1>
             <p className="mt-4 leading-8 text-black/55">{product.description_ku ?? 'زانیاریی وردی ئەم بەرهەمە لەلایەن فرۆشگا دابین دەکرێت.'}</p>
+            {product.supermarket_type || product.brand || product.country_of_origin ? <div className="mt-5 grid gap-2 rounded-2xl border border-black/[0.06] bg-[var(--shakh-bg)] p-4 sm:grid-cols-2">
+              {product.brand ? <div><div className="text-[11px] font-bold text-black/40">براند</div><div className="mt-1 text-sm font-black">{product.brand}</div></div> : null}
+              {product.country_of_origin ? <div><div className="text-[11px] font-bold text-black/40">وڵاتی بەرهەمهێنان</div><div className="mt-1 text-sm font-black">{product.country_of_origin}</div></div> : null}
+              {product.supermarket_type ? <div><div className="text-[11px] font-bold text-black/40">جۆری کاڵا</div><div className="mt-1 text-sm font-black">{product.category?.name_ku ?? 'سوپەرمارکێت'}</div></div> : null}
+              {amountValue != null && amountUnit ? <div><div className="text-[11px] font-bold text-black/40">قەبارەی هەڵبژێردراو</div><div className="mt-1 text-sm font-black">{amountValue} {supermarketUnitLabels[amountUnit] ?? amountUnit}{packageCount ? ' · ' + packageCount + ' پاکێت' : ''}</div></div> : null}
+              {flavor ? <div><div className="text-[11px] font-bold text-black/40">تام / وەشان</div><div className="mt-1 text-sm font-black">{flavor}</div></div> : null}
+              {barcode ? <div><div className="text-[11px] font-bold text-black/40">بارکۆد</div><div className="mt-1 text-sm font-black" dir="ltr">{barcode}</div></div> : null}
+              {manufacturingDate ? <div><div className="text-[11px] font-bold text-black/40">بەرواری بەرهەمهێنان</div><div className="mt-1 text-sm font-black">{manufacturingDate}</div></div> : null}
+              {expiryDate ? <div><div className="text-[11px] font-bold text-black/40">بەرواری بەسەرچوون</div><div className="mt-1 text-sm font-black">{expiryDate}</div></div> : null}
+              {product.storage_instructions ? <div className="sm:col-span-2"><div className="text-[11px] font-bold text-black/40">ڕێنمایی هەڵگرتن</div><div className="mt-1 text-sm leading-6 font-bold">{product.storage_instructions}</div></div> : null}
+              {product.ingredients ? <div className="sm:col-span-2"><div className="text-[11px] font-bold text-black/40">پێکهاتەکان</div><div className="mt-1 text-sm leading-6 font-bold">{product.ingredients}</div></div> : null}
+              {product.allergen_warnings ? <div className="sm:col-span-2 rounded-xl bg-amber-50 p-3"><div className="text-[11px] font-black text-amber-800">هۆشداریی ئەلێرژی</div><div className="mt-1 text-sm leading-6 font-bold text-amber-900">{product.allergen_warnings}</div></div> : null}
+            </div> : null}
             <div className="mt-6 flex items-end gap-3"><div className="text-3xl font-black tabular-nums">{price.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{product.compare_at_price_iqd && product.compare_at_price_iqd > price ? <div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}</div>
 
             {product.variants.length ? (
-              <div className="mt-7"><div className="text-sm font-black">هەڵبژاردە</div><div className="mt-3 flex flex-wrap gap-2">{product.variants.map((item) => <button key={item.id} onClick={() => { setVariant(item); setQuantity(1); }} className={`rounded-2xl border px-4 py-3 text-sm font-black ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}>{item.name_ku}</button>)}</div></div>
+              <div className="mt-7"><div className="text-sm font-black">هەڵبژاردە</div><div className="mt-3 flex flex-wrap gap-2">{product.variants.map((item) => <button key={item.id} onClick={() => { setVariant(item); setQuantity(1); }} className={`rounded-2xl border px-4 py-3 text-start text-sm font-black ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}><span className="block">{item.name_ku}</span><span className="mt-1 block text-[10px] font-bold opacity-70">{item.quantity_value != null && item.quantity_unit ? item.quantity_value + ' ' + (supermarketUnitLabels[item.quantity_unit] ?? item.quantity_unit) : ''}{item.package_count ? ' · ' + item.package_count + ' پاکێت' : ''}{item.flavor ? ' · ' + item.flavor : ''}</span><span className="mt-1 block text-[11px]">{item.stock_quantity > 0 ? item.stock_quantity + ' دانە' : 'نەماوە'}{item.price_iqd != null ? ' · ' + item.price_iqd.toLocaleString('en-US') + ' د.ع' : ''}</span></button>)}</div></div>
             ) : null}
 
             <div className="mt-7 flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] p-3 text-sm font-bold"><span className={`grid size-9 place-items-center rounded-xl ${canBuy ? 'bg-emerald-500/10 text-emerald-700' : 'bg-red-500/10 text-red-700'}`}><Check size={17} /></span>{canBuy ? `${maxStock} دانە بەردەستە` : 'ئەم بەرهەمە بەردەست نییە'}</div>
