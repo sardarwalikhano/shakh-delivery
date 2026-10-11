@@ -1,11 +1,13 @@
-import { ArrowRight, Check, Package, Tag, Warehouse } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Package, Pencil, Save, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { getActivePostById, getApparelVariants } from '../api';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { getActivePostById, getApparelVariants, softDeleteOwnedPost, updateOwnedPostDetails } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
 import { supabase } from '@/lib/supabase/client';
-import type { ApparelVariant, Post } from '../types';
+import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelVariant, Post } from '../types';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { singleVehicleListing } from '../vehicleTypes';
@@ -14,6 +16,9 @@ const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', w
 
 export function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { permissions } = useAuthorization();
   const [post, setPost] = useState<Post | null>(null);
   const [variants, setVariants] = useState<ApparelVariant[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
@@ -21,6 +26,24 @@ export function PostDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(-1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editDiscount, setEditDiscount] = useState('0');
+  const [editBrand, setEditBrand] = useState('');
+  const [editMaterial, setEditMaterial] = useState('');
+  const [editCountryOfOrigin, setEditCountryOfOrigin] = useState('');
+  const [editSeason, setEditSeason] = useState<ApparelSeason | ''>('');
+  const [editCondition, setEditCondition] = useState<ApparelCondition | ''>('');
+  const [editAudience, setEditAudience] = useState<ApparelAudience | ''>('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editMessage, setEditMessage] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,10 +123,181 @@ export function PostDetailPage() {
     sportswear: 'جل‌وبەرگی وەرزشی', home_textiles: 'جل‌وبەرگی ناوماڵ', beauty_fashion_accessories: 'کەلوپەلی جوانکاری و ئەکسسواراتی جل‌وبەرگ', other_accessories: 'ئەکسسوارات و پێداویستیی تر',
   };
 
+  const canManageAllPosts = permissions.has('posts.manage');
+  const ownsPost = Boolean(user && post.author_id === user.id);
+  const canEditPost = Boolean((ownsPost && permissions.has('posts.update_own')) || canManageAllPosts);
+  const canDeletePost = Boolean((ownsPost && permissions.has('posts.delete_own')) || canManageAllPosts);
+
+  const startEditing = () => {
+    setEditTitle(post.title);
+    setEditContent(post.content ?? '');
+    setEditPrice(String(isVehicle ? vehicleListing?.price_amount ?? '' : post.price_iqd ?? ''));
+    setEditLocation(post.location ?? '');
+    setEditDiscount(String(isVehicle ? vehicleListing?.discount_percent ?? post.discount_percent ?? 0 : post.discount_percent ?? 0));
+    setEditBrand(post.brand ?? '');
+    setEditMaterial(post.material ?? '');
+    setEditCountryOfOrigin(post.country_of_origin ?? '');
+    setEditSeason(post.season ?? '');
+    setEditCondition(post.item_condition ?? '');
+    setEditAudience(post.apparel_audience ?? '');
+    setEditError(null);
+    setEditMessage(null);
+    setDeleteError(null);
+    setIsEditing(true);
+  };
+
+  const saveEdits = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (savingEdit) return;
+    const normalizedTitle = editTitle.trim();
+    const normalizedContent = editContent.trim();
+    const normalizedPrice = editPrice.trim() ? Number(editPrice) : null;
+    const normalizedDiscount = Number(editDiscount);
+
+    if (normalizedTitle.length < 3 || normalizedTitle.length > 180) {
+      setEditError('ناونیشان دەبێت لە ٣ تا ١٨٠ پیت بێت.');
+      return;
+    }
+    if (normalizedContent.length > 12000) {
+      setEditError('وەسفی پۆست زۆر درێژە.');
+      return;
+    }
+    if (normalizedPrice !== null && (!Number.isFinite(normalizedPrice) || normalizedPrice < 0)) {
+      setEditError('نرخێکی دروست بنووسە.');
+      return;
+    }
+    if ((isVehicle || isApparel) && (normalizedPrice === null || normalizedPrice <= 0)) {
+      setEditError(isVehicle ? 'نرخی ئۆتۆمبێل دەبێت لە سفر زیاتر بێت.' : 'نرخی جل‌وبەرگ دەبێت لە سفر زیاتر بێت.');
+      return;
+    }
+    if (!Number.isInteger(normalizedDiscount) || normalizedDiscount < 0 || normalizedDiscount > 99) {
+      setEditError('داشکاندن دەبێت لە ٠ تا ٩٩٪ بێت.');
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError(null);
+    setEditMessage(null);
+    try {
+      await updateOwnedPostDetails(post.id, {
+        title: normalizedTitle,
+        content: normalizedContent,
+        priceAmount: normalizedPrice,
+        location: editLocation.trim() || null,
+        discountPercent: normalizedDiscount,
+        brand: editBrand.trim() || null,
+        material: editMaterial.trim() || null,
+        countryOfOrigin: editCountryOfOrigin.trim() || null,
+        season: editSeason || null,
+        itemCondition: editCondition || null,
+        apparelAudience: editAudience || null,
+      });
+
+      const updatedPost = await getActivePostById(post.id);
+      if (updatedPost) setPost(updatedPost);
+      setEditMessage('گۆڕانکارییەکان بە سەرکەوتوویی پاشەکەوت کران.');
+      setIsEditing(false);
+    } catch (nextError) {
+      setEditError(nextError instanceof Error ? nextError.message : 'پاشەکەوتکردنی گۆڕانکارییەکان سەرکەوتوو نەبوو.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deletePost = async () => {
+    if (deletingPost) return;
+    setDeletingPost(true);
+    setDeleteError(null);
+    try {
+      await softDeleteOwnedPost(post.id);
+      navigate('/posts', { replace: true, state: { notice: 'پۆستەکە لە بازاڕ شاردرایەوە.' } });
+    } catch (nextError) {
+      setDeleteError(nextError instanceof Error ? nextError.message : 'سڕینەوەی پۆست سەرکەوتوو نەبوو.');
+    } finally {
+      setDeletingPost(false);
+    }
+  };
+
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <Link to="/posts" className="inline-flex items-center gap-2 text-sm font-black text-black/45 hover:text-black"><ArrowRight size={17} /> گەڕانەوە بۆ پۆستەکان</Link>
+
+        {canEditPost || canDeletePost ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {canEditPost ? <button type="button" onClick={() => isEditing ? setIsEditing(false) : startEditing()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-blue)] px-4 py-2.5 text-sm font-black text-white"><Pencil size={16}/>{isEditing ? 'داخستنی دەستکاری' : 'دەستکاری پۆست'}</button> : null}
+            {canDeletePost ? <button type="button" onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-500/20 bg-white px-4 py-2.5 text-sm font-black text-red-600"><Trash2 size={16}/>سڕینەوەی پۆست</button> : null}
+          </div>
+        ) : null}
+
+        {editMessage ? <div role="status" className="mt-4 rounded-2xl border border-emerald-600/15 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">{editMessage}</div> : null}
+
+        {isEditing ? (
+          <form onSubmit={saveEdits} className="mt-5 space-y-4 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 shadow-sm sm:p-6">
+            <div><h2 className="text-xl font-black">دەستکاری زانیاریی پۆست</h2><p className="mt-1 text-sm leading-6 text-black/45">کاتەگۆری و مێژووی پۆست هەمان دەمێنن؛ تەنها خانەکانت دەستکاری دەکەیت.</p></div>
+            {editError ? <div role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{editError}</div> : null}
+            <label className="block text-sm font-black">ناونیشان
+              <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={180} required disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/>
+            </label>
+            <label className="block text-sm font-black">وەسف
+              <textarea value={editContent} onChange={(event) => setEditContent(event.target.value)} maxLength={12000} disabled={savingEdit} rows={5} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/>
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-black">{isVehicle ? 'نرخ (' + (vehicleListing?.currency ?? 'IQD') + ')' : 'نرخ (د.ع)'}
+                <input type="number" min={isVehicle || isApparel ? 1 : 0} step="any" inputMode="decimal" value={editPrice} onChange={(event) => setEditPrice(event.target.value)} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal" placeholder="نرخ"/>
+              </label>
+              <label className="block text-sm font-black">شوێن
+                <input value={editLocation} onChange={(event) => setEditLocation(event.target.value)} maxLength={180} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal" placeholder="هەولێر"/>
+              </label>
+              {(isVehicle || isApparel) ? <label className="block text-sm font-black">داشکاندن (%)
+                <input type="number" min={0} max={99} step={1} value={editDiscount} onChange={(event) => setEditDiscount(event.target.value)} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/>
+              </label> : null}
+            </div>
+            {isApparel ? (
+              <section className="space-y-4 rounded-2xl bg-[var(--shakh-bg)] p-4">
+                <h3 className="font-black">زانیاریی زیادەی جل‌وبەرگ</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm font-black">براند<input value={editBrand} onChange={(event) => setEditBrand(event.target.value)} maxLength={120} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/></label>
+                  <label className="block text-sm font-black">ماددە<input value={editMaterial} onChange={(event) => setEditMaterial(event.target.value)} maxLength={160} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/></label>
+                  <label className="block text-sm font-black">وڵاتی دروستکردن<input value={editCountryOfOrigin} onChange={(event) => setEditCountryOfOrigin(event.target.value)} maxLength={100} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/></label>
+                  <label className="block text-sm font-black">وەرز
+                    <select value={editSeason} onChange={(event) => setEditSeason(event.target.value as ApparelSeason | '')} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal">
+                      <option value="">دیاری نەکراوە</option><option value="summer">هاوین</option><option value="winter">زستان</option><option value="all_seasons">هەموو وەرزەکان</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-black">دۆخی کاڵا
+                    <select value={editCondition} onChange={(event) => setEditCondition(event.target.value as ApparelCondition | '')} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal">
+                      <option value="">دیاری نەکراوە</option><option value="new">نوێ</option><option value="used">بەکارهاتوو</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-black">بۆ کێیە؟
+                    <select value={editAudience} onChange={(event) => setEditAudience(event.target.value as ApparelAudience | '')} disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal">
+                      <option value="">هەمووان / دیاری نەکراوە</option><option value="men">پیاوان</option><option value="women">ئافرەتان</option><option value="kids">منداڵان</option><option value="all">هەمووان</option>
+                    </select>
+                  </label>
+                </div>
+                <Link to="/dashboard/posts/manage" className="inline-flex text-xs font-black text-[var(--shakh-blue)]">بۆ دەستکاری ڕەنگ، قەبارە و کۆگا بچۆ بۆ بەڕێوەبردنی جل‌وبەرگ ←</Link>
+              </section>
+            ) : null}
+            <div className="flex flex-wrap gap-2 pt-2">
+              <button type="submit" disabled={savingEdit} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-orange)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={16}/>{savingEdit ? 'پاشەکەوتکردن...' : 'پاشەکەوتکردنی گۆڕانکاری'}</button>
+              <button type="button" onClick={() => setIsEditing(false)} disabled={savingEdit} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><X size={16}/> پاشگەزبوونەوە</button>
+            </div>
+          </form>
+        ) : null}
+
+        {showDeleteConfirm ? (
+          <div role="alertdialog" aria-modal="true" aria-labelledby="delete-post-title" className="mt-4 rounded-[24px] border border-red-500/20 bg-white p-5 shadow-sm">
+            <h2 id="delete-post-title" className="flex items-center gap-2 text-lg font-black text-red-700"><AlertTriangle size={20}/> سڕینەوەی پۆست پشتڕاست بکەرەوە</h2>
+            <p className="mt-2 text-sm leading-7 text-black/55">پۆستەکە لە بازاڕ و گەڕان دەشاردرێتەوە. مێژووی ئۆردەرە پەیوەندیدارەکان هەڵدەگیرێت و داتای پۆستەکە بۆ پاراستنی مێژوو ناسڕدرێتەوە.</p>
+            {deleteError ? <div role="alert" className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{deleteError}</div> : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={() => void deletePost()} disabled={deletingPost} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Trash2 size={16}/>{deletingPost ? 'سڕینەوە...' : 'بەڵێ، پۆستەکە بشارەوە'}</button>
+              <button type="button" onClick={() => setShowDeleteConfirm(false)} disabled={deletingPost} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><X size={16}/> نەخێر</button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-5 grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
           <div className="rounded-[30px] border border-black/[0.06] bg-white p-3 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-5">
             <div className="overflow-hidden rounded-[24px] bg-[var(--shakh-bg)]">
