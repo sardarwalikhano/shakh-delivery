@@ -19,6 +19,13 @@ export function MarketplacePage() {
   const [search, setSearch] = useState(query);
 
   const selectedCategory = useMemo(() => categories.find((item) => item.slug === categorySlug) ?? null, [categories, categorySlug]);
+  const selectedRootCategory = useMemo(() => selectedCategory?.parent_id
+    ? categories.find((item) => item.id === selectedCategory.parent_id) ?? null
+    : selectedCategory, [categories, selectedCategory]);
+  const rootCategories = useMemo(() => categories.filter((item) => item.parent_id === null), [categories]);
+  const subcategories = useMemo(() => selectedRootCategory
+    ? categories.filter((item) => item.parent_id === selectedRootCategory.id)
+    : [], [categories, selectedRootCategory]);
 
   useEffect(() => { void getCategories().then(setCategories).catch(() => setCategories([])); }, []);
 
@@ -91,9 +98,13 @@ export function MarketplacePage() {
         <div className="mt-5 overflow-x-auto pb-1">
           <div className="flex min-w-max gap-2">
             <button onClick={() => setCategory('')} className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${!categorySlug ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/60 ring-1 ring-black/[0.05]'}`}><SlidersHorizontal size={17} /> هەموو</button>
-            {categories.map((category) => <button key={category.id} onClick={() => setCategory(category.slug)} className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${categorySlug === category.slug ? 'bg-[var(--shakh-orange)] text-white' : 'bg-white text-black/60 ring-1 ring-black/[0.05]'}`}><CategoryIcon iconKey={category.icon_key} size={17} /> {category.name_ku}</button>)}
+            {rootCategories.map((category) => <button key={category.id} onClick={() => setCategory(category.slug)} className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${selectedRootCategory?.id === category.id || (!categorySlug && !selectedRootCategory && false) ? 'bg-[var(--shakh-orange)] text-white' : 'bg-white text-black/60 ring-1 ring-black/[0.05]'}`}><CategoryIcon iconKey={category.icon_key} size={17} /> {category.name_ku}</button>)}
           </div>
         </div>
+        {selectedRootCategory && subcategories.length ? <div className="mt-3 overflow-x-auto pb-1"><div className="flex min-w-max gap-2">
+          <button onClick={() => setCategory(selectedRootCategory.slug)} className={`rounded-xl px-3 py-2 text-xs font-black transition ${categorySlug === selectedRootCategory.slug ? 'bg-[var(--shakh-blue)] text-white' : 'bg-white text-black/55 ring-1 ring-black/[0.05]'}`}>هەمووی {selectedRootCategory.name_ku}</button>
+          {subcategories.map((category) => <button key={category.id} onClick={() => setCategory(category.slug)} className={`rounded-xl px-3 py-2 text-xs font-black transition ${categorySlug === category.slug ? 'bg-[var(--shakh-blue)] text-white' : 'bg-white text-black/55 ring-1 ring-black/[0.05]'}`}>{category.name_ku}</button>)}
+        </div></div> : null}
 
         <div className="mt-8 flex items-end justify-between gap-3">
           <div><p className="text-xs font-black text-[var(--shakh-blue)]">{selectedCategory?.name_ku ?? 'بازاڕ'}</p><h2 className="mt-1 text-2xl font-black">{query ? `ئەنجامی گەڕان بۆ «${query}»` : 'بەرهەمە نوێ و چالاکەکان'}</h2></div>
