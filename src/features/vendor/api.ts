@@ -307,3 +307,198 @@ export async function deleteVendorProductImage(userId: string, imageId: string):
   if (error) throw error;
   return image.storage_path as string;
 }
+
+
+export type RestaurantMenuDetails = {
+  product_id: string;
+  menu_category: 'main_course' | 'appetizer' | 'dessert' | 'beverage' | 'salad' | 'kids' | 'combo' | 'other';
+  ingredients: string | null;
+  allergen_warnings: string | null;
+  dietary_tags: string[];
+  spice_level: number;
+  prep_time_minutes: number;
+  is_available: boolean;
+  available_from: string | null;
+  available_until: string | null;
+};
+
+export type RestaurantMenuOption = {
+  id: string;
+  group_id: string;
+  name_ku: string;
+  name_ar: string;
+  name_en: string;
+  price_iqd: number;
+  is_available: boolean;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type RestaurantMenuOptionGroup = {
+  id: string;
+  product_id: string;
+  name_ku: string;
+  name_ar: string;
+  name_en: string;
+  is_required: boolean;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  is_active: boolean;
+  options: RestaurantMenuOption[];
+};
+
+export type RestaurantMenuConfiguration = {
+  details: RestaurantMenuDetails | null;
+  groups: RestaurantMenuOptionGroup[];
+};
+
+export type RestaurantMenuGroupDraft = {
+  id?: string;
+  name_ku: string;
+  name_ar: string;
+  name_en: string;
+  is_required: boolean;
+  min_select: number;
+  max_select: number;
+  options: Array<{
+    id?: string;
+    name_ku: string;
+    name_ar: string;
+    name_en: string;
+    price_iqd: number;
+    is_available: boolean;
+  }>;
+};
+
+export async function getRestaurantMenuConfiguration(userId: string, productId: string): Promise<RestaurantMenuConfiguration> {
+  await assertProductOwner(userId, productId);
+  const [detailsResult, groupsResult] = await Promise.all([
+    supabase.from('restaurant_menu_details')
+      .select('product_id,menu_category,ingredients,allergen_warnings,dietary_tags,spice_level,prep_time_minutes,is_available,available_from,available_until')
+      .eq('product_id', productId).maybeSingle(),
+    supabase.from('restaurant_menu_option_groups')
+      .select('id,product_id,name_ku,name_ar,name_en,is_required,min_select,max_select,sort_order,is_active')
+      .eq('product_id', productId).eq('is_active', true).order('sort_order', { ascending: true }),
+  ]);
+  if (detailsResult.error) throw detailsResult.error;
+  if (groupsResult.error) throw groupsResult.error;
+  const groups = (groupsResult.data ?? []) as Omit<RestaurantMenuOptionGroup, 'options'>[];
+  if (!groups.length) return { details: (detailsResult.data ?? null) as RestaurantMenuDetails | null, groups: [] };
+  const { data: optionsData, error: optionsError } = await supabase.from('restaurant_menu_options')
+    .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order')
+    .in('group_id', groups.map((group) => group.id))
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (optionsError) throw optionsError;
+  const options = (optionsData ?? []) as RestaurantMenuOption[];
+  return {
+    details: (detailsResult.data ?? null) as RestaurantMenuDetails | null,
+    groups: groups.map((group) => ({ ...group, options: options.filter((option) => option.group_id === group.id) })),
+  };
+}
+
+export async function saveRestaurantMenuDetails(
+  userId: string,
+  productId: string,
+  input: Omit<RestaurantMenuDetails, 'product_id'>,
+): Promise<void> {
+  await assertProductOwner(userId, productId);
+  const { error } = await supabase.from('restaurant_menu_details').upsert(
+    { product_id: productId, ...input },
+    { onConflict: 'product_id' },
+  );
+  if (error) throw error;
+}
+
+export async function saveRestaurantMenuOptionGroups(
+  userId: string,
+  productId: string,
+  drafts: RestaurantMenuGroupDraft[],
+): Promise<void> {
+  await assertProductOwner(userId, productId);
+  const { data: currentGroups, error: groupReadError } = await supabase
+    .from('restaurant_menu_option_groups')
+    .select('id,is_active')
+    .eq('product_id', productId);
+  if (groupReadError) throw groupReadError;
+  const existingGroups = (currentGroups ?? []) as Array<{ id: string; is_active: boolean }>;
+  const retainedGroupIds = new Set<string>();
+
+  for (let groupIndex = 0; groupIndex < drafts.length; groupIndex += 1) {
+    const group = drafts[groupIndex];
+    const groupInput = {
+      product_id: productId,
+      name_ku: group.name_ku.trim(),
+      name_ar: group.name_ar.trim() || group.name_ku.trim(),
+      name_en: group.name_en.trim() || group.name_ku.trim(),
+      is_required: group.is_required,
+      min_select: group.min_select,
+      max_select: group.max_select,
+      sort_order: groupIndex,
+      is_active: true,
+    };
+    let groupId = group.id;
+    if (groupId && existingGroups.some((row) => row.id === groupId)) {
+      const { data, error } = await supabase.from('restaurant_menu_option_groups')
+        .update(groupInput).eq('id', groupId).eq('product_id', productId)
+        .select('id').single();
+      if (error) throw error;
+      groupId = data.id as string;
+    } else {
+      const { data, error } = await supabase.from('restaurant_menu_option_groups')
+        .insert(groupInput).select('id').single();
+      if (error) throw error;
+      groupId = data.id as string;
+    }
+    retainedGroupIds.add(groupId);
+
+    const { data: oldOptions, error: optionReadError } = await supabase.from('restaurant_menu_options')
+      .select('id').eq('group_id', groupId);
+    if (optionReadError) throw optionReadError;
+    const existingOptionIds = new Set(((oldOptions ?? []) as Array<{ id: string }>).map((row) => row.id));
+    const retainedOptionIds = new Set<string>();
+
+    for (let optionIndex = 0; optionIndex < group.options.length; optionIndex += 1) {
+      const option = group.options[optionIndex];
+      const optionInput = {
+        group_id: groupId,
+        name_ku: option.name_ku.trim(),
+        name_ar: option.name_ar.trim() || option.name_ku.trim(),
+        name_en: option.name_en.trim() || option.name_ku.trim(),
+        price_iqd: option.price_iqd,
+        is_available: option.is_available,
+        is_active: true,
+        sort_order: optionIndex,
+      };
+      if (option.id && existingOptionIds.has(option.id)) {
+        const { data, error } = await supabase.from('restaurant_menu_options')
+          .update(optionInput).eq('id', option.id).eq('group_id', groupId)
+          .select('id').single();
+        if (error) throw error;
+        retainedOptionIds.add(data.id as string);
+      } else {
+        const { data, error } = await supabase.from('restaurant_menu_options')
+          .insert(optionInput).select('id').single();
+        if (error) throw error;
+        retainedOptionIds.add(data.id as string);
+      }
+    }
+
+    for (const oldId of existingOptionIds) {
+      if (!retainedOptionIds.has(oldId)) {
+        const { error } = await supabase.from('restaurant_menu_options')
+          .update({ is_active: false, is_available: false }).eq('id', oldId);
+        if (error) throw error;
+      }
+    }
+  }
+
+  for (const oldGroup of existingGroups) {
+    if (oldGroup.is_active && !retainedGroupIds.has(oldGroup.id)) {
+      const { error } = await supabase.from('restaurant_menu_option_groups')
+        .update({ is_active: false }).eq('id', oldGroup.id).eq('product_id', productId);
+      if (error) throw error;
+    }
+  }
+}
