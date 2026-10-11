@@ -19,6 +19,7 @@ export type Order = {
     id: string;
     product_id: string | null;
     variant_id: string | null;
+    variant_name_ku_snapshot: string | null;
     product_name_ku: string;
     quantity: number;
     unit_price_iqd: number;
