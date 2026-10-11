@@ -60,6 +60,8 @@ export type Product = {
   category: Category | null;
   images: ProductImage[];
   variants: ProductVariant[];
+  restaurantMenu: RestaurantMenuDetails | null;
+  restaurantOptionGroups: RestaurantMenuOptionGroup[];
 };
 
 export type ProductImage = {
@@ -101,6 +103,49 @@ export type Cart = {
   currency: 'IQD';
 };
 
+export type RestaurantMenuDetails = {
+  product_id: string;
+  menu_category: 'main_course' | 'appetizer' | 'dessert' | 'beverage' | 'salad' | 'kids' | 'combo' | 'other';
+  ingredients: string | null;
+  allergen_warnings: string | null;
+  dietary_tags: string[];
+  spice_level: number;
+  prep_time_minutes: number;
+  is_available: boolean;
+  available_from: string | null;
+  available_until: string | null;
+};
+
+export type RestaurantMenuOption = {
+  id: string;
+  group_id: string;
+  name_ku: string;
+  name_ar: string;
+  name_en: string;
+  price_iqd: number;
+  is_available: boolean;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type RestaurantMenuOptionGroup = {
+  id: string;
+  product_id: string;
+  name_ku: string;
+  name_ar: string;
+  name_en: string;
+  is_required: boolean;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  is_active: boolean;
+  options: RestaurantMenuOption[];
+};
+
+export type CartSelectedOption = RestaurantMenuOption & {
+  group_name_ku: string;
+};
+
 export type CartItem = {
   id: string;
   cart_id: string;
@@ -108,6 +153,8 @@ export type CartItem = {
   variant_id: string | null;
   quantity: number;
   added_price_iqd: number;
+  selected_option_ids: string[];
+  selectedOptions: CartSelectedOption[];
   product: (Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date'> & { images: Product['images'] }) | null;
   variant: Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'> | null;
 };
