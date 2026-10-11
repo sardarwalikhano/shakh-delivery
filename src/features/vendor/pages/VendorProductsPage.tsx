@@ -54,7 +54,7 @@ function colorFromVariant(variant: VendorVariant): ApparelColor {
 
 export function VendorProductsPage() {
   const { user } = useAuth();
-  const { role } = useAuthorization();
+  const { roles } = useAuthorization();
   const [stores, setStores] = useState<VendorStore[]>([]);
   const [products, setProducts] = useState<VendorProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -73,7 +73,7 @@ export function VendorProductsPage() {
     setLoading(true); setMessage(null);
     try {
       const [nextStores, nextProducts, catResult] = await Promise.all([
-        getVendorStores(user.id, role),
+        getVendorStores(user.id, roles),
         getVendorProducts(user.id, storeId || undefined),
         supabase.from('categories').select('id,parent_id,name_ku,name_ar,name_en,slug').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
@@ -86,7 +86,7 @@ export function VendorProductsPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { if (user) void refresh(); }, [user, role, storeId]);
+  useEffect(() => { if (user) void refresh(); }, [user, roles, storeId]);
 
   const selectedStore = useMemo(() => stores.find((item) => item.id === storeId) ?? null, [stores, storeId]);
 

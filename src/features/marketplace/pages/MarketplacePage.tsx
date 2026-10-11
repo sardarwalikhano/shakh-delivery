@@ -6,6 +6,7 @@ import type { Category, Product } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { ProductGrid } from '../components/ProductGrid';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 
 export function MarketplacePage() {
   const [params, setParams] = useSearchParams();
@@ -17,10 +18,20 @@ export function MarketplacePage() {
   const [wishlistIds, setWishlistIds] = useState<ReadonlySet<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(query);
+  const [catalogRevision, setCatalogRevision] = useState(0);
 
   const selectedCategory = useMemo(() => categories.find((item) => item.slug === categorySlug) ?? null, [categories, categorySlug]);
 
   useEffect(() => { void getCategories().then(setCategories).catch(() => setCategories([])); }, []);
+
+  useEffect(() => {
+    const channel = supabase.channel('marketplace-live-catalog')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => setCatalogRevision((value) => value + 1))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => setCatalogRevision((value) => value + 1))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images' }, () => setCatalogRevision((value) => value + 1))
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, []);
 
   useEffect(() => {
     setSearch(query);
@@ -31,7 +42,7 @@ export function MarketplacePage() {
       if (!cancelled) { setProducts(items); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [query, selectedCategory?.id]);
+  }, [query, selectedCategory?.id, catalogRevision]);
 
   useEffect(() => {
     if (!user || !products.length) { setWishlistIds(new Set()); return; }

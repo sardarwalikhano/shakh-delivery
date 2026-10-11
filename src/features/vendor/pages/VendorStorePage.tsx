@@ -6,7 +6,7 @@ import { createVendorStore, getVendorStores, updateVendorStore, type VendorStore
 
 export function VendorStorePage() {
   const { user } = useAuth();
-  const { role } = useAuthorization();
+  const { roles } = useAuthorization();
   const [stores, setStores] = useState<VendorStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,10 +17,10 @@ export function VendorStorePage() {
   const refresh = async () => {
     if (!user) return;
     setLoading(true);
-    try { setStores(await getVendorStores(user.id, role)); } finally { setLoading(false); }
+    try { setStores(await getVendorStores(user.id, roles)); } finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, [user, role]);
+  useEffect(() => { void refresh(); }, [user, roles]);
 
   const loadStore = (store: VendorStore) => {
     setSelected(store.id);

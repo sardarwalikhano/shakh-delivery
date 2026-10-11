@@ -14,13 +14,16 @@ type Props = {
 export function ProductCard({ product, wishlisted = false, onToggleWishlist, onAdd }: Props) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const soldOut = product.stock_quantity <= 0;
+  const expired = Boolean(product.expiry_date && product.expiry_date < new Date().toISOString().slice(0, 10));
+  const soldOut = product.stock_quantity <= 0 || expired;
+  const hasVariants = product.variants.some((item) => item.is_active);
 
   const add = () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/product/${product.slug}` } });
       return;
     }
+    if (hasVariants) { navigate(`/product/${product.slug}`); return; }
     onAdd?.(product);
   };
 
@@ -61,6 +64,9 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
         <Link to={`/product/${product.slug}`} className="block">
           <h3 className="line-clamp-2 min-h-12 text-sm font-black leading-6 text-[var(--shakh-ink)]">{product.name_ku}</h3>
         </Link>
+        {product.brand ? <div className="mt-1 text-xs font-bold text-black/45">{product.brand}</div> : null}
+        {product.quantity_value != null && product.quantity_unit ? <div className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{product.quantity_value.toLocaleString('en-US')} {({ g: 'گرام', kg: 'کیلۆگرام', ml: 'ملیلتر', l: 'لیتر', pack: 'پاکێت', piece: 'دانە', carton: 'کارتۆن' } as Record<string, string>)[product.quantity_unit]}{product.package_count && product.package_count > 1 ? ` · ${product.package_count} پاکێت` : ''}</div> : null}
+        <div className="mt-2 text-[11px] font-bold text-black/40">{expired ? 'بەسەرچووە' : product.stock_quantity > 0 ? `${product.stock_quantity.toLocaleString('en-US')} دانە لە کۆگادا` : 'کۆگا بەتاڵە'}</div>
         {product.store ? (
           <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-black/40">
             <Store size={13} /> <span className="truncate">{product.store.name_ku}</span>
