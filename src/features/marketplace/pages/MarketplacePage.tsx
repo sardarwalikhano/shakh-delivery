@@ -29,6 +29,9 @@ export function MarketplacePage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => setCatalogRevision((value) => value + 1))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => setCatalogRevision((value) => value + 1))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images' }, () => setCatalogRevision((value) => value + 1))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_details' }, () => setCatalogRevision((value) => value + 1))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_option_groups' }, () => setCatalogRevision((value) => value + 1))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_options' }, () => setCatalogRevision((value) => value + 1))
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, []);
