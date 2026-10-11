@@ -20,9 +20,15 @@ export function PostsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setPosts(await listActivePosts()); }
-    catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'نەتوانرا پۆستەکان بخوێندرێنەوە.'); }
-    finally { setLoading(false); }
+    setError(null);
+    try {
+      const activePosts = await listActivePosts();
+      setPosts(activePosts);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'نەتوانرا پۆستەکان بخوێندرێنەوە.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -39,7 +45,9 @@ export function PostsPage() {
     return (category === 'all' || post.category === category) && textMatch;
   }), [category, posts, query]);
 
-  const categories = useMemo(() => [...new Set(posts.map((post) => post.category))], [posts]);
+  // Keep every supported category available even when its first query returns
+  // no rows; category buttons should not disappear because the feed is still loading.
+  const categories = useMemo(() => Object.keys(postCategoryLabels) as PostCategory[], []);
 
   return (
     <section className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb] px-4 py-6 sm:px-6 lg:py-8">
