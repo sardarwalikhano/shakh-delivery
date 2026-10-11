@@ -176,7 +176,7 @@ export function ProductDetailPage() {
               {product.restaurantOptionGroups.map((group) => {
                 const groupSelected = selectedOptionIds.filter((id) => group.options.some((option) => option.id === id));
                 return <section key={group.id} className="rounded-2xl border border-black/[0.07] p-4">
-                  <div className="flex items-center justify-between gap-2"><h3 className="font-black">{group.name_ku}</h3><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-[10px] font-black text-black/50">{group.is_required ? 'پێویستە' : 'ئارەزوومەندانە'} · {group.min_select}–{group.max_select}</span></div>
+                  <div className="flex items-center justify-between gap-2"><h3 className="font-black">{group.name_ku}</h3><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-[10px] font-black text-black/50">{group.min_select > 0 ? 'پێویستە' : 'ئارەزوومەندانە'} · {group.min_select}–{group.max_select}</span></div>
                   <div className="mt-3 space-y-2">{group.options.map((option) => {
                     const checked = selectedOptionIds.includes(option.id);
                     const canSelectMore = checked || groupSelected.length < group.max_select;
