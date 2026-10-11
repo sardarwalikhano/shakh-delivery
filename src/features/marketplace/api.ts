@@ -186,61 +186,96 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
 
   const { data, error } = await supabase
     .from('cart_items')
-    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,expiry_date,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,quantity_value,quantity_unit,package_count,flavor,expiry_date)')
+    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,selected_option_ids,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,expiry_date,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,quantity_value,quantity_unit,package_count,flavor,expiry_date)')
     .eq('cart_id', cartData.id)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
+  const rows = ((data ?? []) as Array<{
+    id: string;
+    cart_id: string;
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    added_price_iqd: number;
+    selected_option_ids: string[];
+    products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date'> & { images: Product['images'] }>;
+    product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'>>;
+  }>);
+
+  const optionIds = [...new Set(rows.flatMap((item) => item.selected_option_ids ?? []))];
+  const optionsById = new Map<string, CartSelectedOption>();
+  if (optionIds.length) {
+    const { data: optionRows, error: optionError } = await supabase.from('restaurant_menu_options')
+      .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order,restaurant_menu_option_groups(name_ku)')
+      .in('id', optionIds);
+    if (optionError) throw optionError;
+    for (const option of (optionRows ?? []) as Array<CartSelectedOption & { restaurant_menu_option_groups: Array<{ name_ku: string }> }>) {
+      optionsById.set(option.id, { ...option, group_name_ku: option.restaurant_menu_option_groups?.[0]?.name_ku ?? 'زیادکراوە' });
+    }
+  }
+
   return {
     cart: cartData as Cart,
-    items: ((data ?? []) as Array<{
-      id: string;
-      cart_id: string;
-      product_id: string;
-      variant_id: string | null;
-      quantity: number;
-      added_price_iqd: number;
-      products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date'> & { images: Product['images'] }>;
-      product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'>>;
-    }>).map((item) => ({
-      id: item.id,
-      cart_id: item.cart_id,
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-      added_price_iqd: item.added_price_iqd,
-      product: item.products?.[0] ? { ...item.products[0], images: item.products[0].images ?? [] } : null,
-      variant: item.product_variants?.[0] ?? null,
-    })),
+    items: rows.map((item) => {
+      const selectedOptionIds = item.selected_option_ids ?? [];
+      const selectedOptions = selectedOptionIds.map((id) => optionsById.get(id)).filter((option): option is CartSelectedOption => Boolean(option));
+      return {
+        id: item.id,
+        cart_id: item.cart_id,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        quantity: item.quantity,
+        added_price_iqd: item.added_price_iqd,
+        selected_option_ids: selectedOptionIds,
+        selectedOptions,
+        hasUnavailableOptions: selectedOptions.length !== selectedOptionIds.length,
+        product: item.products?.[0] ? { ...item.products[0], images: item.products[0].images ?? [] } : null,
+        variant: item.product_variants?.[0] ?? null,
+      };
+    }),
   };
 }
 
-export async function addToCart(userId: string, productId: string, variantId: string | null, quantity: number, displayedPrice: number): Promise<void> {
+export async function addToCart(
+  userId: string,
+  productId: string,
+  variantId: string | null,
+  quantity: number,
+  displayedPrice: number,
+  selectedOptionIds: string[] = [],
+): Promise<void> {
   const safeQuantity = Math.max(1, Math.floor(quantity));
+  const normalizedOptionIds = [...new Set(selectedOptionIds)].sort();
   const cart = await getOrCreateCart(userId);
   let existingQuery = supabase
     .from('cart_items')
-    .select('id,quantity,variant_id')
+    .select('id,quantity,variant_id,selected_option_ids')
     .eq('cart_id', cart.id)
     .eq('product_id', productId);
   existingQuery = variantId === null ? existingQuery.is('variant_id', null) : existingQuery.eq('variant_id', variantId);
-  const { data: existing, error: existingError } = await existingQuery.limit(1);
+  const { data: existing, error: existingError } = await existingQuery;
 
   if (existingError) throw existingError;
 
-  const same = (existing ?? [])[0] as { id: string; quantity: number } | undefined;
+  const same = ((existing ?? []) as Array<{ id: string; quantity: number; selected_option_ids: string[] | null }>).find((item) => {
+    const oldIds = [...(item.selected_option_ids ?? [])].sort();
+    return oldIds.length === normalizedOptionIds.length && oldIds.every((id, index) => id === normalizedOptionIds[index]);
+  });
   if (same) {
-    const { error } = await supabase.from('cart_items').update({ quantity: same.quantity + safeQuantity, added_price_iqd: displayedPrice }).eq('id', same.id);
+    const { error } = await supabase.from('cart_items')
+      .update({ quantity: same.quantity + safeQuantity, selected_option_ids: normalizedOptionIds, added_price_iqd: displayedPrice })
+      .eq('id', same.id);
     if (error) throw error;
     return;
   }
-
 
   const { error } = await supabase.from('cart_items').insert({
     cart_id: cart.id,
     product_id: productId,
     variant_id: variantId,
     quantity: safeQuantity,
+    selected_option_ids: normalizedOptionIds,
     added_price_iqd: displayedPrice,
   });
   if (error) throw error;
