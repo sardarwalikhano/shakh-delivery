@@ -209,6 +209,7 @@ export function VendorProductsPage() {
       const compare = data.compare_at_price_iqd.trim() ? Number(data.compare_at_price_iqd) : null;
       const apparel = isApparelCategory(data.category_id, categories);
       const supermarket = isSupermarketCategory(data.category_id, categories);
+      const restaurantMenu = roles.includes('restaurant_vendor') && !apparel && !supermarket;
       const marketVariants = data.marketVariants;
       const apparelType = apparel && data.apparel_product_type ? data.apparel_product_type as ApparelProductType : null;
       const combinations = apparel ? data.colors.flatMap((color) => data.sizes.flatMap((size) => {
@@ -217,13 +218,14 @@ export function VendorProductsPage() {
       })) : [];
       const totalMatrixStock = combinations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.cell.stock))), 0);
       const totalMarketVariantStock = marketVariants.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stock_quantity) || 0)), 0);
-      const stock = apparel ? totalMatrixStock : supermarket && marketVariants.length ? totalMarketVariantStock : Math.max(0, Math.floor(Number(data.stock_quantity)));
+      const stock = restaurantMenu ? 0 : apparel ? totalMatrixStock : supermarket && marketVariants.length ? totalMarketVariantStock : Math.max(0, Math.floor(Number(data.stock_quantity)));
 
       if (!data.name_ku.trim() || !data.name_ar.trim() || !data.name_en.trim() || !data.slug.trim() || !Number.isFinite(base) || base < 0) {
         throw new Error('ناوی بەرهەم، slug و نرخ پێویستن.');
       }
       if (compare !== null && (!Number.isFinite(compare) || compare < base)) throw new Error('نرخی پێشوو نابێت لە نرخی ئێستا کەمتر بێت.');
       if (supermarket && base <= 0) throw new Error('نرخی فرۆشتنی کاڵای سوپەرمارکێت دەبێت لە سفر گەورەتر بێت.');
+      if (restaurantMenu && base <= 0) throw new Error('نرخی خواردن دەبێت لە سفر گەورەتر بێت.');
       if (!Number.isFinite(Number(data.stock_quantity)) && !apparel) throw new Error('ژمارەی کۆگا دروست نییە.');
       if (apparel && !apparelType) throw new Error('جۆری جل‌وبەرگ هەڵبژێرە.');
       if (supermarket && !['food','beverage','cleaning','daily_essentials','fresh_food','other'].includes(data.supermarket_type)) throw new Error('جۆری کاڵای سوپەرمارکێت هەڵبژێرە.');
@@ -231,7 +233,20 @@ export function VendorProductsPage() {
       if (supermarket && data.package_count.trim() && (!Number.isInteger(Number(data.package_count)) || Number(data.package_count) <= 0)) throw new Error('ژمارەی پاکێت دەبێت ژمارەیەکی تەواوی ئەرێنی بێت.');
       if (supermarket && Boolean(data.quantity_value.trim()) !== Boolean(data.quantity_unit)) throw new Error('قەبارە و یەکە پێکەوە دیاری بکە.');
       if (supermarket && data.manufacturing_date && data.expiry_date && data.expiry_date < data.manufacturing_date) throw new Error('بەرواری بەسەرچوون نابێت پێش بەرواری بەرهەمهێنان بێت.');
-      if (supermarket && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی کاڵاکە زیاد بکە.');
+      if ((supermarket || restaurantMenu) && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی کاڵاکە زیاد بکە.');
+      if (restaurantMenu) {
+        const menu = data.restaurantDetails;
+        if (!Number.isInteger(menu.prep_time_minutes) || menu.prep_time_minutes < 0 || menu.prep_time_minutes > 1440) throw new Error('کاتی ئامادەکردن دەبێت لە نێوان ٠ تا ١٤٤٠ خولەک بێت.');
+        if ((menu.available_from && !menu.available_until) || (!menu.available_from && menu.available_until)) throw new Error('هەردوو کاتی دەستپێک و کۆتایی بەردەستبوون پێکەوە دیاری بکە.');
+        if (data.restaurantSizes.some((item) => !item.name_ku.trim() || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) <= 0)))) throw new Error('ناوی قەبارە و نرخی تایبەتی قەبارەکان پشکنین بکە.');
+        if (data.restaurantGroups.some((group) =>
+          !group.name_ku.trim()
+          || !Number.isInteger(group.min_select) || !Number.isInteger(group.max_select)
+          || group.min_select < 0 || group.max_select < 1 || group.min_select > group.max_select
+          || (group.is_required && group.min_select < 1)
+          || group.options.some((option) => !option.name_ku.trim() || !Number.isFinite(Number(option.price_iqd)) || Number(option.price_iqd) < 0)
+        )) throw new Error('ناو، نرخ و مەرجی هەڵبژاردنی قەبارە و زیادکراوەکان پشکنین بکە.');
+      }
       if (supermarket && marketVariants.some((item) => !item.name_ku.trim() || !Number.isFinite(Number(item.stock_quantity)) || Number(item.stock_quantity) < 0 || !Number.isInteger(Number(item.stock_quantity)) || (item.price_iqd.trim() && (!Number.isFinite(Number(item.price_iqd)) || Number(item.price_iqd) <= 0)) || (item.quantity_value.trim() && (!Number.isFinite(Number(item.quantity_value)) || Number(item.quantity_value) <= 0)) || (item.package_count.trim() && (!Number.isInteger(Number(item.package_count)) || Number(item.package_count) <= 0)) || (Boolean(item.quantity_value.trim()) !== Boolean(item.quantity_unit)) || (item.manufacturing_date && item.expiry_date && item.expiry_date < item.manufacturing_date))) throw new Error('ناو و کۆگای وەشانەکان پشکنین بکە؛ نرخی تایبەت ئەگەر بەکاربهێنرێت دەبێت لە سفر گەورەتر بێت، قەبارە و یەکە پێکەوە بن، و بەروارەکان ڕێک بن.');
       if (data.imageFiles.length + editingImages.length > 8) throw new Error('کۆی وێنەکانی بەرهەم نابێت لە ٨ زیاتر بێت. پێش زیادکردن وێنەیەکی پێشووتر بسڕەوە.');
       if (apparel && data.imageFiles.length + editingImages.length === 0) throw new Error('لانیکەم یەک وێنەی بەرهەم زیاد بکە.');
@@ -286,7 +301,59 @@ export function VendorProductsPage() {
       }
       const allImages = [...editingImages, ...uploadedImages];
 
-      if (supermarket) {
+      if (restaurantMenu) {
+        const menu = data.restaurantDetails;
+        await saveRestaurantMenuDetails(user.id, savedProduct.id, {
+          ...menu,
+          ingredients: menu.ingredients?.trim() || null,
+          allergen_warnings: menu.allergen_warnings?.trim() || null,
+          dietary_tags: [...new Set(menu.dietary_tags)],
+          available_from: menu.available_from || null,
+          available_until: menu.available_until || null,
+        });
+
+        const previousVariants = editingVariants.filter((item) => !(item.color_name_ku && item.size_label));
+        const retainedVariantIds = new Set<string>();
+        for (const size of data.restaurantSizes) {
+          const variantInput = {
+            name_ku: size.name_ku.trim(),
+            name_ar: size.name_ar.trim() || size.name_ku.trim(),
+            name_en: size.name_en.trim() || size.name_ku.trim(),
+            price_iqd: size.price_iqd.trim() ? Number(size.price_iqd) : null,
+            stock_quantity: 0,
+            is_active: true,
+            color_name_ku: null,
+            color_hex: null,
+            size_label: null,
+            color_image_storage_path: null,
+            quantity_value: null,
+            quantity_unit: null,
+            package_count: null,
+            flavor: null,
+            barcode: null,
+            manufacturing_date: null,
+            expiry_date: null,
+          };
+          const existing = size.id ? previousVariants.find((item) => item.id === size.id) : undefined;
+          if (existing) {
+            await updateVendorVariant(user.id, existing.id, variantInput);
+            retainedVariantIds.add(existing.id);
+          } else {
+            const created = await createVendorVariant(user.id, { product_id: savedProduct.id, ...variantInput });
+            retainedVariantIds.add(created.id);
+          }
+        }
+        for (const oldVariant of previousVariants) {
+          if (!retainedVariantIds.has(oldVariant.id) && oldVariant.is_active) {
+            await updateVendorVariant(user.id, oldVariant.id, { is_active: false });
+          }
+        }
+
+        await saveRestaurantMenuOptionGroups(user.id, savedProduct.id, data.restaurantGroups);
+        setEditingVariants(await getVendorVariants(user.id, savedProduct.id));
+        setEditingImages(allImages);
+        setMessage('مێنیو، نرخەکانی قەبارە، پێکهاتە، هۆشداریی ئەلێرژی و زیادکراوەکان لە Supabase پاشەکەوت کران؛ خواردنەکە تا پەسەندکردن لە دۆخی draft دەمێنێتەوە.');
+      } else if (supermarket) {
         const previousVariants = editingVariants.filter((item) => !(item.color_name_ku && item.size_label));
         const savedIds = new Set<string>();
         for (const item of marketVariants) {
