@@ -1,8 +1,9 @@
-import { Edit3, Package, Plus, Save } from 'lucide-react';
+import { Edit3, ExternalLink, Package, Plus, Save } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getManageablePosts, getApparelVariants, saveManagedApparelPost } from '../api';
-import type { ApparelAudience, ApparelCondition, Post } from '../types';
+import type { ApparelAudience, ApparelCondition, Post, PostCategory } from '../types';
+import { postCategoryLabels } from '../labels';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { getPostImageUrl } from '@/lib/storage/postMedia';
@@ -25,6 +26,7 @@ export function MyPostsPage() {
   const { user } = useAuth();
   const { permissions } = useAuthorization();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<PostCategory | 'all'>('all');
   const [selected, setSelected] = useState<Post | null>(null);
   const [variants, setVariants] = useState<EditableApparelVariant[]>([]);
   const [newColorName, setNewColorName] = useState('');
@@ -55,7 +57,12 @@ export function MyPostsPage() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const visiblePosts = posts.filter((post) => post.status !== 'deleted' && post.category === 'fashion' && (canManageAll || post.author_id === user?.id));
+  const visiblePosts = posts.filter((post) =>
+    post.status !== 'deleted'
+    && (canManageAll || post.author_id === user?.id)
+    && (categoryFilter === 'all' || post.category === categoryFilter),
+  );
+  const availableCategories = Object.keys(postCategoryLabels) as PostCategory[];
 
   const startEdit = async (post: Post) => {
     setError(null);
@@ -189,28 +196,51 @@ export function MyPostsPage() {
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Apparel inventory</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی پۆستەکانی جل‌وبەرگ</h1><p className="mt-2 text-sm leading-6 text-black/50">دەستکاریی نرخ، داشکاندن، دۆخ، ڕەنگ/قەبارە و کۆگا لە داتابەیسی ڕاستەقینە.</p></div>
+          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post management</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی هەموو پۆستەکان</h1><p className="mt-2 text-sm leading-6 text-black/50">پۆستەکانی هەموو کاتەگۆرییەکان ببینە؛ پۆستەکانی جل‌وبەرگ لێرە دەستکاریی وردی کۆگا و قەبارەیان هەیە، کاتەگۆرییەکانی تر لە وردەکاریی پۆست دەکرێن.</p></div>
           <Link to="/dashboard/posts/new" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white"><Package size={16}/> پۆستی نوێ</Link>
         </div>
         {error ? <div role="alert" className="mt-4 rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
         {message ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">{message}</div> : null}
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(300px,.85fr)_minmax(0,1.15fr)]">
-          <div className="space-y-3">
-            {loading ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-black/45">بارکردن...</div> : null}
-            {!loading && visiblePosts.length === 0 ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-black/45">هیچ پۆستی جل‌وبەرگت نییە.</div> : null}
-            {visiblePosts.map((post) => (
-              <button key={post.id} type="button" onClick={() => void startEdit(post)} className={'flex w-full gap-3 rounded-2xl border bg-white p-3 text-start transition ' + (selected?.id === post.id ? 'border-[var(--shakh-orange)] shadow-md' : 'border-black/[0.06]')}>
-                {post.images?.[0]?.storage_path ? <img src={getPostImageUrl(post.images[0].storage_path)} alt="" className="size-20 shrink-0 rounded-xl object-cover"/> : <div className="grid size-20 shrink-0 place-items-center rounded-xl bg-[var(--shakh-bg)]"><Package size={20}/></div>}
-                <span className="min-w-0 flex-1"><span className="block truncate font-black">{post.title}</span><span className="mt-1 block text-xs text-black/45">{post.status === 'active' ? 'چالاک' : post.status === 'archived' ? 'ئەرشیف' : post.status}</span><span className="mt-2 block text-sm font-black">{Number(post.price_iqd ?? 0).toLocaleString('en-US')} د.ع</span>{canManageAll ? <span className="mt-1 block text-[10px] text-black/35">نووسەر: {post.author_id}</span> : null}</span>
-                <Edit3 size={16} className="mt-1 shrink-0 text-black/35"/>
-              </button>
-            ))}
+          <div className="min-w-0 space-y-3">
+            <div className="rounded-2xl border border-black/[0.06] bg-white p-3">
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black text-black/45">
+                <span>فلتەری کاتەگۆری</span><span>{visiblePosts.length} پۆست</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setCategoryFilter('all')} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>هەموو</button>
+                {availableCategories.map((item) => (
+                  <button key={item} type="button" onClick={() => setCategoryFilter(item)} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === item ? 'bg-[var(--shakh-orange)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>{postCategoryLabels[item]}</button>
+                ))}
+              </div>
+            </div>
+            {loading ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-black/45">بارکردنی هەموو پۆستەکان...</div> : null}
+            {!loading && visiblePosts.length === 0 ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-black/45">هیچ پۆستێک لەم کاتەگۆرییەدا نییە.</div> : null}
+            {visiblePosts.map((post) => {
+              const rowClass = 'flex w-full gap-3 rounded-2xl border bg-white p-3 text-start transition hover:border-[var(--shakh-orange)]/40 ' + (selected?.id === post.id ? 'border-[var(--shakh-orange)] shadow-md' : 'border-black/[0.06]');
+              const rowContent = (
+                <>
+                  <PostThumbnail post={post} />
+                  <span className="min-w-0 flex-1">
+                    <span className="mb-1 inline-flex rounded-full bg-[var(--shakh-blue)]/8 px-2 py-1 text-[10px] font-black text-[var(--shakh-blue)]">{postCategoryLabels[post.category]}</span>
+                    <span className="block truncate font-black">{post.title}</span>
+                    <span className="mt-1 block text-xs text-black/45">{post.status === 'active' ? 'چالاک' : post.status === 'archived' ? 'ئەرشیف' : post.status}</span>
+                    {post.price_iqd !== null ? <span className="mt-2 block text-sm font-black">{Number(post.price_iqd).toLocaleString('en-US')} <span className="text-[10px] font-bold text-black/40">{post.category === 'cars' ? 'نرخ' : 'د.ع'}</span></span> : <span className="mt-2 block text-xs text-black/35">نرخ دیاری نەکراوە</span>}
+                    {canManageAll ? <span className="mt-1 block truncate text-[10px] text-black/35">نووسەر: {post.author_id}</span> : null}
+                  </span>
+                  {post.category === 'fashion' ? <Edit3 size={16} className="mt-1 shrink-0 text-black/35"/> : <ExternalLink size={16} className="mt-1 shrink-0 text-black/35"/>}
+                </>
+              );
+              return post.category === 'fashion'
+                ? <button key={post.id} type="button" onClick={() => void startEdit(post)} className={rowClass}>{rowContent}</button>
+                : <Link key={post.id} to={`/posts/${post.id}`} className={rowClass}>{rowContent}</Link>;
+            })}
           </div>
 
           <div className="min-w-0 rounded-[26px] border border-black/[0.06] bg-white p-4 shadow-sm sm:p-6">
             {!selected ? <div className="grid min-h-64 place-items-center text-center"><div><Package size={32} className="mx-auto text-black/20"/><p className="mt-3 text-sm font-bold text-black/45">یەکێک لە پۆستەکانی لیستەکە هەڵبژێرە بۆ دەستکاری.</p></div></div> : (
               <div className="space-y-5">
-                <div><h2 className="text-xl font-black">دەستکاری: {selected.title}</h2><p className="mt-1 text-xs text-black/40">هەموو گۆڕانکارییەکان لە RPC ـی transaction ـی Supabase پاشەکەوت دەکرێن.</p></div>
+                <div><h2 className="text-xl font-black">دەستکاری: {selected.title}</h2><p className="mt-1 text-xs text-black/40">دەستکاریی جل‌وبەرگ لەگەڵ قەبارە و کۆگا؛ بۆ کاتەگۆرییەکانی تر کلیک لە پۆستەکە بکە بۆ دەستکاری، وێنە و سڕینەوە.</p></div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block text-sm font-black">ناوی کاڵا<input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={180} className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-normal"/></label>
                   <label className="block text-sm font-black">نرخ (د.ع)<input type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-normal"/></label>
@@ -262,4 +292,21 @@ export function MyPostsPage() {
       </div>
     </section>
   );
+}
+
+
+function PostThumbnail({ post }: { post: Post }) {
+  const [failed, setFailed] = useState(false);
+  const path = post.images?.find((image) => Boolean(image?.storage_path))?.storage_path;
+
+  if (!path || failed) {
+    return (
+      <span className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-xl bg-[var(--shakh-bg)] text-black/35">
+        <Package size={20}/>
+        <span className="px-1 text-center text-[9px] font-bold leading-3">{!path ? 'وێنە تۆمار نەکراوە' : 'وێنە بار نەبوو'}</span>
+      </span>
+    );
+  }
+
+  return <img src={getPostImageUrl(path)} alt={post.title} onError={() => setFailed(true)} className="size-20 shrink-0 rounded-xl bg-[var(--shakh-bg)] object-cover" loading="lazy"/>;
 }
