@@ -239,7 +239,7 @@ export function VendorProductsPage() {
         seller_location: apparel ? data.seller_location.trim() || null : null,
         supermarket_type: supermarket ? supermarketType as SupermarketType : null,
         quantity_value: supermarket && data.supermarketVariants[0] ? Number(data.supermarketVariants[0].quantity_value) : null,
-        quantity_unit: supermarket && data.supermarketVariants[0] ? data.supermarketVariants[0].quantity_unit : null,
+        quantity_unit: supermarket && data.supermarketVariants[0] ? data.supermarketVariants[0].quantity_unit || null : null,
         package_count: supermarket && data.supermarketVariants[0]?.package_count.trim() ? Number(data.supermarketVariants[0].package_count) : null,
         barcode: supermarket ? data.supermarketVariants[0]?.barcode.trim() || null : null,
         manufacturing_date: supermarket ? data.supermarketVariants[0]?.manufacturing_date || null : null,
