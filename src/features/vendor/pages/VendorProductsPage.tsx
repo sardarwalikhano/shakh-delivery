@@ -505,19 +505,36 @@ export function VendorProductsPage() {
   );
 }
 
-function ProductForm({ form, setForm, categories, editing, editingVariants, existingImages, onCancel, onSave }: {
+function ProductForm({ form, setForm, categories, editing, editingVariants, existingImages, restaurantRole, initialRestaurantDetails, initialRestaurantGroups, onCancel, onSave }: {
   form: ProductFormState;
   setForm: Dispatch<SetStateAction<ProductFormState>>;
   categories: Category[];
   editing: VendorProduct | null;
   editingVariants: VendorVariant[];
   existingImages: VendorProductImage[];
+  restaurantRole: boolean;
+  initialRestaurantDetails: RestaurantMenuDetailsInput | null;
+  initialRestaurantGroups: RestaurantMenuGroupDraft[];
   onCancel: () => void;
   onSave: (data: ProductFormPayload) => Promise<void> | void;
 }) {
   const field = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const apparel = isApparelCategory(form.category_id, categories);
   const supermarket = isSupermarketCategory(form.category_id, categories);
+  const restaurantMenu = restaurantRole && !apparel && !supermarket;
+  const [restaurantDetails, setRestaurantDetails] = useState<RestaurantMenuDetailsInput>(() => initialRestaurantDetails ?? emptyRestaurantMenuDetails());
+  const [restaurantSizes, setRestaurantSizes] = useState<RestaurantSizeDraft[]>(() => editingVariants
+    .filter((item) => !(item.color_name_ku && item.size_label) && item.is_active)
+    .map((item) => ({ id: item.id, name_ku: item.name_ku, name_ar: item.name_ar, name_en: item.name_en, price_iqd: item.price_iqd == null ? '' : String(item.price_iqd) })));
+  const [restaurantGroups, setRestaurantGroups] = useState<RestaurantMenuGroupDraft[]>(() => initialRestaurantGroups.map((group) => ({
+    ...group, options: group.options.map((option) => ({ ...option })),
+  })));
+  const updateRestaurantDetails = (patch: Partial<RestaurantMenuDetailsInput>) => setRestaurantDetails((current) => ({ ...current, ...patch }));
+  const updateRestaurantSize = (index: number, patch: Partial<RestaurantSizeDraft>) => setRestaurantSizes((current) => current.map((item, position) => position === index ? { ...item, ...patch } : item));
+  const updateRestaurantGroup = (index: number, patch: Partial<RestaurantMenuGroupDraft>) => setRestaurantGroups((current) => current.map((item, position) => position === index ? { ...item, ...patch } : item));
+  const updateRestaurantOption = (groupIndex: number, optionIndex: number, patch: Partial<RestaurantMenuGroupDraft['options'][number]>) => setRestaurantGroups((current) => current.map((group, position) => position === groupIndex ? {
+    ...group, options: group.options.map((option, optionPosition) => optionPosition === optionIndex ? { ...option, ...patch } : option),
+  } : group));
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [marketVariants, setMarketVariants] = useState<SupermarketVariantDraft[]>(() => editingVariants.filter((item) => !(item.color_name_ku && item.size_label) && item.is_active).map((item) => ({
     id: item.id, name_ku: item.name_ku, name_ar: item.name_ar, name_en: item.name_en, sku: item.sku ?? '', barcode: item.barcode ?? '',
@@ -625,9 +642,9 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       files={imageFiles}
       onChange={updateImageFiles}
       maxFiles={8}
-      required={apparel || supermarket}
+      required={apparel || supermarket || restaurantMenu}
       disabled={saving}
-      label={apparel ? 'وێنەکانی جل‌وبەرگ' : supermarket ? 'وێنەکانی کاڵای سوپەرمارکێت' : 'وێنەکانی بەرهەم'}
+      label={apparel ? 'وێنەکانی جل‌وبەرگ' : supermarket ? 'وێنەکانی کاڵای سوپەرمارکێت' : restaurantMenu ? 'وێنەکانی خواردن' : 'وێنەکانی بەرهەم'}
       hint="وێنە لە کامێرا یان گەلەری هەڵبژێرە؛ تا ٨ وێنە. وێنەی سەرەکی لە لیستی وێنە پاشەکەوتکراوەکاندا یەکەمە."
       existingImages={existingImages.map((image, index) => ({
         id: image.id,
@@ -736,7 +753,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     </div> : null}
 
     {localError ? <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{localError}</div> : null}
-    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix, marketVariants }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
+    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix, marketVariants, restaurantDetails, restaurantSizes, restaurantGroups }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
     {apparel ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان وەک پێشوو بە دۆخی draft هەڵدەگیرێن؛ هەموو زانیاری، وێنە و کۆگاکان لە Supabase پاشەکەوت دەکرێن.</p> : null}
   </section>;
 }
