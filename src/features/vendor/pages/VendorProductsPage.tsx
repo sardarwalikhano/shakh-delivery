@@ -333,8 +333,7 @@ export function VendorProductsPage() {
           };
           const existingVariant = previousVariants.find((previous) =>
             (barcode && previous.barcode === barcode) ||
-            (previous.name_ku === variantName && previous.quantity_unit === item.quantity_unit && previous.quantity_value === Number(item.quantity_value)))
-            ?? previousVariants[index];
+            (previous.name_ku === variantName && previous.quantity_unit === item.quantity_unit && previous.quantity_value === Number(item.quantity_value)));
           const savedVariant = existingVariant
             ? await updateVendorVariant(user.id, existingVariant.id, variantInput)
             : await createVendorVariant(user.id, { product_id: savedProduct.id, ...variantInput });
@@ -422,6 +421,10 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const field = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const apparel = isApparelCategory(form.category_id, categories);
   const supermarket = isSupermarketCategory(form.category_id, categories);
+  const supermarketType = form.supermarket_type || supermarketTypeForCategory(form.category_id, categories);
+  const isFoodLike = ['food', 'fresh_food', 'beverage'].includes(supermarketType);
+  const showExpiryFields = isFoodLike;
+  const showFlavorField = ['food', 'fresh_food', 'beverage'].includes(supermarketType);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [supermarketVariants, setSupermarketVariants] = useState<SupermarketVariantForm[]>(() => {
     const rows = editingVariants.filter((item) => item.quantity_value !== null || item.quantity_unit !== null || item.barcode !== null);
@@ -562,8 +565,8 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
         <Field label="براند / کۆمپانیا" value={form.brand} onChange={(value) => field('brand', value)} />
         <Field label="وڵاتی بەرهەمهێنان" value={form.country_of_origin} onChange={(value) => field('country_of_origin', value)} />
         <Field label="ڕێنمایی هەڵگرتن" value={form.storage_instructions} onChange={(value) => field('storage_instructions', value)} />
-        <label className="sm:col-span-2"><span className="text-xs font-black text-black/55">پێکهاتەکان</span><textarea value={form.ingredients} onChange={(e) => field('ingredients', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm" placeholder="پێکهاتە سەرەکییەکان..." /></label>
-        <label className="sm:col-span-2"><span className="text-xs font-black text-black/55">هۆشداریی ئەلێرژی / زانیاریی گرنگ</span><textarea value={form.allergen_warnings} onChange={(e) => field('allergen_warnings', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm" placeholder="هۆشداریی پێویست بۆ خواردەمەنی..." /></label>
+        {isFoodLike ? <><label className="sm:col-span-2"><span className="text-xs font-black text-black/55">پێکهاتەکان</span><textarea value={form.ingredients} onChange={(e) => field('ingredients', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm" placeholder="پێکهاتە سەرەکییەکان..." /></label>
+        <label className="sm:col-span-2"><span className="text-xs font-black text-black/55">هۆشداریی ئەلێرژی / زانیاریی گرنگ</span><textarea value={form.allergen_warnings} onChange={(e) => field('allergen_warnings', e.target.value)} rows={2} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm" placeholder="هۆشداریی پێویست بۆ خواردەمەنی..." /></label></> : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="font-black">وەشان، قەبارە و ستۆک</h4><p className="mt-1 text-xs text-black/45">یەکە: گرام، کیلۆگرام، ملیلتر، لیتر، پاکێت، دانە یان کارتۆن. تام، بارکۆد و بەروار بۆ هەر وەشان دەتوانرێت جیاواز بێت.</p></div><button type="button" onClick={() => setSupermarketVariants((items) => [...items, { ...blankSupermarketVariant(), quantity_value: '', quantity_unit: '', package_count: '', stock_quantity: '0', price_iqd: '', barcode: '', flavor: '', manufacturing_date: '', expiry_date: '' }])} className="inline-flex items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-xs font-black text-white"><Plus size={15} /> زیادکردنی وەشان</button></div>
       <div className="space-y-4">{supermarketVariants.map((item, index) => <div key={item.key} className="rounded-3xl border border-black/[0.08] bg-[var(--shakh-bg)] p-4 sm:p-5">
@@ -575,10 +578,10 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
           <Field label="ژمارەی پاکێت (هەڵبژاردەیی)" value={item.package_count} onChange={(value) => updateSupermarketVariant(item.key, { package_count: value })} inputMode="numeric" dir="ltr" />
           <Field label="نرخی تایبەتی ئەم وەشانە (د.ع)" value={item.price_iqd} onChange={(value) => updateSupermarketVariant(item.key, { price_iqd: value })} inputMode="decimal" dir="ltr" />
           <Field label="ستۆکی بەردەست *" value={item.stock_quantity} onChange={(value) => updateSupermarketVariant(item.key, { stock_quantity: value })} inputMode="numeric" dir="ltr" />
-          <Field label="تام / جۆر" value={item.flavor} onChange={(value) => updateSupermarketVariant(item.key, { flavor: value })} />
+          {showFlavorField ? <Field label="تام / جۆر" value={item.flavor} onChange={(value) => updateSupermarketVariant(item.key, { flavor: value })} /> : null}
           <Field label="بارکۆد (هەڵبژاردەیی)" value={item.barcode} onChange={(value) => updateSupermarketVariant(item.key, { barcode: value })} dir="ltr" />
-          <label><span className="text-xs font-black text-black/55">بەرواری بەرهەمهێنان</span><input type="date" value={item.manufacturing_date} onChange={(e) => updateSupermarketVariant(item.key, { manufacturing_date: e.target.value })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm" /></label>
-          <label><span className="text-xs font-black text-black/55">بەرواری بەسەرچوون</span><input type="date" value={item.expiry_date} min={item.manufacturing_date || undefined} onChange={(e) => updateSupermarketVariant(item.key, { expiry_date: e.target.value })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm" /></label>
+          {showExpiryFields ? <><label><span className="text-xs font-black text-black/55">بەرواری بەرهەمهێنان</span><input type="date" value={item.manufacturing_date} onChange={(e) => updateSupermarketVariant(item.key, { manufacturing_date: e.target.value })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm" /></label>
+          <label><span className="text-xs font-black text-black/55">بەرواری بەسەرچوون</span><input type="date" value={item.expiry_date} min={item.manufacturing_date || undefined} onChange={(e) => updateSupermarketVariant(item.key, { expiry_date: e.target.value })} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-white px-3 text-sm" /></label></> : null}
         </div>
       </div>)}</div>
       {['beverage'].includes(form.supermarket_type || supermarketTypeForCategory(form.category_id, categories)) ? <p className="rounded-2xl bg-blue-50 p-3 text-xs font-bold leading-6 text-blue-800">بۆ خواردنەوەکان قەبارەی بوتڵ، تام، ژمارەی پاکێت و ستۆک بۆ هەر وەشان دیاری بکە.</p> : null}
