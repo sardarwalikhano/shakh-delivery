@@ -189,9 +189,13 @@ export async function createPost(input: {
 }
 
 export async function listActivePosts(): Promise<Post[]> {
+  // The public feed needs only post columns. Do not couple every category
+  // (food, general, beauty, delivery, etc.) to the vehicle-listing relation:
+  // vehicle details are loaded on the detail page, and a relation/schema/RLS
+  // problem must not make every active post disappear from the feed.
   const { data, error } = await supabase
     .from('posts')
-    .select('*, vehicle_listing:vehicle_listings(*)')
+    .select('*')
     .eq('status', 'active')
     .order('created_at', { ascending: false })
     .limit(100);
