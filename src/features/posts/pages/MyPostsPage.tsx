@@ -55,7 +55,7 @@ export function MyPostsPage() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const visiblePosts = posts.filter((post) => post.category === 'fashion' && (canManageAll || post.author_id === user?.id));
+  const visiblePosts = posts.filter((post) => post.status !== 'deleted' && post.category === 'fashion' && (canManageAll || post.author_id === user?.id));
 
   const startEdit = async (post: Post) => {
     setError(null);
