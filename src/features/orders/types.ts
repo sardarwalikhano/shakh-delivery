@@ -23,5 +23,13 @@ export type Order = {
     quantity: number;
     unit_price_iqd: number;
     line_total_iqd: number;
+    selected_options: Array<{
+      id: string;
+      group_id: string;
+      group_name_ku: string;
+      option_name_ku: string;
+      price_iqd: number;
+    }>;
+    variant: { name_ku: string } | Array<{ name_ku: string }> | null;
   }>;
 };
