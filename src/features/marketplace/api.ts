@@ -199,7 +199,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
     quantity: number;
     added_price_iqd: number;
     selected_option_ids: string[];
-    products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date'> & { images: Product['images'] }>;
+    products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date' | 'restaurantMenu'> & { images: Product['images'] }>;
     product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'>>;
   }>);
 
@@ -210,16 +210,21 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
       .select('id,group_id,name_ku,name_ar,name_en,price_iqd,is_available,is_active,sort_order,restaurant_menu_option_groups(name_ku)')
       .in('id', optionIds);
     if (optionError) throw optionError;
-    for (const option of (optionRows ?? []) as Array<CartSelectedOption & { restaurant_menu_option_groups: Array<{ name_ku: string }> }>) {
-      optionsById.set(option.id, { ...option, group_name_ku: option.restaurant_menu_option_groups?.[0]?.name_ku ?? 'زیادکراوە' });
+    for (const option of (optionRows ?? []) as Array<CartSelectedOption & { restaurant_menu_option_groups: { name_ku: string } | Array<{ name_ku: string }> | null }>) {
+      const linkedGroup = Array.isArray(option.restaurant_menu_option_groups)
+        ? option.restaurant_menu_option_groups[0]
+        : option.restaurant_menu_option_groups;
+      optionsById.set(option.id, { ...option, group_name_ku: linkedGroup?.name_ku ?? 'زیادکراوە' });
     }
   }
 
+  const menuDetails = await getRestaurantMenuDetailsByProductIds(rows.map((item) => item.product_id));
   return {
     cart: cartData as Cart,
     items: rows.map((item) => {
       const selectedOptionIds = item.selected_option_ids ?? [];
       const selectedOptions = selectedOptionIds.map((id) => optionsById.get(id)).filter((option): option is CartSelectedOption => Boolean(option));
+      const product = item.products?.[0];
       return {
         id: item.id,
         cart_id: item.cart_id,
@@ -230,7 +235,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
         selected_option_ids: selectedOptionIds,
         selectedOptions,
         hasUnavailableOptions: selectedOptions.length !== selectedOptionIds.length,
-        product: item.products?.[0] ? { ...item.products[0], images: item.products[0].images ?? [] } : null,
+        product: product ? { ...product, restaurantMenu: menuDetails.get(product.id) ?? null, images: product.images ?? [] } : null,
         variant: item.product_variants?.[0] ?? null,
       };
     }),
