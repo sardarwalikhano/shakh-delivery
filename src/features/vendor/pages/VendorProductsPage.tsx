@@ -74,6 +74,16 @@ function isSupermarketCategory(categoryId: string, categories: Category[]): bool
   return false;
 }
 
+function isRestaurantCategory(categoryId: string, categories: Category[]): boolean {
+  if (!categoryId) return false;
+  let current = categories.find((item) => item.id === categoryId);
+  while (current) {
+    if (current.slug === 'food') return true;
+    current = current.parent_id ? categories.find((item) => item.id === current?.parent_id) : undefined;
+  }
+  return false;
+}
+
 function isApparelCategory(categoryId: string, categories: Category[]): boolean {
   const fashionRoot = categories.find((item) => item.slug === 'fashion');
   if (!categoryId || !fashionRoot) return false;
@@ -209,7 +219,9 @@ export function VendorProductsPage() {
       const compare = data.compare_at_price_iqd.trim() ? Number(data.compare_at_price_iqd) : null;
       const apparel = isApparelCategory(data.category_id, categories);
       const supermarket = isSupermarketCategory(data.category_id, categories);
-      const restaurantMenu = roles.includes('restaurant_vendor') && !apparel && !supermarket;
+      const restaurantVendor = roles.includes('restaurant_vendor') && !roles.includes('admin') && !roles.includes('super_admin');
+      const restaurantMenu = restaurantVendor && isRestaurantCategory(data.category_id, categories);
+      if (restaurantVendor && !restaurantMenu) throw new Error('بۆ خواردنی چێشتخانە، بەشی «خواردن» یان بەشی لاوەکییەکانی هەڵبژێرە.');
       const marketVariants = data.marketVariants;
       const apparelType = apparel && data.apparel_product_type ? data.apparel_product_type as ApparelProductType : null;
       const combinations = apparel ? data.colors.flatMap((color) => data.sizes.flatMap((size) => {
@@ -521,7 +533,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const field = (key: keyof ProductFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const apparel = isApparelCategory(form.category_id, categories);
   const supermarket = isSupermarketCategory(form.category_id, categories);
-  const restaurantMenu = restaurantRole && !apparel && !supermarket;
+  const restaurantMenu = restaurantRole && isRestaurantCategory(form.category_id, categories);
   const [restaurantDetails, setRestaurantDetails] = useState<RestaurantMenuDetailsInput>(() => initialRestaurantDetails ?? emptyRestaurantMenuDetails());
   const [restaurantSizes, setRestaurantSizes] = useState<RestaurantSizeDraft[]>(() => editingVariants
     .filter((item) => !(item.color_name_ku && item.size_label) && item.is_active)
@@ -631,7 +643,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       <Field label="ناوی بەرهەم بە عەرەبی *" value={form.name_ar} onChange={(v) => field('name_ar', v)} dir="rtl" />
       <Field label="Product name (English) *" value={form.name_en} onChange={(v) => field('name_en', v)} dir="ltr" />
       <Field label="Slug *" value={form.slug} onChange={(v) => field('slug', v.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '-'))} dir="ltr" />
-      <label><span className="text-xs font-black text-black/55">بەشی بازاڕ *</span><select value={form.category_id} onChange={(e) => field('category_id', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">بەشێک هەڵبژێرە</option>{categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.parent_id ? '↳ ' : ''}{cat.name_ku}</option>)}</select></label>
+      <label><span className="text-xs font-black text-black/55">بەشی بازاڕ *</span><select value={form.category_id} onChange={(e) => field('category_id', e.target.value)} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold"><option value="">بەشێک هەڵبژێرە</option>{categories.filter((cat) => !restaurantRole || isRestaurantCategory(cat.id, categories)).map((cat) => <option key={cat.id} value={cat.id}>{cat.parent_id ? '↳ ' : ''}{cat.name_ku}</option>)}</select></label>
       <Field label="نرخی فرۆشتن (د.ع) *" value={form.base_price_iqd} onChange={(v) => field('base_price_iqd', v)} dir="ltr" inputMode="decimal" />
       <Field label="نرخی پێش داشکاندن (د.ع)" value={form.compare_at_price_iqd} onChange={(v) => field('compare_at_price_iqd', v)} dir="ltr" inputMode="decimal" />
       {apparel ? <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگا بە شێوەی خۆکار</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">کۆی دانەکانی تێکەڵەکانی ڕەنگ × قەبارە</div></div> : supermarket && marketVariants.length ? <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگای وەشانەکان</div><div className="mt-1 text-2xl font-black text-emerald-900">{marketVariantStock.toLocaleString('en-US')} دانە</div></div> : <Field label="کۆی کۆگا" value={form.stock_quantity} onChange={(v) => field('stock_quantity', v)} dir="ltr" inputMode="numeric" />}
