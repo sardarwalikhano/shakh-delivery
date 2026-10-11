@@ -8,13 +8,17 @@ type ProductRow = Omit<Product, 'store' | 'category' | 'images' | 'variants'> & 
   variants?: Product['variants'];
 };
 
-function mapProduct(row: ProductRow, images: Product['images'] = row.images ?? [], variants: ProductVariant[] = row.variants ?? []): Product {
+function mapProduct(
+  row: ProductRow,
+  images: Product['images'] = row.images ?? [],
+  variants: ProductVariant[] = (row.variants ?? []).filter((item) => item.is_active),
+): Product {
   return {
     ...row,
     store: row.stores?.[0] ?? null,
     category: row.categories?.[0] ?? null,
     images,
-    variants,
+    variants: variants.filter((item) => item.is_active),
   };
 }
 
@@ -142,7 +146,7 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
 
   const { data, error } = await supabase
     .from('cart_items')
-    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,quantity_value,quantity_unit,package_count,flavor)')
+    .select('id,cart_id,product_id,variant_id,quantity,added_price_iqd,products(id,slug,name_ku,name_ar,name_en,base_price_iqd,compare_at_price_iqd,stock_quantity,brand,quantity_value,quantity_unit,package_count,expiry_date,images:product_images(id,product_id,storage_path,alt_ku,alt_ar,alt_en,sort_order)),product_variants(id,name_ku,name_ar,name_en,price_iqd,stock_quantity,quantity_value,quantity_unit,package_count,flavor,expiry_date)')
     .eq('cart_id', cartData.id)
     .order('created_at', { ascending: false });
 
@@ -156,8 +160,8 @@ export async function getCart(userId: string): Promise<{ cart: Cart | null; item
       variant_id: string | null;
       quantity: number;
       added_price_iqd: number;
-      products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count'> & { images: Product['images'] }>;
-      product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor'>>;
+      products: Array<Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date'> & { images: Product['images'] }>;
+      product_variants: Array<Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'>>;
     }>).map((item) => ({
       id: item.id,
       cart_id: item.cart_id,
