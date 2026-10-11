@@ -8,6 +8,8 @@ import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth
 import { createCheckout } from './api';
 import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
 import type { PaymentMethod } from './types';
+import { isRestaurantMenuAvailable } from '@/lib/catalog/restaurant';
+import { isSupermarketItemExpired } from '@/lib/catalog/supermarket';
 
 export function CheckoutPage() {
   const { user } = useAuth();
@@ -38,7 +40,27 @@ export function CheckoutPage() {
       });
   }, [user]);
 
-  const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.added_price_iqd * item.quantity, 0), [items]);
+  const currentUnitPrice = (item: CartItem) => {
+    if (item.product?.restaurantMenu) {
+      return (item.variant?.price_iqd ?? item.product.base_price_iqd)
+        + item.selectedOptions.reduce((sum, option) => sum + Number(option.price_iqd), 0);
+    }
+    return item.variant?.price_iqd ?? item.product?.base_price_iqd ?? item.added_price_iqd;
+  };
+  const isExpired = (item: CartItem) => isSupermarketItemExpired(item.product?.expiry_date) || isSupermarketItemExpired(item.variant?.expiry_date);
+  const isRestaurantAvailable = (item: CartItem) => {
+    const menu = item.product?.restaurantMenu;
+    return !menu || isRestaurantMenuAvailable(menu.is_available, menu.available_from, menu.available_until);
+  };
+  const isUnavailable = (item: CartItem) => {
+    if (!item.product) return true;
+    if (item.product.restaurantMenu) return !isRestaurantAvailable(item) || item.hasUnavailableOptions || Boolean(item.variant && !item.variant.is_active);
+    const stock = item.variant?.stock_quantity ?? item.product.stock_quantity;
+    return isExpired(item) || stock <= 0 || item.quantity > stock || Boolean(item.variant && !item.variant.is_active);
+  };
+  const unavailableItems = items.filter(isUnavailable);
+  const hasUnavailableItems = unavailableItems.length > 0;
+  const subtotal = useMemo(() => items.reduce((sum, item) => sum + currentUnitPrice(item) * item.quantity, 0), [items]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -50,6 +72,10 @@ export function CheckoutPage() {
     const phoneError = validatePhone(phone);
     if (phoneError) {
       setError(phoneError);
+      return;
+    }
+    if (hasUnavailableItems) {
+      setError('هەندێک خواردن بەردەست نییە یان زیادکراوەیەک گۆڕاوە. تکایە سەبەتە نوێ بکەرەوە و پێش checkout هەڵبژاردەکان چاک بکە.');
       return;
     }
     setSubmitting(true);
@@ -118,6 +144,7 @@ export function CheckoutPage() {
                 <textarea value={note} onChange={(event) => setNote(event.target.value)} className="mt-3 min-h-20 w-full resize-y rounded-2xl border border-black/10 bg-white p-4 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="تێبینی بۆ سەلماندنی داواکاری (ئارەزوومەندانە)" />
               </div>
 
+              {hasUnavailableItems ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">هەندێک بەرهەم لەم سەبەتەدا ئێستا بەردەست نییە یان زیادکراوەیەک ناچالاک کراوە. <Link className="underline underline-offset-4" to="/cart">بگەڕێوە بۆ سەبەتە</Link> و هەڵبژاردەکان چاک بکە.</div> : null}
               <div className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.035)] sm:p-6">
                 <h2 className="text-lg font-black">شێوازی پارەدان</h2>
                 <div className="mt-4 grid gap-3">
@@ -137,13 +164,14 @@ export function CheckoutPage() {
 
             <aside className="h-fit rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.035)] lg:sticky lg:top-24">
               <h2 className="text-lg font-black">کورتەی داواکاری</h2>
+              <div className="mt-4 space-y-3">{items.map((item) => <div key={item.id} className="rounded-2xl bg-[var(--shakh-bg)] p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-sm font-black">{item.product?.name_ku ?? 'بەرهەم'}</div>{item.variant ? <div className="mt-1 text-xs font-bold text-black/45">{item.variant.name_ku}</div> : null}<div className="mt-1 text-xs text-black/45">{item.quantity} × {currentUnitPrice(item).toLocaleString('en-US')} د.ع</div></div><div className="shrink-0 text-sm font-black">{(currentUnitPrice(item) * item.quantity).toLocaleString('en-US')} د.ع</div></div>{item.selectedOptions.length ? <div className="mt-2 space-y-1 border-t border-black/[0.06] pt-2">{item.selectedOptions.map((option) => <div key={option.id} className="flex flex-wrap justify-between gap-2 text-[11px] text-black/50"><span>{option.group_name_ku}: {option.name_ku}</span><span>{Number(option.price_iqd) > 0 ? '+' + Number(option.price_iqd).toLocaleString('en-US') + ' د.ع' : 'بەخۆڕایی'}</span></div>)}</div> : null}{item.product?.restaurantMenu ? <div className={`mt-2 text-[11px] font-bold ${isRestaurantAvailable(item) && !item.hasUnavailableOptions ? 'text-emerald-700' : 'text-red-600'}`}>{!isRestaurantAvailable(item) ? 'لە ئێستادا بەردەست نییە' : item.hasUnavailableOptions ? 'زیادکراوەیەک ناچالاکە' : 'بەردەستە بۆ داواکردن'}</div> : null}</div>)}</div>
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between"><span className="text-black/45">ژمارەی دانە</span><span className="font-black">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div>
                 <div className="flex justify-between"><span className="text-black/45">کۆی بەرهەمەکان</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
                 <div className="flex justify-between"><span className="text-black/45">گەیاندن</span><span className="font-bold text-black/45">لە ئێستادا هەژمار نەکراوە</span></div>
                 <div className="border-t border-black/[0.06] pt-4 flex justify-between"><span className="font-black">کۆی کاتی</span><span className="text-xl font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
               </div>
-              <button disabled={submitting || loadingProfile} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
+              <button disabled={submitting || loadingProfile || hasUnavailableItems} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
               <p className="mt-3 text-xs leading-5 text-black/35">نرخ و stock لە server پشتڕاست کراوەتەوە. دووبارە ناردن بە idempotency پارێزراوە.</p>
             </aside>
           </form>
