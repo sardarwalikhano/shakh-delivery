@@ -157,6 +157,7 @@ export type CartItem = {
   selected_option_ids: string[];
   selectedOptions: CartSelectedOption[];
   hasUnavailableOptions: boolean;
+  requiresVariantSelection: boolean;
   product: (Pick<Product, 'id' | 'slug' | 'name_ku' | 'name_ar' | 'name_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'brand' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'expiry_date' | 'restaurantMenu'> & { images: Product['images'] }) | null;
   variant: Pick<ProductVariant, 'id' | 'name_ku' | 'name_ar' | 'name_en' | 'price_iqd' | 'stock_quantity' | 'is_active' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'flavor' | 'expiry_date'> | null;
 };

@@ -9,6 +9,15 @@ import { formatSupermarketQuantity, isSupermarketItemExpired, supermarketTypeLab
 import { isRestaurantMenuAvailable, restaurantDietaryLabels, restaurantMenuCategoryLabels } from '@/lib/catalog/restaurant';
 import { supabase } from '@/lib/supabase/client';
 
+function resolveProductVariant(next: Product, current: ProductVariant | null): ProductVariant | null {
+  const retained = next.variants.find((item) => item.id === current?.id);
+  if (retained) return retained;
+  // Restaurant sizes must be selected deliberately by the customer. Keep that
+  // choice empty on load/realtime refresh rather than silently picking a size.
+  if (next.restaurantMenu && next.variants.length > 0) return null;
+  return next.variants[0] ?? null;
+}
+
 export function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { user, isAuthenticated } = useAuth();
@@ -24,8 +33,9 @@ export function ProductDetailPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setVariant(null);
     setSelectedOptionIds([]);
-    void (slug ? getProductBySlug(slug).then((item) => { if (!cancelled) { setProduct(item); setVariant(item?.variants[0] ?? null); setSelectedOptionIds([]); } }).catch(() => { if (!cancelled) setProduct(null); }).finally(() => { if (!cancelled) setLoading(false); }) : Promise.resolve());
+    void (slug ? getProductBySlug(slug).then((item) => { if (!cancelled) { setProduct(item); setVariant(item?.restaurantMenu && item.variants.length > 0 ? null : item?.variants[0] ?? null); setSelectedOptionIds([]); } }).catch(() => { if (!cancelled) setProduct(null); }).finally(() => { if (!cancelled) setLoading(false); }) : Promise.resolve());
     return () => { cancelled = true; };
   }, [slug]);
 
@@ -33,10 +43,10 @@ export function ProductDetailPage() {
     if (!product) return;
     const channel = supabase.channel('product-live-' + product.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: 'id=eq.' + product.id }, () => {
-        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setVariant((current) => next.variants.find((item) => item.id === current?.id) ?? next.variants[0] ?? null); setQuantity((current) => Math.min(current, next.stock_quantity || 1)); } }).catch(() => {});
+        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setVariant((current) => resolveProductVariant(next, current)); setQuantity((current) => Math.min(current, next.stock_quantity || 1)); } }).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: 'product_id=eq.' + product.id }, () => {
-        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setVariant((current) => next.variants.find((item) => item.id === current?.id) ?? next.variants[0] ?? null); } }).catch(() => {});
+        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setVariant((current) => resolveProductVariant(next, current)); } }).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images', filter: 'product_id=eq.' + product.id }, () => {
         void getProductBySlug(product.slug).then((next) => { if (next) setProduct(next); }).catch(() => {});
@@ -70,6 +80,12 @@ export function ProductDetailPage() {
   const selectedOptions = product.restaurantOptionGroups.flatMap((group) => group.options.filter((option) => selectedOptionIds.includes(option.id)));
   const selectedOptionsPrice = selectedOptions.reduce((sum, option) => sum + Number(option.price_iqd), 0);
   const price = basePrice + selectedOptionsPrice;
+  const hasUnselectedRestaurantSize = Boolean(restaurant && product.variants.length > 0 && !variant);
+  const lowestRestaurantVariantPrice = restaurant && product.variants.length
+    ? Math.min(...product.variants.map((item) => item.price_iqd ?? product.base_price_iqd))
+    : product.base_price_iqd;
+  const displayPrice = hasUnselectedRestaurantSize ? lowestRestaurantVariantPrice + selectedOptionsPrice : price;
+  const restaurantSizeSelectionValid = !hasUnselectedRestaurantSize;
   const maxStock = restaurant ? 99 : (variant?.stock_quantity ?? product.stock_quantity);
   const expired = !restaurant && (isSupermarketItemExpired(product.expiry_date) || isSupermarketItemExpired(variant?.expiry_date));
   const optionSelectionValid = !restaurant || product.restaurantOptionGroups.every((group) => {
@@ -79,9 +95,14 @@ export function ProductDetailPage() {
   const canBuy = restaurant
     ? menuAvailable && (variant?.is_active ?? true)
     : maxStock > 0 && !expired && (variant?.is_active ?? true);
+  const canAddToCart = canBuy && restaurantSizeSelectionValid;
 
   const buy = async () => {
     setMessage(null);
+    if (!restaurantSizeSelectionValid) {
+      setMessage('تکایە پێش داواکردن قەبارەی خواردن هەڵبژێرە.');
+      return;
+    }
     if (!optionSelectionValid) {
       setMessage('تکایە هەڵبژاردە پێویستەکانی خواردن دیاری بکە.');
       return;
@@ -148,14 +169,14 @@ export function ProductDetailPage() {
             {!restaurant && product.allergen_warnings ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">هۆشداریی ئەلێرژی: {product.allergen_warnings}</p> : null}
             {product.storage_instructions ? <p className="mt-3 text-sm leading-7 text-black/60">ڕێنمایی هەڵگرتن: {product.storage_instructions}</p> : null}
             {product.cleaning_type ? <p className="mt-3 text-sm leading-7 text-black/60">جۆری پاککەرەوە: {product.cleaning_type}</p> : null}
-            <div className="mt-6 flex flex-wrap items-end gap-3"><div><div className="text-3xl font-black tabular-nums">{price.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{restaurant && selectedOptionsPrice > 0 ? <div className="mt-1 text-xs font-bold text-black/45">زیادکراوەکان: +{selectedOptionsPrice.toLocaleString('en-US')} د.ع</div> : null}</div>{restaurant && product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{(product.compare_at_price_iqd + selectedOptionsPrice).toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.max(0, Math.round((1 - price / (product.compare_at_price_iqd + selectedOptionsPrice)) * 100))}٪ داشکاندن</span></> : !restaurant && product.compare_at_price_iqd && product.compare_at_price_iqd > price && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.round((1 - price / product.compare_at_price_iqd) * 100)}٪ داشکاندن</span></> : null}</div>
+            <div className="mt-6 flex flex-wrap items-end gap-3"><div><div className="text-3xl font-black tabular-nums">{hasUnselectedRestaurantSize ? 'لە ' : ''}{displayPrice.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{restaurant && selectedOptionsPrice > 0 ? <div className="mt-1 text-xs font-bold text-black/45">زیادکراوەکان: +{selectedOptionsPrice.toLocaleString('en-US')} د.ع</div> : null}</div>{restaurant && !hasUnselectedRestaurantSize && product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{(product.compare_at_price_iqd + selectedOptionsPrice).toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.max(0, Math.round((1 - price / (product.compare_at_price_iqd + selectedOptionsPrice)) * 100))}٪ داشکاندن</span></> : !restaurant && product.compare_at_price_iqd && product.compare_at_price_iqd > price && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.round((1 - price / product.compare_at_price_iqd) * 100)}٪ داشکاندن</span></> : null}</div>
 
             {restaurant && restaurant.is_available && product.restaurantOptionGroups.length ? <div className="mt-7 space-y-4">
               <div><h2 className="text-lg font-black">زیادکراوە و هەڵبژاردەکان</h2><p className="mt-1 text-xs leading-6 text-black/45">نرخ بە پێی قەبارە و زیادکراوە هەڵبژێردراوەکان دەگۆڕێت. هەڵبژاردەی پێویست دیاری بکە.</p></div>
               {product.restaurantOptionGroups.map((group) => {
                 const groupSelected = selectedOptionIds.filter((id) => group.options.some((option) => option.id === id));
                 return <section key={group.id} className="rounded-2xl border border-black/[0.07] p-4">
-                  <div className="flex items-center justify-between gap-2"><h3 className="font-black">{group.name_ku}</h3><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-[10px] font-black text-black/50">{group.is_required ? 'پێویستە' : 'ئارەزوومەندانە'} · {group.min_select}–{group.max_select}</span></div>
+                  <div className="flex items-center justify-between gap-2"><h3 className="font-black">{group.name_ku}</h3><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-[10px] font-black text-black/50">{group.min_select > 0 ? 'پێویستە' : 'ئارەزوومەندانە'} · {group.min_select}–{group.max_select}</span></div>
                   <div className="mt-3 space-y-2">{group.options.map((option) => {
                     const checked = selectedOptionIds.includes(option.id);
                     const canSelectMore = checked || groupSelected.length < group.max_select;
@@ -176,13 +197,13 @@ export function ProductDetailPage() {
               })}
             </div> : null}
             {product.variants.length ? (
-              <div className="mt-7"><div className="text-sm font-black">قەبارە، تام و وەشانەکان</div><div className="mt-3 grid gap-2 sm:grid-cols-2">{product.variants.map((item) => { const itemExpired = !restaurant && (isSupermarketItemExpired(product.expiry_date) || isSupermarketItemExpired(item.expiry_date)); const itemAvailable = restaurant ? menuAvailable : item.stock_quantity > 0 && !itemExpired; const itemPrice = item.price_iqd ?? product.base_price_iqd; return <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1); setMessage(null); }} className={`rounded-2xl border p-3 text-start transition ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8' : 'border-black/10 bg-white'}`}><span className="block text-sm font-black">{item.name_ku}</span>{formatSupermarketQuantity(item.quantity_value, item.quantity_unit, item.package_count) ? <span className="mt-1 block text-xs font-bold text-black/50">{formatSupermarketQuantity(item.quantity_value, item.quantity_unit, item.package_count)}</span> : null}{item.flavor ? <span className="mt-1 block text-xs font-bold text-[var(--shakh-blue)]">تام: {item.flavor}</span> : null}<span className="mt-2 flex flex-wrap items-center gap-2 text-xs font-black"><span>{itemPrice.toLocaleString('en-US')} د.ع</span><span className={itemAvailable ? 'text-emerald-700' : 'text-red-600'}>{restaurant ? (menuAvailable ? 'بەردەستە بۆ داواکردن' : 'لە ئێستادا بەردەست نییە') : itemExpired ? 'بەسەرچووە' : itemAvailable ? `${item.stock_quantity.toLocaleString('en-US')} دانە بەردەستە` : 'کۆگا بەتاڵە'}</span></span></button>; })}</div></div>
+              <div className="mt-7"><div className="text-sm font-black">{restaurant ? 'قەبارەی خواردن' : 'قەبارە، تام و وەشانەکان'}</div>{restaurant && !variant ? <p className="mt-2 text-xs font-bold leading-6 text-[var(--shakh-blue)]">تکایە یەکێک لە قەبارەکان هەڵبژێرە؛ نرخ بەپێی قەبارە دەگۆڕێت.</p> : null}<div className="mt-3 grid gap-2 sm:grid-cols-2">{product.variants.map((item) => { const itemExpired = !restaurant && (isSupermarketItemExpired(product.expiry_date) || isSupermarketItemExpired(item.expiry_date)); const itemAvailable = restaurant ? menuAvailable : item.stock_quantity > 0 && !itemExpired; const itemPrice = item.price_iqd ?? product.base_price_iqd; return <button key={item.id} type="button" onClick={() => { setVariant(item); setQuantity(1); setMessage(null); }} className={`rounded-2xl border p-3 text-start transition ${variant?.id === item.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8' : 'border-black/10 bg-white'}`}><span className="block text-sm font-black">{item.name_ku}</span>{formatSupermarketQuantity(item.quantity_value, item.quantity_unit, item.package_count) ? <span className="mt-1 block text-xs font-bold text-black/50">{formatSupermarketQuantity(item.quantity_value, item.quantity_unit, item.package_count)}</span> : null}{item.flavor ? <span className="mt-1 block text-xs font-bold text-[var(--shakh-blue)]">تام: {item.flavor}</span> : null}<span className="mt-2 flex flex-wrap items-center gap-2 text-xs font-black"><span>{itemPrice.toLocaleString('en-US')} د.ع</span><span className={itemAvailable ? 'text-emerald-700' : 'text-red-600'}>{restaurant ? (menuAvailable ? 'بەردەستە بۆ داواکردن' : 'لە ئێستادا بەردەست نییە') : itemExpired ? 'بەسەرچووە' : itemAvailable ? `${item.stock_quantity.toLocaleString('en-US')} دانە بەردەستە` : 'کۆگا بەتاڵە'}</span></span></button>; })}</div></div>
             ) : null}
 
-            <div className="mt-7 flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] p-3 text-sm font-bold"><span className={`grid size-9 place-items-center rounded-xl ${canBuy ? 'bg-emerald-500/10 text-emerald-700' : 'bg-red-500/10 text-red-700'}`}><Check size={17} /></span>{restaurant ? (menuAvailable ? 'بەردەستە بۆ داواکردن' : 'لە کاتی ئێستادا داواکردن بەردەست نییە') : expired ? 'بەرواری بەسەرچوونی بەرهەم تێپەڕیوە' : canBuy ? `${maxStock} دانە بەردەستە` : 'ئەم بەرهەمە بەردەست نییە'}</div>
+            <div className="mt-7 flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] p-3 text-sm font-bold"><span className={`grid size-9 place-items-center rounded-xl ${canBuy ? 'bg-emerald-500/10 text-emerald-700' : 'bg-red-500/10 text-red-700'}`}><Check size={17} /></span>{restaurant ? (!menuAvailable ? 'لە کاتی ئێستادا داواکردن بەردەست نییە' : !restaurantSizeSelectionValid ? 'بەردەستە؛ بۆ داواکردن قەبارە هەڵبژێرە' : 'بەردەستە بۆ داواکردن') : expired ? 'بەرواری بەسەرچوونی بەرهەم تێپەڕیوە' : canBuy ? `${maxStock} دانە بەردەستە` : 'ئەم بەرهەمە بەردەست نییە'}</div>
             <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr]">
               <div className="flex h-12 items-center rounded-2xl border border-black/10 bg-white"><button aria-label="کەمکردنەوەی ژمارە" className="grid size-12 place-items-center text-xl" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><span className="w-8 text-center font-black">{quantity}</span><button aria-label="زیادکردنی ژمارە" disabled={quantity >= maxStock || !canBuy} className="grid size-12 place-items-center text-xl disabled:opacity-30" onClick={() => setQuantity((value) => Math.min(maxStock, value + 1))}>+</button></div>
-              <button disabled={!canBuy} onClick={() => void buy()} className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"><ShoppingBag size={18} /> زیادکردن بۆ سەبەتە</button>
+              <button disabled={!canAddToCart} onClick={() => void buy()} className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"><ShoppingBag size={18} /> زیادکردن بۆ سەبەتە</button>
             </div>
             <button onClick={() => void toggle()} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white text-sm font-black"><Heart size={18} fill={wishlisted ? 'currentColor' : 'none'} className={wishlisted ? 'text-[var(--shakh-orange)]' : ''} /> {wishlisted ? 'لە دڵخوازەکانە' : 'زیادکردن بۆ دڵخوازەکان'}</button>
             {message ? <div className="mt-4 rounded-2xl bg-emerald-500/8 px-4 py-3 text-sm font-bold leading-6 text-emerald-700">{message}</div> : null}

@@ -262,6 +262,7 @@ export function VendorProductsPage() {
           || group.min_select > group.options.length
           || group.options.length === 0
           || (group.is_required && group.min_select < 1)
+          || (!group.is_required && group.min_select !== 0)
           || group.options.some((option) => !option.name_ku.trim() || !Number.isFinite(Number(option.price_iqd)) || Number(option.price_iqd) < 0)
         )) throw new Error('گروپی زیادکراوە دەبێت ناو و لانیکەم یەک هەڵبژاردەی دروستی هەبێت؛ ژمارەی کەمترین/زۆرترین لە ٠–٢٠ بێت و نرخەکان نەرێنی نەبن.');
       }
@@ -723,7 +724,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <Field label="ناوی گروپ *" value={group.name_ku} onChange={(value) => updateRestaurantGroup(groupIndex,{name_ku:value})} />
             <label className="flex items-center gap-3 rounded-xl bg-[var(--shakh-bg)] px-3 py-2"><input type="checkbox" checked={group.is_required} onChange={(e) => updateRestaurantGroup(groupIndex,{is_required:e.target.checked,min_select:e.target.checked ? Math.max(1,group.min_select) : 0})} className="size-4 accent-[var(--shakh-blue)]" /><span className="text-sm font-bold">هەڵبژاردن پێویستە</span></label>
-            <Field label="کەمترین هەڵبژاردن" value={String(group.min_select)} onChange={(value) => updateRestaurantGroup(groupIndex,{min_select:Math.max(0,Math.floor(Number(value)||0))})} dir="ltr" inputMode="numeric" />
+            <Field label="کەمترین هەڵبژاردن" value={String(group.min_select)} onChange={(value) => { const minSelect = Math.max(0,Math.floor(Number(value)||0)); updateRestaurantGroup(groupIndex,{min_select:minSelect,is_required:minSelect > 0}); }} dir="ltr" inputMode="numeric" />
             <Field label="زۆرترین هەڵبژاردن" value={String(group.max_select)} onChange={(value) => updateRestaurantGroup(groupIndex,{max_select:Math.max(1,Math.floor(Number(value)||1))})} dir="ltr" inputMode="numeric" />
           </div>
           <div className="mt-4 space-y-3">{group.options.map((option,optionIndex) => <div key={option.id ?? groupIndex+'-'+optionIndex} className="grid gap-3 rounded-xl bg-[var(--shakh-bg)] p-3 sm:grid-cols-[1fr_140px_auto_auto] sm:items-end">
