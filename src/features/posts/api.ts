@@ -26,8 +26,67 @@ export type ApparelPostInput = {
 
 export async function getAllowedPostTargets(): Promise<PostTarget[]> {
   const { data, error } = await supabase.rpc('get_allowed_post_targets');
-  if (error) throw error;
-  return (data ?? []) as PostTarget[];
+  const rpcTargets = (data ?? []) as PostTarget[];
+
+  // The RPC is the primary source. If it temporarily returns no rows (or
+  // PostgREST cannot resolve it), recover the same permissions through the
+  // existing RLS-protected tables. This is especially important for the
+  // super-admin: an RPC hiccup must not hide every publish category.
+  if (!error && rpcTargets.length > 0) return rpcTargets;
+
+  const { data: userResult, error: userError } = await supabase.auth.getUser();
+  if (userError || !userResult.user) {
+    throw new Error('هەژماری چوونەژوورەوە پشتڕاست نەکرایەوە. دووبارە بچۆ ژوورەوە و هەوڵ بدەوە.');
+  }
+
+  const { data: roleRows, error: roleError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userResult.user.id);
+  if (roleError) {
+    throw new Error('نەتوانرا ڕۆڵەکانی هەژمار بخوێندرێنەوە. ' + roleError.message);
+  }
+
+  const userRoles = [...new Set((roleRows ?? []).map((row) => row.role as AppRole))];
+  if (userRoles.length === 0) {
+    throw new Error('هیچ ڕۆڵێکی پەسەندکراو بۆ ئەم هەژمارە تۆمار نەکراوە.');
+  }
+
+  const { data: permissionRows, error: permissionError } = await supabase
+    .from('role_permissions')
+    .select('role,permission_code')
+    .in('role', userRoles)
+    .eq('permission_code', 'posts.create');
+  if (permissionError) {
+    throw new Error('نەتوانرا دەسەڵاتی پۆستکردن پشتڕاست بکرێتەوە. ' + permissionError.message);
+  }
+
+  const allowedRoles = [...new Set((permissionRows ?? []).map((row) => row.role as AppRole))];
+  if (allowedRoles.length === 0) {
+    throw new Error('ئەم هەژمارە مۆڵەتی posts.create ـی نییە. پێویستە لە ڕێکخستنی ڕۆڵەکاندا پشکنین بکرێت.');
+  }
+
+  const { data: categoryRows, error: categoryError } = await supabase
+    .from('role_post_categories')
+    .select('role,category')
+    .in('role', allowedRoles);
+  if (categoryError) {
+    throw new Error('نەتوانرا کاتەگۆرییە ڕێگەپێدراوەکانی پۆستکردن بخوێندرێنەوە. ' + categoryError.message);
+  }
+
+  const targets = (categoryRows ?? []).map((row) => ({
+    publisher_role: row.role as AppRole,
+    category: row.category as PostCategory,
+  }));
+
+  if (targets.length === 0) {
+    throw new Error(
+      'ڕۆڵی هەژمارەکەت مۆڵەتی پۆستکردنی هەیە، بەڵام هیچ کاتەگۆرییەک لە role_post_categories تۆمار نەکراوە. ' +
+      (error?.message ? 'هەڵەی RPC: ' + error.message : ''),
+    );
+  }
+
+  return targets;
 }
 
 export async function createPost(input: {
