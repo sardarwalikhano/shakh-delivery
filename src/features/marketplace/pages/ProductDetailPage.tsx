@@ -45,10 +45,10 @@ export function ProductDetailPage() {
         void getProductBySlug(product.slug).then((next) => { if (next) setProduct(next); }).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_option_groups', filter: 'product_id=eq.' + product.id }, () => {
-        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setSelectedOptionIds((current) => current.filter((id) => next.restaurantOptionGroups.some((group) => group.options.some((option) => option.id === id))); } }).catch(() => {});
+        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setSelectedOptionIds((current) => current.filter((id) => next.restaurantOptionGroups.some((group) => group.options.some((option) => option.id === id)))); } }).catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_menu_options' }, () => {
-        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setSelectedOptionIds((current) => current.filter((id) => next.restaurantOptionGroups.some((group) => group.options.some((option) => option.id === id))); } }).catch(() => {});
+        void getProductBySlug(product.slug).then((next) => { if (next) { setProduct(next); setSelectedOptionIds((current) => current.filter((id) => next.restaurantOptionGroups.some((group) => group.options.some((option) => option.id === id)))); } }).catch(() => {});
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
