@@ -108,7 +108,7 @@ export function DeliveryFeeSettingsPage() {
       const amount = Number(deliveryFee);
       await saveDeliveryFeeRule({
         ...(editingId ? { id: editingId } : {}),
-        city: city.trim() === '*' ? '*' : city.trim(),
+        city: ['*', 'هەموو شارەکان'].includes(city.trim()) ? '*' : city.trim(),
         categoryKey,
         deliveryFeeIqd: amount,
         isActive: ruleActive,
