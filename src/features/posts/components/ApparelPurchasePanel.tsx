@@ -33,25 +33,26 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     setQuantity(1);
   }, [variant.id]);
 
+  const price = Math.round((variant.price_iqd ?? post.price_iqd ?? 0) * (100 - Math.max(0, Math.min(99, post.discount_percent ?? 0))) / 100);
+  const subtotal = price * quantity;
+
   useEffect(() => {
     let cancelled = false;
     const city = deliveryCity.trim();
     if (city.length < 2) { setFeeConfig(null); return; }
     setFeeConfig(null);
     const timeout = window.setTimeout(() => {
-      void quoteOrderFees(city, 'fashion')
+      void quoteOrderFees(city, 'fashion', subtotal)
         .then((quote) => { if (!cancelled) setFeeConfig(quote); })
         .catch(() => { if (!cancelled) setFeeConfig(null); });
     }, 250);
     return () => { cancelled = true; window.clearTimeout(timeout); };
-  }, [deliveryCity]);
+  }, [deliveryCity, subtotal]);
 
   useEffect(() => {
     setQuantity((current) => Math.min(Math.max(1, current), Math.max(1, variant.stock_quantity)));
   }, [variant.stock_quantity]);
 
-  const price = Math.round((variant.price_iqd ?? post.price_iqd ?? 0) * (100 - Math.max(0, Math.min(99, post.discount_percent ?? 0))) / 100);
-  const subtotal = price * quantity;
   const deliveryFee = feeConfig?.delivery_fee_iqd ?? 0;
   const platformFee = feeConfig ? Number(feeConfig.platform_fee_iqd ?? 0) : 0;
   const total = subtotal + deliveryFee + platformFee;
