@@ -126,7 +126,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
           </label>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white p-3 text-xs font-bold"><input type="radio" name="food-payment" checked={paymentMethod === 'cash_on_delivery'} onChange={() => setPaymentMethod('cash_on_delivery')}/><Truck size={17} className="text-[var(--shakh-orange)]"/>پارەدان لە کاتی گەیاندن</label>
-            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white p-3 text-xs font-bold"><input type="radio" name="food-payment" checked={paymentMethod === 'mobile_cash'} onChange={() => setPaymentMethod('mobile_cash')}/><Smartphone size={17} className="text-[var(--shakh-blue)]"/>Mobile Cash</label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white p-3 text-xs font-bold"><input type="radio" name="food-payment" checked={paymentMethod === 'mobile_cash'} onChange={() => setPaymentMethod('mobile_cash')}/><Smartphone size={17} className="text-[var(--shakh-blue)]"/>Mobile Cash (چاوەڕوانی چالاککردن)</label>
           </div>
           {error ? <div role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{error}</div> : null}
           <div className="flex gap-2">
