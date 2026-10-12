@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view' },
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view' },
+  { label: 'نرخی گەیاندن و کرێ', href: '/dashboard/delivery-fees', icon: Calculator, permission: 'settings.manage' },
   { label: 'پارەدان', href: '/dashboard/payments', icon: WalletCards, permission: 'payments.view' },
   { label: 'کرێی گەیاندن و پلاتفۆرم', href: '/dashboard/fees', icon: Calculator, permission: 'settings.manage' },
   { label: 'بەکارهێنەران', href: '/dashboard/users', icon: Users, permission: 'users.view' },
