@@ -880,3 +880,55 @@ revoke all on function public.create_food_post_order(uuid,uuid,integer,text,text
 grant execute on function public.create_food_post_order(uuid,uuid,integer,text,text,text,text,text) to authenticated;
 revoke all on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text,text) from public, anon;
 grant execute on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text,text) to authenticated;
+
+
+-- Also replace the original legacy signatures that predate explicit delivery-city
+-- input. This keeps existing app tabs functional while still calculating fees
+-- from the buyer's saved city instead of bypassing the central fee engine.
+
+create or replace function public.create_food_post_order(
+  p_request_id uuid,
+  p_post_id uuid,
+  p_quantity integer,
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_customer_note text default null,
+  p_payment_method text default 'cash_on_delivery'
+)
+returns jsonb
+language sql
+security definer
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+  select public.create_food_post_order_with_fees(
+    p_request_id, p_post_id,
+    coalesce((select p.city from public.profiles p where p.id = (select auth.uid())), 'هەولێر'),
+    p_quantity, p_delivery_address, p_buyer_phone, p_customer_note, p_payment_method
+  );
+$function$;
+
+create or replace function public.create_apparel_post_order(
+  p_request_id uuid,
+  p_variant_id uuid,
+  p_quantity integer,
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_customer_note text default null,
+  p_payment_method text default 'cash_on_delivery'
+)
+returns jsonb
+language sql
+security definer
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+  select public.create_apparel_post_order_with_fees(
+    p_request_id, p_variant_id,
+    coalesce((select p.city from public.profiles p where p.id = (select auth.uid())), 'هەولێر'),
+    p_quantity, p_delivery_address, p_buyer_phone, p_customer_note, p_payment_method
+  );
+$function$;
+
+revoke all on function public.create_food_post_order(uuid,uuid,integer,text,text,text,text) from public, anon;
+grant execute on function public.create_food_post_order(uuid,uuid,integer,text,text,text,text) to authenticated;
+revoke all on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text) from public, anon;
+grant execute on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text) to authenticated;
