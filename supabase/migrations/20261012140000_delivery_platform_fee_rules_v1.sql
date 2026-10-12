@@ -645,7 +645,8 @@ as $function$
 $function$;
 
 revoke all on function private.create_checkout_internal_with_fees(uuid,text,text,numeric,numeric,text,public.payment_method,text) from public, anon, authenticated;
-revoke all on function private.create_checkout_internal(uuid,text,text,numeric,numeric,text,public.payment_method) from public, anon, authenticated;
+revoke all on function private.create_checkout_internal(uuid,text,text,numeric,numeric,text,public.payment_method) from public, anon;
+grant execute on function private.create_checkout_internal(uuid,text,text,numeric,numeric,text,public.payment_method) to authenticated;
 
 create or replace function public.create_checkout_with_fees(
   p_idempotency_key text,
