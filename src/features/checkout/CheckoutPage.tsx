@@ -263,7 +263,7 @@ export function CheckoutPage() {
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between"><span className="text-black/45">ژمارەی دانە</span><span className="font-black">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div>
                 <div className="flex justify-between"><span className="text-black/45">کۆی بەرهەمەکان</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
-                <div className="flex justify-between"><span className="text-black/45">گەیاندن ({feeGroups.filter((group) => group.deliveryEligible).length} وەسلە)</span><span className="font-bold">{feesReady ? deliveryFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : 'شار دیاری بکە'}</span></div>
+                <div className="flex justify-between"><span className="text-black/45">گەیاندن</span><span className="font-bold">{feesReady ? deliveryFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : 'شار دیاری بکە'}</span></div>
                 <div className="flex justify-between"><span className="text-black/45">کرێی پلاتفۆرمی شاخ</span><span className="font-bold">{feesReady ? platformFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : '—'}</span></div>
                 <div className="border-t border-black/[0.06] pt-4 flex justify-between"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{quotedTotal.toLocaleString('en-US')} د.ع</span></div>
                 <p className="text-xs leading-5 text-black/40">کرێی گەیاندن بەپێی شار و کاتەگۆری هەر وەسلەیەک جیاوازە؛ ئۆتۆمبێل و حەج/عومرە کرێی گەیاندنیان نییە. کرێی پلاتفۆرمی شاخ بە بڕی جێگیر هەژمار دەکرێت.</p>
