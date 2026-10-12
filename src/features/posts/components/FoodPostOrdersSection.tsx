@@ -91,7 +91,7 @@ export function FoodPostOrdersSection() {
                     <div>
                       <div className="text-xs font-black text-[var(--shakh-blue)]" dir="ltr">{order.order_number}</div>
                       <h3 className="mt-1 text-lg font-black">{order.post_title}</h3>
-                      <p className="mt-1 text-xs font-bold text-black/45">{order.quantity} دانە · {order.payment_method === 'mobile_cash' ? 'Mobile Cash' : 'پارەدان لە کاتی گەیاندن'}</p>
+                      <p className="mt-1 text-xs font-bold text-black/45">{order.quantity} دانە · {order.payment_method === 'mobile_cash' ? 'Mobile Cash (چاوەڕوانی چالاککردن)' : 'پارەدان لە کاتی گەیاندن'}</p>
                     </div>
                     <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-xs font-black">{statusLabels[order.status]}</span>
                   </div>
