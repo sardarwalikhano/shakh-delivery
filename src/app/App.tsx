@@ -12,6 +12,7 @@ import { RequireAuth } from '@/routes/RequireAuth';
 import { RequirePermission } from '@/routes/RequirePermission';
 import { ForbiddenPage } from '@/routes/ForbiddenPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { DeliveryFeesPage } from '@/features/dashboard/DeliveryFeesPage';
 import { MarketplacePage } from '@/features/marketplace/pages/MarketplacePage';
 import { ProductDetailPage } from '@/features/marketplace/pages/ProductDetailPage';
 import { WishlistPage } from '@/features/marketplace/pages/WishlistPage';
@@ -58,6 +59,7 @@ export function App() {
         <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/store" element={<RequireAuth><RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/products" element={<RequireAuth><RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission></RequireAuth>} />
+        <Route path="/dashboard/delivery-fees" element={<RequireAuth><RequirePermission permission="settings.manage"><DeliveryFeesPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/deliveries" element={<RequireAuth><RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/notifications" element={<RequireAuth><RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/fees" element={<RequireAuth><RequirePermission permission="settings.manage"><DeliveryFeeSettingsPage /></RequirePermission></RequireAuth>} />
