@@ -5,7 +5,7 @@ import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { Post } from '../types';
 import { createFoodPostOrder } from '../foodPostOrders';
-import { calculatePlatformFee, getDeliveryFeeQuote, type DeliveryFeeQuote } from '@/features/checkout/deliveryPricing';
+import { quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
 
 type Props = { post: Post };
 
@@ -16,7 +16,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
   const [showCheckout, setShowCheckout] = useState(false);
   const [address, setAddress] = useState('');
   const [deliveryCity, setDeliveryCity] = useState('');
-  const [feeConfig, setFeeConfig] = useState<DeliveryFeeQuote | null>(null);
+  const [feeConfig, setFeeConfig] = useState<OrderFeeQuote | null>(null);
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
@@ -35,8 +35,9 @@ export function FoodPostPurchasePanel({ post }: Props) {
     let cancelled = false;
     const city = deliveryCity.trim();
     if (city.length < 2) { setFeeConfig(null); return; }
+    setFeeConfig(null);
     const timeout = window.setTimeout(() => {
-      void getDeliveryFeeQuote(city)
+      void quoteOrderFees(city, 'food')
         .then((quote) => { if (!cancelled) setFeeConfig(quote); })
         .catch(() => { if (!cancelled) setFeeConfig(null); });
     }, 250);
@@ -47,7 +48,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
   const price = Math.round(Number(post.price_iqd ?? 0) * (100 - discount) / 100);
   const subtotal = price * quantity;
   const deliveryFee = feeConfig?.delivery_fee_iqd ?? 0;
-  const platformFee = feeConfig ? calculatePlatformFee(subtotal, feeConfig.platform_fee_percent) : 0;
+  const platformFee = feeConfig ? Number(feeConfig.platform_fee_iqd ?? 0) : 0;
   const total = subtotal + deliveryFee + platformFee;
   const ownPost = Boolean(user?.id && user.id === post.author_id);
   const canOrder = post.status === 'active' && Number.isFinite(price) && price > 0;
@@ -119,7 +120,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
       <div className="space-y-2 border-t border-black/10 pt-3 text-sm">
         <div className="flex justify-between"><span className="font-bold text-black/45">کۆی نرخی خواردن</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
         <div className="flex justify-between"><span className="font-bold text-black/45">گەیاندن</span><span className="font-black">{feeConfig ? deliveryFee.toLocaleString('en-US') + ' د.ع' : 'شار دیاری بکە'}</span></div>
-        <div className="flex justify-between"><span className="font-bold text-black/45">کرێی پلاتفۆرمی شاخ ({feeConfig?.platform_fee_percent ?? 0}٪)</span><span className="font-black">{feeConfig ? platformFee.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
+        <div className="flex justify-between"><span className="font-bold text-black/45">کرێی پلاتفۆرمی شاخ</span><span className="font-black">{feeConfig ? platformFee.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
         <div className="flex justify-between border-t border-black/10 pt-3"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{total.toLocaleString('en-US')} د.ع</span></div>
       </div>
 
@@ -164,7 +165,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
         </form>
       )}
       {error && !showCheckout ? <div role="alert" className="text-sm font-bold text-red-700">{error}</div> : null}
-      <p className="text-[11px] leading-5 text-black/35">نرخ لە Supabase دووبارە پشتڕاست دەکرێتەوە. داواکاری دوای تۆمارکردن لە بەشی «داواکارییەکانی پۆست» بەڕێوەدەبرێت.</p>
+      <p className="text-[11px] leading-5 text-black/35">نرخ و کرێ لە Supabase بە بڕی ڕاستەقینە و دووبارە پشتڕاست دەکرێنەوە. داواکاری دوای تۆمارکردن لە بەشی «داواکارییەکانی پۆست» بەڕێوەدەبرێت.</p>
     </section>
   );
 }
