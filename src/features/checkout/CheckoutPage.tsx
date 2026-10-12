@@ -114,7 +114,7 @@ export function CheckoutPage() {
     const timeout = window.setTimeout(() => {
       void Promise.all(feeGroups.map(async (group) => ({
         storeId: group.storeId,
-        quote: await quoteOrderFees(city, group.categoryKey),
+        quote: await quoteOrderFees(city, group.categoryKey, group.subtotal),
       })))
         .then((results) => {
           if (cancelled) return;
