@@ -98,13 +98,15 @@ export function FoodPostOrdersSection() {
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl bg-[var(--shakh-bg)] p-3 text-sm">
-                      <div className="text-xs text-black/40">نرخی یەک دانە / کۆ</div>
-                      <strong className="mt-1 block">{Number(order.unit_price_iqd).toLocaleString('en-US')} د.ع × {order.quantity}</strong>
-                      <strong className="mt-1 block text-lg">{Number(order.line_total_iqd).toLocaleString('en-US')} د.ع</strong>
+                      <div className="text-xs text-black/40">کورتەی وەسڵ</div>
+                      <div className="mt-1 flex justify-between gap-3"><span className="text-black/55">نرخی خواردن ({order.quantity} دانە)</span><strong>{Number(order.line_total_iqd).toLocaleString('en-US')} د.ع</strong></div>
+                      <div className="mt-2 flex justify-between gap-3"><span className="text-black/55">گەیاندن · {order.delivery_city}</span><strong>{Number(order.delivery_fee_iqd).toLocaleString('en-US')} د.ع</strong></div>
+                      <div className="mt-2 flex justify-between gap-3"><span className="text-black/55">کرێی پلاتفۆرمی شاخ</span><strong>{Number(order.platform_fee_iqd).toLocaleString('en-US')} د.ع</strong></div>
+                      <div className="mt-3 flex justify-between gap-3 border-t border-black/10 pt-3 text-base"><span className="font-black">کۆی گشتی</span><strong>{Number(order.total_iqd).toLocaleString('en-US')} د.ع</strong></div>
                     </div>
                     <div className="rounded-xl bg-[var(--shakh-bg)] p-3 text-sm">
                       <div className="text-xs text-black/40">{seller ? 'زانیاریی کڕیار' : 'ناونیشانی گەیاندن'}</div>
-                      {seller ? <><strong className="mt-1 block" dir="ltr">{order.buyer_phone}</strong><div className="mt-1 text-xs text-black/60">{order.delivery_address}</div></> : <strong className="mt-1 block">{order.delivery_address}</strong>}
+                      {seller ? <><strong className="mt-1 block" dir="ltr">{order.buyer_phone}</strong><div className="mt-1 text-xs text-black/60">{order.delivery_address}</div></> : <><div className="mt-1 font-black">{order.delivery_city}</div><strong className="mt-1 block">{order.delivery_address}</strong></>}
                     </div>
                   </div>
                   {order.customer_note ? <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-black/55">تێبینی: {order.customer_note}</p> : null}
