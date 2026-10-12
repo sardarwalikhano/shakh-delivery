@@ -775,3 +775,108 @@ revoke all on function public.create_food_post_order(uuid,uuid,integer,text,text
 grant execute on function public.create_food_post_order(uuid,uuid,integer,text,text,text,text) to authenticated;
 revoke all on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text) from public, anon;
 grant execute on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text) to authenticated;
+
+
+-- Keep legacy RPC signatures routed through the same fee engine. This prevents an
+-- older client or already-open tab from bypassing city/category fees.
+
+create or replace function private.create_checkout_internal(
+  p_customer_id uuid,
+  p_idempotency_key text,
+  p_delivery_address text,
+  p_delivery_lat numeric,
+  p_delivery_lng numeric,
+  p_customer_note text,
+  p_payment_method public.payment_method,
+  p_delivery_city text
+)
+returns jsonb
+language sql
+security definer
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+  select private.create_checkout_internal_with_fees(
+    p_customer_id, p_idempotency_key, p_delivery_address, p_delivery_lat,
+    p_delivery_lng, p_customer_note, p_payment_method,
+    coalesce(nullif(btrim(p_delivery_city), ''), (select p.city from public.profiles p where p.id=p_customer_id), 'هەولێر')
+  );
+$function$;
+
+revoke all on function private.create_checkout_internal(uuid,text,text,numeric,numeric,text,public.payment_method,text) from public, anon, authenticated;
+
+create or replace function public.create_checkout(
+  p_idempotency_key text,
+  p_delivery_address text,
+  p_delivery_lat numeric default null,
+  p_delivery_lng numeric default null,
+  p_customer_note text default null,
+  p_payment_method public.payment_method default 'cash_on_delivery',
+  p_delivery_city text default null
+)
+returns jsonb
+language plpgsql
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+begin
+  if not (select private.has_permission('checkout.create')) then
+    raise exception using errcode='42501', message='Checkout is not permitted for this role';
+  end if;
+  return private.create_checkout_internal_with_fees(
+    (select auth.uid()), p_idempotency_key, p_delivery_address, p_delivery_lat,
+    p_delivery_lng, p_customer_note, p_payment_method,
+    coalesce(nullif(btrim(p_delivery_city), ''), (select p.city from public.profiles p where p.id=(select auth.uid())), 'هەولێر')
+  );
+end;
+$function$;
+
+revoke all on function public.create_checkout(text,text,numeric,numeric,text,public.payment_method,text) from public, anon;
+grant execute on function public.create_checkout(text,text,numeric,numeric,text,public.payment_method,text) to authenticated;
+
+-- Explicit-city signatures used by the current food and apparel order forms.
+-- City is required here so the rate cannot silently fall back to the seller profile.
+create or replace function public.create_food_post_order(
+  p_request_id uuid,
+  p_post_id uuid,
+  p_quantity integer,
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_delivery_city text,
+  p_customer_note text default null,
+  p_payment_method text default 'cash_on_delivery'
+)
+returns jsonb
+language sql
+security definer
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+  select public.create_food_post_order_with_fees(
+    p_request_id, p_post_id, p_delivery_city, p_quantity,
+    p_delivery_address, p_buyer_phone, p_customer_note, p_payment_method
+  );
+$function$;
+
+create or replace function public.create_apparel_post_order(
+  p_request_id uuid,
+  p_variant_id uuid,
+  p_quantity integer,
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_delivery_city text,
+  p_customer_note text default null,
+  p_payment_method text default 'cash_on_delivery'
+)
+returns jsonb
+language sql
+security definer
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+  select public.create_apparel_post_order_with_fees(
+    p_request_id, p_variant_id, p_delivery_city, p_quantity,
+    p_delivery_address, p_buyer_phone, p_customer_note, p_payment_method
+  );
+$function$;
+
+revoke all on function public.create_food_post_order(uuid,uuid,integer,text,text,text,text,text) from public, anon;
+grant execute on function public.create_food_post_order(uuid,uuid,integer,text,text,text,text,text) to authenticated;
+revoke all on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text,text) from public, anon;
+grant execute on function public.create_apparel_post_order(uuid,uuid,integer,text,text,text,text,text) to authenticated;
