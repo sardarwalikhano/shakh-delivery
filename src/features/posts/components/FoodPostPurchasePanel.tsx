@@ -31,22 +31,23 @@ export function FoodPostPurchasePanel({ post }: Props) {
 
   useEffect(() => { setQuantity(1); }, [post.id]);
 
+  const discount = Math.max(0, Math.min(99, post.discount_percent ?? 0));
+  const price = Math.round(Number(post.price_iqd ?? 0) * (100 - discount) / 100);
+  const subtotal = price * quantity;
+
   useEffect(() => {
     let cancelled = false;
     const city = deliveryCity.trim();
     if (city.length < 2) { setFeeConfig(null); return; }
     setFeeConfig(null);
     const timeout = window.setTimeout(() => {
-      void quoteOrderFees(city, 'food')
+      void quoteOrderFees(city, 'food', subtotal)
         .then((quote) => { if (!cancelled) setFeeConfig(quote); })
         .catch(() => { if (!cancelled) setFeeConfig(null); });
     }, 250);
     return () => { cancelled = true; window.clearTimeout(timeout); };
-  }, [deliveryCity]);
+  }, [deliveryCity, subtotal]);
 
-  const discount = Math.max(0, Math.min(99, post.discount_percent ?? 0));
-  const price = Math.round(Number(post.price_iqd ?? 0) * (100 - discount) / 100);
-  const subtotal = price * quantity;
   const deliveryFee = feeConfig?.delivery_fee_iqd ?? 0;
   const platformFee = feeConfig ? Number(feeConfig.platform_fee_iqd ?? 0) : 0;
   const total = subtotal + deliveryFee + platformFee;
