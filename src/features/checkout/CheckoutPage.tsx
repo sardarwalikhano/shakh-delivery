@@ -45,36 +45,7 @@ export function CheckoutPage() {
       });
   }, [user]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const city = deliveryCity.trim();
-    if (city.length < 2 || feeGroups.length === 0) {
-      setFeeQuotes({});
-      setFeeError(null);
-      setFeesLoading(false);
-      return;
-    }
-    setFeesLoading(true);
-    setFeeError(null);
-    const timeout = window.setTimeout(() => {
-      void Promise.all(feeGroups.map(async (group) => ({
-        storeId: group.storeId,
-        quote: await quoteOrderFees(city, group.categoryKey),
-      })))
-        .then((results) => {
-          if (cancelled) return;
-          setFeeQuotes(Object.fromEntries(results.map((result) => [result.storeId, result.quote])));
-          setFeeError(null);
-        })
-        .catch((nextError) => {
-          if (cancelled) return;
-          setFeeQuotes({});
-          setFeeError(nextError instanceof Error ? nextError.message : 'نرخی گەیاندن و کرێی پلاتفۆرم نەدۆزرایەوە.');
-        })
-        .finally(() => { if (!cancelled) setFeesLoading(false); });
-    }, 250);
-    return () => { cancelled = true; window.clearTimeout(timeout); };
-  }, [deliveryCity, feeGroups]);
+
 
   const currentUnitPrice = (item: CartItem) => {
     if (item.product?.restaurantMenu) {
@@ -127,6 +98,37 @@ export function CheckoutPage() {
     }
     return [...groups.values()];
   }, [items]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const city = deliveryCity.trim();
+    if (city.length < 2 || feeGroups.length === 0) {
+      setFeeQuotes({});
+      setFeeError(null);
+      setFeesLoading(false);
+      return;
+    }
+    setFeesLoading(true);
+    setFeeError(null);
+    const timeout = window.setTimeout(() => {
+      void Promise.all(feeGroups.map(async (group) => ({
+        storeId: group.storeId,
+        quote: await quoteOrderFees(city, group.categoryKey),
+      })))
+        .then((results) => {
+          if (cancelled) return;
+          setFeeQuotes(Object.fromEntries(results.map((result) => [result.storeId, result.quote])));
+          setFeeError(null);
+        })
+        .catch((nextError) => {
+          if (cancelled) return;
+          setFeeQuotes({});
+          setFeeError(nextError instanceof Error ? nextError.message : 'نرخی گەیاندن و کرێی پلاتفۆرم نەدۆزرایەوە.');
+        })
+        .finally(() => { if (!cancelled) setFeesLoading(false); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timeout); };
+  }, [deliveryCity, feeGroups]);
 
   const feesReady = feeGroups.length > 0 && feeGroups.every((group) => Boolean(feeQuotes[group.storeId]));
   const deliveryFeeTotal = feesReady
