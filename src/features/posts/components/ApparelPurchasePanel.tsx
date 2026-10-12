@@ -5,7 +5,7 @@ import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { ApparelVariant, Post } from '../types';
 import { createApparelPostOrder } from '../apparelOrders';
-import { calculatePlatformFee, getDeliveryFeeQuote, type DeliveryFeeQuote } from '@/features/checkout/deliveryPricing';
+import { quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
 
 type Props = { post: Post; variant: ApparelVariant };
 
@@ -16,7 +16,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
   const [showCheckout, setShowCheckout] = useState(false);
   const [address, setAddress] = useState('');
   const [deliveryCity, setDeliveryCity] = useState('');
-  const [feeConfig, setFeeConfig] = useState<DeliveryFeeQuote | null>(null);
+  const [feeConfig, setFeeConfig] = useState<OrderFeeQuote | null>(null);
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
@@ -37,8 +37,9 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     let cancelled = false;
     const city = deliveryCity.trim();
     if (city.length < 2) { setFeeConfig(null); return; }
+    setFeeConfig(null);
     const timeout = window.setTimeout(() => {
-      void getDeliveryFeeQuote(city)
+      void quoteOrderFees(city, 'fashion')
         .then((quote) => { if (!cancelled) setFeeConfig(quote); })
         .catch(() => { if (!cancelled) setFeeConfig(null); });
     }, 250);
@@ -52,7 +53,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
   const price = Math.round((variant.price_iqd ?? post.price_iqd ?? 0) * (100 - Math.max(0, Math.min(99, post.discount_percent ?? 0))) / 100);
   const subtotal = price * quantity;
   const deliveryFee = feeConfig?.delivery_fee_iqd ?? 0;
-  const platformFee = feeConfig ? calculatePlatformFee(subtotal, feeConfig.platform_fee_percent) : 0;
+  const platformFee = feeConfig ? Number(feeConfig.platform_fee_iqd ?? 0) : 0;
   const total = subtotal + deliveryFee + platformFee;
   const ownPost = Boolean(user?.id && user.id === post.author_id);
 
@@ -112,7 +113,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
       <div className="space-y-2 border-t border-black/10 pt-3 text-sm">
         <div className="flex justify-between"><span className="font-bold text-black/45">کۆی جل‌وبەرگ</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
         <div className="flex justify-between"><span className="font-bold text-black/45">گەیاندن</span><span className="font-black">{feeConfig ? deliveryFee.toLocaleString('en-US') + ' د.ع' : 'شار دیاری بکە'}</span></div>
-        <div className="flex justify-between"><span className="font-bold text-black/45">کرێی پلاتفۆرمی شاخ ({feeConfig?.platform_fee_percent ?? 0}٪)</span><span className="font-black">{feeConfig ? platformFee.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
+        <div className="flex justify-between"><span className="font-bold text-black/45">کرێی پلاتفۆرمی شاخ</span><span className="font-black">{feeConfig ? platformFee.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
         <div className="flex justify-between border-t border-black/10 pt-3"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{total.toLocaleString('en-US')} د.ع</span></div>
       </div>
       {!showCheckout ? (
