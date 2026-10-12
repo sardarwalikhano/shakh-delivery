@@ -1,4 +1,4 @@
-import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, LayoutDashboard, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards } from 'lucide-react';
+import { BarChart3, Bell, Boxes, Calculator, ChevronLeft, CircleHelp, LayoutDashboard, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view' },
   { label: 'پارەدان', href: '/dashboard/payments', icon: WalletCards, permission: 'payments.view' },
+  { label: 'کرێی گەیاندن و پلاتفۆرم', href: '/dashboard/fees', icon: Calculator, permission: 'settings.manage' },
   { label: 'بەکارهێنەران', href: '/dashboard/users', icon: Users, permission: 'users.view' },
   { label: 'ڕاپۆرتەکان', href: '/dashboard/reports', icon: BarChart3, permission: 'reports.view' },
   { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.manage' },
