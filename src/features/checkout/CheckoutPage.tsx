@@ -10,7 +10,7 @@ import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
 import type { PaymentMethod } from './types';
 import { isRestaurantMenuAvailable } from '@/lib/catalog/restaurant';
 import { isSupermarketItemExpired } from '@/lib/catalog/supermarket';
-import { calculatePlatformFee, getDeliveryFeeQuote, type DeliveryFeeQuote } from './deliveryPricing';
+import { quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
 
 export function CheckoutPage() {
   const { user } = useAuth();
@@ -20,8 +20,9 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [address, setAddress] = useState('');
   const [deliveryCity, setDeliveryCity] = useState('');
-  const [feeConfig, setFeeConfig] = useState<DeliveryFeeQuote | null>(null);
+  const [feeQuotes, setFeeQuotes] = useState<Record<string, OrderFeeQuote>>({});
   const [feeError, setFeeError] = useState<string | null>(null);
+  const [feesLoading, setFeesLoading] = useState(false);
   const [phone, setPhone] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [note, setNote] = useState('');
@@ -47,18 +48,33 @@ export function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     const city = deliveryCity.trim();
-    if (city.length < 2) {
-      setFeeConfig(null);
+    if (city.length < 2 || feeGroups.length === 0) {
+      setFeeQuotes({});
       setFeeError(null);
+      setFeesLoading(false);
       return;
     }
+    setFeesLoading(true);
+    setFeeError(null);
     const timeout = window.setTimeout(() => {
-      void getDeliveryFeeQuote(city)
-        .then((quote) => { if (!cancelled) { setFeeConfig(quote); setFeeError(null); } })
-        .catch((nextError) => { if (!cancelled) { setFeeConfig(null); setFeeError(nextError instanceof Error ? nextError.message : 'نرخی گەیاندن نەدۆزرایەوە.'); } });
+      void Promise.all(feeGroups.map(async (group) => ({
+        storeId: group.storeId,
+        quote: await quoteOrderFees(city, group.categoryKey),
+      })))
+        .then((results) => {
+          if (cancelled) return;
+          setFeeQuotes(Object.fromEntries(results.map((result) => [result.storeId, result.quote])));
+          setFeeError(null);
+        })
+        .catch((nextError) => {
+          if (cancelled) return;
+          setFeeQuotes({});
+          setFeeError(nextError instanceof Error ? nextError.message : 'نرخی گەیاندن و کرێی پلاتفۆرم نەدۆزرایەوە.');
+        })
+        .finally(() => { if (!cancelled) setFeesLoading(false); });
     }, 250);
     return () => { cancelled = true; window.clearTimeout(timeout); };
-  }, [deliveryCity]);
+  }, [deliveryCity, feeGroups]);
 
   const currentUnitPrice = (item: CartItem) => {
     if (item.product?.restaurantMenu) {
@@ -83,25 +99,41 @@ export function CheckoutPage() {
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + currentUnitPrice(item) * item.quantity, 0), [items]);
 
   const feeGroups = useMemo(() => {
-    const groups = new Map<string, { subtotal: number; deliveryEligible: boolean }>();
-    for (const item of items) {
+    // Match server-side checkout grouping: items are ordered by store/category,
+    // and one receipt/order (plus one fee quote) is created per store.
+    const sortedItems = items
+      .filter((item) => Boolean(item.product))
+      .slice()
+      .sort((left, right) => {
+        const storeComparison = (left.product?.store_id ?? '').localeCompare(right.product?.store_id ?? '');
+        if (storeComparison !== 0) return storeComparison;
+        const leftCategory = (left.product?.category?.slug ?? 'general').toLocaleLowerCase();
+        const rightCategory = (right.product?.category?.slug ?? 'general').toLocaleLowerCase();
+        const categoryComparison = leftCategory.localeCompare(rightCategory);
+        return categoryComparison !== 0 ? categoryComparison : left.id.localeCompare(right.id);
+      });
+    const groups = new Map<string, { storeId: string; categoryKey: string; subtotal: number; itemCount: number }>();
+    for (const item of sortedItems) {
       if (!item.product) continue;
       const storeId = item.product.store_id;
-      const categorySlug = (item.product.category?.slug ?? '').toLocaleLowerCase();
-      const deliveryEligible = categorySlug !== 'cars' && categorySlug !== 'umrah';
-      const group = groups.get(storeId) ?? { subtotal: 0, deliveryEligible: false };
-      group.subtotal += currentUnitPrice(item) * item.quantity;
-      group.deliveryEligible = group.deliveryEligible || deliveryEligible;
-      groups.set(storeId, group);
+      const categoryKey = (item.product.category?.slug ?? 'general').toLocaleLowerCase();
+      const group = groups.get(storeId);
+      if (group) {
+        group.subtotal += currentUnitPrice(item) * item.quantity;
+        group.itemCount += item.quantity;
+      } else {
+        groups.set(storeId, { storeId, categoryKey, subtotal: currentUnitPrice(item) * item.quantity, itemCount: item.quantity });
+      }
     }
     return [...groups.values()];
   }, [items]);
 
-  const deliveryFeeTotal = feeConfig
-    ? feeGroups.reduce((sum, group) => sum + (group.deliveryEligible ? feeConfig.delivery_fee_iqd : 0), 0)
+  const feesReady = feeGroups.length > 0 && feeGroups.every((group) => Boolean(feeQuotes[group.storeId]));
+  const deliveryFeeTotal = feesReady
+    ? feeGroups.reduce((sum, group) => sum + Number(feeQuotes[group.storeId].delivery_fee_iqd ?? 0), 0)
     : 0;
-  const platformFeeTotal = feeConfig
-    ? feeGroups.reduce((sum, group) => sum + calculatePlatformFee(group.subtotal, feeConfig.platform_fee_percent), 0)
+  const platformFeeTotal = feesReady
+    ? feeGroups.reduce((sum, group) => sum + Number(feeQuotes[group.storeId].platform_fee_iqd ?? 0), 0)
     : 0;
   const quotedTotal = subtotal + deliveryFeeTotal + platformFeeTotal;
 
@@ -121,8 +153,8 @@ export function CheckoutPage() {
       setError(phoneError);
       return;
     }
-    if (!feeConfig) {
-      setError(feeError ?? 'تکایە چاوەڕێی هەژمارکردنی نرخی گەیاندن بکە.');
+    if (!feesReady || feesLoading) {
+      setError(feeError ?? 'تکایە چاوەڕێی هەژمارکردنی کرێی گەیاندن و پلاتفۆرم بکە.');
       return;
     }
     if (hasUnavailableItems) {
@@ -228,12 +260,12 @@ export function CheckoutPage() {
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between"><span className="text-black/45">ژمارەی دانە</span><span className="font-black">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div>
                 <div className="flex justify-between"><span className="text-black/45">کۆی بەرهەمەکان</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
-                <div className="flex justify-between"><span className="text-black/45">گەیاندن ({feeGroups.filter((group) => group.deliveryEligible).length} وەسلە)</span><span className="font-bold">{feeConfig ? deliveryFeeTotal.toLocaleString('en-US') + ' د.ع' : 'شار دیاری بکە'}</span></div>
-                <div className="flex justify-between"><span className="text-black/45">کرێی پلاتفۆرمی شاخ ({feeConfig?.platform_fee_percent ?? 0}٪)</span><span className="font-bold">{feeConfig ? platformFeeTotal.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-black/45">گەیاندن ({feeGroups.filter((group) => group.deliveryEligible).length} وەسلە)</span><span className="font-bold">{feesReady ? deliveryFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : 'شار دیاری بکە'}</span></div>
+                <div className="flex justify-between"><span className="text-black/45">کرێی پلاتفۆرمی شاخ</span><span className="font-bold">{feesReady ? platformFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : '—'}</span></div>
                 <div className="border-t border-black/[0.06] pt-4 flex justify-between"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{quotedTotal.toLocaleString('en-US')} د.ع</span></div>
-                <p className="text-xs leading-5 text-black/40">گەیاندن بەپێی ژمارەی فرۆشگا/وەسلەکان هەژمار دەکرێت؛ ئۆتۆمبێل و حەج/عومرە کرێی گەیاندنیان نییە. نرخە کۆتاییەکان لە Supabase پشتڕاست دەکرێنەوە.</p>
+                <p className="text-xs leading-5 text-black/40">کرێی گەیاندن بەپێی شار و کاتەگۆری هەر وەسلەیەک جیاوازە؛ ئۆتۆمبێل و حەج/عومرە کرێی گەیاندنیان نییە. کرێی پلاتفۆرمی شاخ بە بڕی جێگیر هەژمار دەکرێت.</p>
               </div>
-              <button disabled={submitting || loadingProfile || hasUnavailableItems} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
+              <button disabled={submitting || loadingProfile || hasUnavailableItems || !feesReady || feesLoading} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
               <p className="mt-3 text-xs leading-5 text-black/35">نرخ و stock لە server پشتڕاست کراوەتەوە. دووبارە ناردن بە idempotency پارێزراوە.</p>
             </aside>
           </form>
