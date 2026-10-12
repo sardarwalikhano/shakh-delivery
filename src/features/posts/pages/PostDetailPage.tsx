@@ -10,6 +10,7 @@ import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelVariant, 
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
+import { FoodPostPurchasePanel } from '../components/FoodPostPurchasePanel';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { singleVehicleListing } from '../vehicleTypes';
 
@@ -429,6 +430,7 @@ export function PostDetailPage() {
 
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
+            {post.category === 'food' && post.status === 'active' ? <FoodPostPurchasePanel post={post} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
 
             {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
