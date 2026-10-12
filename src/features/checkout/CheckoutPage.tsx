@@ -10,7 +10,7 @@ import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
 import type { PaymentMethod } from './types';
 import { isRestaurantMenuAvailable } from '@/lib/catalog/restaurant';
 import { isSupermarketItemExpired } from '@/lib/catalog/supermarket';
-import { quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
+import { isDeliveryExemptCategory, quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
 
 export function CheckoutPage() {
   const { user } = useAuth();
@@ -83,17 +83,30 @@ export function CheckoutPage() {
         const categoryComparison = leftCategory.localeCompare(rightCategory);
         return categoryComparison !== 0 ? categoryComparison : left.id.localeCompare(right.id);
       });
-    const groups = new Map<string, { storeId: string; categoryKey: string; subtotal: number; itemCount: number }>();
+    const groups = new Map<string, { storeId: string; categoryKey: string; subtotal: number; itemCount: number; deliveryEligible: boolean }>();
     for (const item of sortedItems) {
       if (!item.product) continue;
       const storeId = item.product.store_id;
       const categoryKey = (item.product.category?.slug ?? 'general').toLocaleLowerCase();
+      const deliveryEligible = !isDeliveryExemptCategory(categoryKey);
       const group = groups.get(storeId);
       if (group) {
         group.subtotal += currentUnitPrice(item) * item.quantity;
         group.itemCount += item.quantity;
+        group.deliveryEligible = group.deliveryEligible || deliveryEligible;
+        // The database makes one order and one fee decision per store. If a
+        // store has mixed categories, any delivery-eligible item means the
+        // store's delivery is eligible; a store containing only cars/Hajj/
+        // Umrah products remains exempt.
+        if (group.deliveryEligible && isDeliveryExemptCategory(group.categoryKey)) group.categoryKey = 'general';
       } else {
-        groups.set(storeId, { storeId, categoryKey, subtotal: currentUnitPrice(item) * item.quantity, itemCount: item.quantity });
+        groups.set(storeId, {
+          storeId,
+          categoryKey,
+          subtotal: currentUnitPrice(item) * item.quantity,
+          itemCount: item.quantity,
+          deliveryEligible,
+        });
       }
     }
     return [...groups.values()];
