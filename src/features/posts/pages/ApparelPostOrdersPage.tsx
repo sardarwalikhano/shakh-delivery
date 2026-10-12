@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { listApparelPostOrders, updateApparelPostOrderStatus, type ApparelPostOrder, type ApparelPostOrderStatus } from '../apparelOrders';
 import { supabase } from '@/lib/supabase/client';
+import { FoodPostOrdersSection } from '../components/FoodPostOrdersSection';
 
 const labels: Record<ApparelPostOrderStatus,string> = { pending:'لە چاوەڕوانیدایە', confirmed:'پەسەندکرا', rejected:'ڕەتکرایەوە', delivered:'گەیەنراوە', cancelled:'هەڵوەشێنراوەتەوە' };
 
@@ -48,8 +49,8 @@ export function ApparelPostOrdersPage() {
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH Apparel orders</div><h1 className="mt-1 text-3xl font-black">داواکارییەکانی جل‌وبەرگ</h1><p className="mt-2 text-sm leading-6 text-black/50">داواکارییەکانی کڕین و فرۆشتنی پۆستەکانی جل‌وبەرگ؛ کڕین و کۆگا بە RPC ـی پارێزراوی Supabase بەڕێوەدەچن.</p></div><button type="button" onClick={() => void refresh()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><RefreshCw size={16}/> نوێکردنەوە</button></div>
-        {location.state?.orderCreated ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">داواکارییەکەت تۆمارکرا؛ فرۆشیار دەتوانێت پەسەندی بکات.</div> : null}
+        <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post orders</div><h1 className="mt-1 text-3xl font-black">داواکارییەکانی پۆست</h1><p className="mt-2 text-sm leading-6 text-black/50">داواکارییەکانی خواردن و جل‌وبەرگ لێرە بەڕێوەببە؛ داواکارییەکانی کاڵای بازاڕی کاتالۆگ لە بەشی ئۆردەری بازاڕن.</p></div><button type="button" onClick={() => void refresh()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><RefreshCw size={16}/> نوێکردنەوە</button></div>
+        {location.state?.orderCreated ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">داواکارییەکەت تۆمارکرا؛ فرۆشیار دەتوانێت پەسەندی بکات یان ڕەتی بکاتەوە.</div> : null}
         {error ? <div role="alert" className="mt-4 rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
         {message ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">{message}</div> : null}
         {loading ? <div className="mt-6 rounded-2xl bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : orders.length === 0 ? <div className="mt-6 rounded-[28px] bg-white p-12 text-center"><PackageCheck size={30} className="mx-auto text-black/25"/><h2 className="mt-3 text-xl font-black">هێشتا داواکاریی جل‌وبەرگ نییە</h2><Link to="/posts" className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">گەڕان بۆ کاڵاکان</Link></div> : (
@@ -66,6 +67,7 @@ export function ApparelPostOrdersPage() {
             </article>;
           })}</div>
         )}
+        <FoodPostOrdersSection />
       </div>
     </section>
   );
