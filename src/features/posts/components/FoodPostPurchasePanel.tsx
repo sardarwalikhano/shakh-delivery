@@ -5,6 +5,7 @@ import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { Post } from '../types';
 import { createFoodPostOrder } from '../foodPostOrders';
+import { calculatePlatformFee, getDeliveryFeeQuote, type DeliveryFeeQuote } from '@/features/checkout/deliveryPricing';
 
 type Props = { post: Post };
 
@@ -14,6 +15,8 @@ export function FoodPostPurchasePanel({ post }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [showCheckout, setShowCheckout] = useState(false);
   const [address, setAddress] = useState('');
+  const [deliveryCity, setDeliveryCity] = useState('');
+  const [feeConfig, setFeeConfig] = useState<DeliveryFeeQuote | null>(null);
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
@@ -28,9 +31,24 @@ export function FoodPostPurchasePanel({ post }: Props) {
 
   useEffect(() => { setQuantity(1); }, [post.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const city = deliveryCity.trim();
+    if (city.length < 2) { setFeeConfig(null); return; }
+    const timeout = window.setTimeout(() => {
+      void getDeliveryFeeQuote(city)
+        .then((quote) => { if (!cancelled) setFeeConfig(quote); })
+        .catch(() => { if (!cancelled) setFeeConfig(null); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timeout); };
+  }, [deliveryCity]);
+
   const discount = Math.max(0, Math.min(99, post.discount_percent ?? 0));
   const price = Math.round(Number(post.price_iqd ?? 0) * (100 - discount) / 100);
   const subtotal = price * quantity;
+  const deliveryFee = feeConfig?.delivery_fee_iqd ?? 0;
+  const platformFee = feeConfig ? calculatePlatformFee(subtotal, feeConfig.platform_fee_percent) : 0;
+  const total = subtotal + deliveryFee + platformFee;
   const ownPost = Boolean(user?.id && user.id === post.author_id);
   const canOrder = post.status === 'active' && Number.isFinite(price) && price > 0;
 
@@ -47,6 +65,8 @@ export function FoodPostPurchasePanel({ post }: Props) {
       setError('ژمارەی داواکاری دەبێت لە ١ تا ١٠٠ دانە بێت.');
       return;
     }
+    if (deliveryCity.trim().length < 2) { setError('شارەکەت دیاری بکە بۆ هەژمارکردنی نرخ.'); return; }
+    if (!feeConfig) { setError('نرخی گەیاندن نەدۆزرایەوە؛ شارەکەت بپشکنەوە.'); return; }
     if (address.trim().length < 5) { setError('ناونیشانی گەیاندن بە وردی بنووسە.'); return; }
     const phoneError = validatePhone(phone);
     if (phoneError) { setError(phoneError); return; }
@@ -58,6 +78,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
       await createFoodPostOrder({
         requestId: requestId.current,
         postId: post.id,
+        deliveryCity: deliveryCity.trim(),
         quantity,
         deliveryAddress: address.trim(),
         buyerPhone: phone,
@@ -95,9 +116,11 @@ export function FoodPostPurchasePanel({ post }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-black/10 pt-3">
-        <span className="font-bold text-black/45">کۆی نرخی خواردن</span>
-        <span className="text-xl font-black">{subtotal.toLocaleString('en-US')} د.ع</span>
+      <div className="space-y-2 border-t border-black/10 pt-3 text-sm">
+        <div className="flex justify-between"><span className="font-bold text-black/45">کۆی نرخی خواردن</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
+        <div className="flex justify-between"><span className="font-bold text-black/45">گەیاندن</span><span className="font-black">{feeConfig ? deliveryFee.toLocaleString('en-US') + ' د.ع' : 'شار دیاری بکە'}</span></div>
+        <div className="flex justify-between"><span className="font-bold text-black/45">کرێی پلاتفۆرمی شاخ ({feeConfig?.platform_fee_percent ?? 0}٪)</span><span className="font-black">{feeConfig ? platformFee.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
+        <div className="flex justify-between border-t border-black/10 pt-3"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{total.toLocaleString('en-US')} د.ع</span></div>
       </div>
 
       {!showCheckout ? (
@@ -112,6 +135,11 @@ export function FoodPostPurchasePanel({ post }: Props) {
         </button>
       ) : (
         <form onSubmit={submit} className="space-y-3 border-t border-black/10 pt-4">
+          <label className="block">
+            <span className="mb-2 block text-sm font-black">شار / ناوچە *</span>
+            <input list="food-post-delivery-cities" required minLength={2} maxLength={100} value={deliveryCity} onChange={(event) => { setDeliveryCity(event.target.value); setError(null); }} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="بەردەڕەش، هەولێر، دهۆک..."/>
+            <datalist id="food-post-delivery-cities"><option value="بەردەڕەش"/><option value="هەولێر"/><option value="دهۆک"/><option value="سلێمانی"/><option value="کەرکووک"/><option value="زاخۆ"/><option value="مووسڵ"/><option value="بەغدا"/></datalist>
+          </label>
           <label className="block">
             <span className="mb-2 block text-sm font-black"><MapPin size={15} className="me-1 inline"/>ناونیشانی گەیاندن *</span>
             <textarea required minLength={5} maxLength={1000} value={address} onChange={(event) => setAddress(event.target.value)} className="min-h-24 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="شار، گەڕەک، شەقام و ژمارەی خانوو"/>
@@ -131,7 +159,7 @@ export function FoodPostPurchasePanel({ post }: Props) {
           {error ? <div role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{error}</div> : null}
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowCheckout(false)} disabled={busy} className="min-h-12 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black">پاشگەزبوونەوە</button>
-            <button type="submit" disabled={busy || !canOrder} className="min-h-12 flex-1 rounded-2xl bg-[var(--shakh-orange)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? 'تۆمارکردن...' : 'داواکاری پشتڕاست بکەرەوە'}</button>
+            <button type="submit" disabled={busy || !canOrder || !feeConfig} className="min-h-12 flex-1 rounded-2xl bg-[var(--shakh-orange)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? 'تۆمارکردن...' : 'داواکاری پشتڕاست بکەرەوە'}</button>
           </div>
         </form>
       )}
