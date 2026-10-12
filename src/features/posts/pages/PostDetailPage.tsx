@@ -107,6 +107,9 @@ export function PostDetailPage() {
     }
   }, [selectedSize, sizesForColor]);
 
+  const currentImage = activeImageIndex >= 0 ? images[activeImageIndex]?.storage_path : (selectedVariant?.image_path || images[0]?.storage_path);
+  useEffect(() => { setImageLoadError(false); }, [currentImage]);
+
   if (loading) return <div className="grid min-h-[65dvh] place-items-center"><div className="text-sm font-bold text-black/45">بارکردنی وردەکاریی پۆست...</div></div>;
   if (!post) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="text-2xl font-black">پۆست نەدۆزرایەوە</h1>{error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}<Link className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white" to="/posts">گەڕانەوە بۆ پۆستەکان</Link></div>;
 
@@ -121,8 +124,6 @@ export function PostDetailPage() {
     : vehicleListing ? Math.max(0, Math.min(99, vehicleListing.discount_percent ?? 0)) : 0;
   const finalPrice = Math.round(basePrice * (100 - discount) / 100);
   const currencyLabel = vehicleListing?.currency === 'USD' ? '$' : 'د.ع';
-  const currentImage = activeImageIndex >= 0 ? images[activeImageIndex]?.storage_path : (selectedVariant?.image_path || images[0]?.storage_path);
-  useEffect(() => { setImageLoadError(false); }, [currentImage]);
   const colorStock = sizesForColor.reduce((sum, variant) => sum + variant.stock_quantity, 0);
   const apparelTypeLabels: Record<string, string> = {
     mens_clothing: 'جل‌وبەرگی پیاوان', womens_clothing: 'جل‌وبەرگی ئافرەتان', kids_clothing: 'جل‌وبەرگی منداڵان',
