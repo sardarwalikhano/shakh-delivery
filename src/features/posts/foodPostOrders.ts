@@ -13,6 +13,10 @@ export type FoodPostOrder = {
   quantity: number;
   unit_price_iqd: number;
   line_total_iqd: number;
+  delivery_city: string;
+  delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  total_iqd: number;
   delivery_address: string;
   buyer_phone: string;
   customer_note: string | null;
@@ -27,28 +31,30 @@ export async function createFoodPostOrder(input: {
   postId: string;
   quantity: number;
   deliveryAddress: string;
+  deliveryCity: string;
   buyerPhone: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
-}): Promise<Pick<FoodPostOrder, 'id' | 'order_number' | 'status' | 'quantity' | 'unit_price_iqd' | 'line_total_iqd'>> {
+}): Promise<Pick<FoodPostOrder, 'id' | 'order_number' | 'status' | 'quantity' | 'unit_price_iqd' | 'line_total_iqd' | 'delivery_fee_iqd' | 'platform_fee_iqd' | 'total_iqd'>> {
   const { data, error } = await supabase.rpc('create_food_post_order', {
     p_request_id: input.requestId,
     p_post_id: input.postId,
     p_quantity: input.quantity,
     p_delivery_address: input.deliveryAddress,
+    p_delivery_city: input.deliveryCity,
     p_buyer_phone: input.buyerPhone,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
   });
   if (error) throw error;
   if (!data) throw new Error('داواکاریی خواردن وەڵامی دروستی لە Supabase وەرنەگرت.');
-  return data as Pick<FoodPostOrder, 'id' | 'order_number' | 'status' | 'quantity' | 'unit_price_iqd' | 'line_total_iqd'>;
+  return data as Pick<FoodPostOrder, 'id' | 'order_number' | 'status' | 'quantity' | 'unit_price_iqd' | 'line_total_iqd' | 'delivery_fee_iqd' | 'platform_fee_iqd' | 'total_iqd'>;
 }
 
 export async function listFoodPostOrders(): Promise<FoodPostOrder[]> {
   const { data, error } = await supabase
     .from('food_post_orders')
-    .select('id,order_number,request_id,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,created_at,updated_at')
+    .select('id,order_number,request_id,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,created_at,updated_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
