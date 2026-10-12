@@ -5,6 +5,7 @@ import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { ApparelVariant, Post } from '../types';
 import { createApparelPostOrder } from '../apparelOrders';
+import { quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
 
 type Props = { post: Post; variant: ApparelVariant };
 
@@ -14,6 +15,8 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [showCheckout, setShowCheckout] = useState(false);
   const [address, setAddress] = useState('');
+  const [deliveryCity, setDeliveryCity] = useState('');
+  const [feeConfig, setFeeConfig] = useState<OrderFeeQuote | null>(null);
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
@@ -30,12 +33,29 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     setQuantity(1);
   }, [variant.id]);
 
+  const price = Math.round((variant.price_iqd ?? post.price_iqd ?? 0) * (100 - Math.max(0, Math.min(99, post.discount_percent ?? 0))) / 100);
+  const subtotal = price * quantity;
+
+  useEffect(() => {
+    let cancelled = false;
+    const city = deliveryCity.trim();
+    if (city.length < 2) { setFeeConfig(null); return; }
+    setFeeConfig(null);
+    const timeout = window.setTimeout(() => {
+      void quoteOrderFees(city, 'fashion', subtotal)
+        .then((quote) => { if (!cancelled) setFeeConfig(quote); })
+        .catch(() => { if (!cancelled) setFeeConfig(null); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timeout); };
+  }, [deliveryCity, subtotal]);
+
   useEffect(() => {
     setQuantity((current) => Math.min(Math.max(1, current), Math.max(1, variant.stock_quantity)));
   }, [variant.stock_quantity]);
 
-  const price = Math.round((variant.price_iqd ?? post.price_iqd ?? 0) * (100 - Math.max(0, Math.min(99, post.discount_percent ?? 0))) / 100);
-  const subtotal = price * quantity;
+  const deliveryFee = feeConfig?.delivery_fee_iqd ?? 0;
+  const platformFee = feeConfig ? Number(feeConfig.platform_fee_iqd ?? 0) : 0;
+  const total = subtotal + deliveryFee + platformFee;
   const ownPost = Boolean(user?.id && user.id === post.author_id);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -45,7 +65,9 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     if (ownPost) { setError('ناتوانیت لە پۆستی خۆت بکڕیت.'); return; }
     if (!variant.id || variant.stock_quantity < 1) { setError('ئەم ڕەنگ و قەبارەیە بەردەست نییە.'); return; }
     if (quantity < 1 || quantity > variant.stock_quantity) { setError('ژمارەی داواکراو لە کۆگای بەردەست زیاترە.'); return; }
-    if (!address.trim()) { setError('ناونیشانی گەیاندن پێویستە.'); return; }
+    if (deliveryCity.trim().length < 2) { setError('شارەکەت دیاری بکە بۆ هەژمارکردنی نرخ.'); return; }
+    if (!feeConfig) { setError('نرخی گەیاندن نەدۆزرایەوە؛ شارەکەت بپشکنەوە.'); return; }
+    if (address.trim().length < 5) { setError('ناونیشانی گەیاندن بە وردی بنووسە.'); return; }
     const phoneError = validatePhone(phone);
     if (phoneError) { setError(phoneError); return; }
 
@@ -56,6 +78,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
       await createApparelPostOrder({
         requestId: requestId.current,
         variantId: variant.id,
+        deliveryCity: deliveryCity.trim(),
         quantity,
         deliveryAddress: address,
         buyerPhone: phone,
@@ -88,13 +111,19 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
           <button type="button" aria-label="زیادکردنی ژمارە" disabled={quantity >= variant.stock_quantity} onClick={() => setQuantity((value) => Math.min(variant.stock_quantity, value + 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Plus size={16} /></button>
         </div>
       </div>
-      <div className="flex items-center justify-between border-t border-black/10 pt-3"><span className="font-bold text-black/45">کۆی داواکاری</span><span className="text-xl font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
+      <div className="space-y-2 border-t border-black/10 pt-3 text-sm">
+        <div className="flex justify-between"><span className="font-bold text-black/45">کۆی جل‌وبەرگ</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
+        <div className="flex justify-between"><span className="font-bold text-black/45">گەیاندن</span><span className="font-black">{feeConfig ? deliveryFee.toLocaleString('en-US') + ' د.ع' : 'شار دیاری بکە'}</span></div>
+        <div className="flex justify-between"><span className="font-bold text-black/45">کرێی پلاتفۆرمی شاخ</span><span className="font-black">{feeConfig ? platformFee.toLocaleString('en-US') + ' د.ع' : '—'}</span></div>
+        <div className="flex justify-between border-t border-black/10 pt-3"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{total.toLocaleString('en-US')} د.ع</span></div>
+      </div>
       {!showCheckout ? (
         <button type="button" onClick={() => user ? setShowCheckout(true) : navigate('/login', { state: { from: '/posts/' + post.id } })} disabled={ownPost || variant.stock_quantity < 1} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
           <ShoppingBag size={17} /> {ownPost ? 'ناتوانیت لە پۆستی خۆت بکڕیت' : 'بەردەوامبوون بۆ داواکاری'}
         </button>
       ) : (
         <form onSubmit={submit} className="space-y-3 border-t border-black/10 pt-4">
+          <label className="block"><span className="mb-2 block text-sm font-black">شار / ناوچە *</span><input list="apparel-post-delivery-cities" required minLength={2} maxLength={100} value={deliveryCity} onChange={(event) => { setDeliveryCity(event.target.value); setError(null); }} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="بەردەڕەش، هەولێر، دهۆک..."/><datalist id="apparel-post-delivery-cities"><option value="بەردەڕەش"/><option value="هەولێر"/><option value="دهۆک"/><option value="سلێمانی"/><option value="کەرکووک"/><option value="زاخۆ"/><option value="مووسڵ"/><option value="بەغدا"/></datalist></label>
           <label className="block"><span className="mb-2 block text-sm font-black"><MapPin size={15} className="me-1 inline" />ناونیشانی گەیاندن *</span><textarea required minLength={5} maxLength={1000} value={address} onChange={(event) => setAddress(event.target.value)} className="min-h-24 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="شار، گەڕەک، شەقام و ژمارەی خانوو" /></label>
           <label className="block"><span className="mb-2 block text-sm font-black">ژمارەی مۆبایل *</span><input required type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="+9647501234567" dir="ltr" /></label>
           <label className="block"><span className="mb-2 block text-sm font-black">تێبینی (ئارەزوومەندانە)</span><textarea maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} className="min-h-16 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm" placeholder="تێبینی بۆ فرۆشیار" /></label>
@@ -103,7 +132,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white p-3 text-xs font-bold"><input type="radio" name="apparel-payment" checked={paymentMethod === 'mobile_cash'} onChange={() => setPaymentMethod('mobile_cash')} /><Smartphone size={17} className="text-[var(--shakh-blue)]" />Mobile Cash (pending)</label>
           </div>
           {error ? <div role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{error}</div> : null}
-          <div className="flex gap-2"><button type="button" onClick={() => setShowCheckout(false)} disabled={busy} className="min-h-12 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black">پاشگەزبوونەوە</button><button type="submit" disabled={busy || variant.stock_quantity < quantity} className="min-h-12 flex-1 rounded-2xl bg-[var(--shakh-orange)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? 'تۆمارکردن...' : 'داواکاری پشتڕاست بکەرەوە'}</button></div>
+          <div className="flex gap-2"><button type="button" onClick={() => setShowCheckout(false)} disabled={busy} className="min-h-12 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black">پاشگەزبوونەوە</button><button type="submit" disabled={busy || variant.stock_quantity < quantity || !feeConfig} className="min-h-12 flex-1 rounded-2xl bg-[var(--shakh-orange)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? 'تۆمارکردن...' : 'داواکاری پشتڕاست بکەرەوە'}</button></div>
         </form>
       )}
       {error && !showCheckout ? <div role="alert" className="text-sm font-bold text-red-700">{error}</div> : null}

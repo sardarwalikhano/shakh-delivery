@@ -15,6 +15,10 @@ export type ApparelPostOrder = {
   quantity: number;
   unit_price_iqd: number;
   line_total_iqd: number;
+  delivery_city: string;
+  delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  total_iqd: number;
   delivery_address: string;
   buyer_phone: string;
   customer_note: string | null;
@@ -29,26 +33,28 @@ export async function createApparelPostOrder(input: {
   quantity: number;
   deliveryAddress: string;
   buyerPhone: string;
+  deliveryCity: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
-}): Promise<{ id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number }> {
+}): Promise<{ id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number }> {
   const { data, error } = await supabase.rpc('create_apparel_post_order', {
     p_request_id: input.requestId,
     p_variant_id: input.variantId,
     p_quantity: input.quantity,
     p_delivery_address: input.deliveryAddress,
     p_buyer_phone: input.buyerPhone,
+    p_delivery_city: input.deliveryCity,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
   });
   if (error) throw error;
-  return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number };
+  return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number };
 }
 
 export async function listApparelPostOrders(): Promise<ApparelPostOrder[]> {
   const { data, error } = await supabase
     .from('apparel_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;

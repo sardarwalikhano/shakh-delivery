@@ -3,6 +3,7 @@ import type { PaymentMethod, CheckoutResult } from './types';
 
 export async function createCheckout(input: {
   deliveryAddress: string;
+  deliveryCity: string;
   deliveryLat?: number | null;
   deliveryLng?: number | null;
   customerNote?: string | null;
@@ -12,6 +13,7 @@ export async function createCheckout(input: {
   const { data, error } = await supabase.rpc('create_checkout', {
     p_idempotency_key: key,
     p_delivery_address: input.deliveryAddress,
+    p_delivery_city: input.deliveryCity,
     p_delivery_lat: input.deliveryLat ?? null,
     p_delivery_lng: input.deliveryLng ?? null,
     p_customer_note: input.customerNote ?? null,

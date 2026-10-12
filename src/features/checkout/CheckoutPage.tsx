@@ -10,6 +10,7 @@ import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
 import type { PaymentMethod } from './types';
 import { isRestaurantMenuAvailable } from '@/lib/catalog/restaurant';
 import { isSupermarketItemExpired } from '@/lib/catalog/supermarket';
+import { isDeliveryExemptCategory, quoteOrderFees, type OrderFeeQuote } from '@/features/fees/api';
 
 export function CheckoutPage() {
   const { user } = useAuth();
@@ -18,6 +19,10 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [address, setAddress] = useState('');
+  const [deliveryCity, setDeliveryCity] = useState('');
+  const [feeQuotes, setFeeQuotes] = useState<Record<string, OrderFeeQuote>>({});
+  const [feeError, setFeeError] = useState<string | null>(null);
+  const [feesLoading, setFeesLoading] = useState(false);
   const [phone, setPhone] = useState('');
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [note, setNote] = useState('');
@@ -39,6 +44,8 @@ export function CheckoutPage() {
         setLoadingProfile(false);
       });
   }, [user]);
+
+
 
   const currentUnitPrice = (item: CartItem) => {
     if (item.product?.restaurantMenu) {
@@ -62,9 +69,97 @@ export function CheckoutPage() {
   const hasUnavailableItems = unavailableItems.length > 0;
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + currentUnitPrice(item) * item.quantity, 0), [items]);
 
+  const feeGroups = useMemo(() => {
+    // Match server-side checkout grouping: items are ordered by store/category,
+    // and one receipt/order (plus one fee quote) is created per store.
+    const sortedItems = items
+      .filter((item) => Boolean(item.product))
+      .slice()
+      .sort((left, right) => {
+        const storeComparison = (left.product?.store_id ?? '').localeCompare(right.product?.store_id ?? '');
+        if (storeComparison !== 0) return storeComparison;
+        const leftCategory = (left.product?.category?.slug ?? 'general').toLocaleLowerCase();
+        const rightCategory = (right.product?.category?.slug ?? 'general').toLocaleLowerCase();
+        const categoryComparison = leftCategory.localeCompare(rightCategory);
+        return categoryComparison !== 0 ? categoryComparison : left.id.localeCompare(right.id);
+      });
+    const groups = new Map<string, { storeId: string; categoryKey: string; subtotal: number; itemCount: number; deliveryEligible: boolean }>();
+    for (const item of sortedItems) {
+      if (!item.product) continue;
+      const storeId = item.product.store_id;
+      const categoryKey = (item.product.category?.slug ?? 'general').toLocaleLowerCase();
+      const deliveryEligible = !isDeliveryExemptCategory(categoryKey);
+      const group = groups.get(storeId);
+      if (group) {
+        group.subtotal += currentUnitPrice(item) * item.quantity;
+        group.itemCount += item.quantity;
+        group.deliveryEligible = group.deliveryEligible || deliveryEligible;
+        // The database makes one order and one fee decision per store. If a
+        // store has mixed categories, any delivery-eligible item means the
+        // store's delivery is eligible; a store containing only cars/Hajj/
+        // Umrah products remains exempt.
+        if (group.deliveryEligible && isDeliveryExemptCategory(group.categoryKey)) group.categoryKey = 'general';
+      } else {
+        groups.set(storeId, {
+          storeId,
+          categoryKey,
+          subtotal: currentUnitPrice(item) * item.quantity,
+          itemCount: item.quantity,
+          deliveryEligible,
+        });
+      }
+    }
+    return [...groups.values()];
+  }, [items]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const city = deliveryCity.trim();
+    if (city.length < 2 || feeGroups.length === 0) {
+      setFeeQuotes({});
+      setFeeError(null);
+      setFeesLoading(false);
+      return;
+    }
+    setFeesLoading(true);
+    setFeeQuotes({});
+    setFeeError(null);
+    const timeout = window.setTimeout(() => {
+      void Promise.all(feeGroups.map(async (group) => ({
+        storeId: group.storeId,
+        quote: await quoteOrderFees(city, group.categoryKey, group.subtotal),
+      })))
+        .then((results) => {
+          if (cancelled) return;
+          setFeeQuotes(Object.fromEntries(results.map((result) => [result.storeId, result.quote])));
+          setFeeError(null);
+        })
+        .catch((nextError) => {
+          if (cancelled) return;
+          setFeeQuotes({});
+          setFeeError(nextError instanceof Error ? nextError.message : 'نرخی گەیاندن و کرێی پلاتفۆرم نەدۆزرایەوە.');
+        })
+        .finally(() => { if (!cancelled) setFeesLoading(false); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timeout); };
+  }, [deliveryCity, feeGroups]);
+
+  const feesReady = feeGroups.length > 0 && feeGroups.every((group) => Boolean(feeQuotes[group.storeId]));
+  const deliveryFeeTotal = feesReady
+    ? feeGroups.reduce((sum, group) => sum + Number(feeQuotes[group.storeId].delivery_fee_iqd ?? 0), 0)
+    : 0;
+  const platformFeeTotal = feesReady
+    ? feeGroups.reduce((sum, group) => sum + Number(feeQuotes[group.storeId].platform_fee_iqd ?? 0), 0)
+    : 0;
+  const quotedTotal = subtotal + deliveryFeeTotal + platformFeeTotal;
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    if (!deliveryCity.trim()) {
+      setError('شارەکەت دیاری بکە بۆ هەژمارکردنی نرخی گەیاندن.');
+      return;
+    }
     if (!address.trim()) {
       setError('ناونیشانی گەیاندن پێویستە.');
       return;
@@ -74,6 +169,10 @@ export function CheckoutPage() {
       setError(phoneError);
       return;
     }
+    if (!feesReady || feesLoading) {
+      setError(feeError ?? 'تکایە چاوەڕێی هەژمارکردنی کرێی گەیاندن و پلاتفۆرم بکە.');
+      return;
+    }
     if (hasUnavailableItems) {
       setError('هەندێک خواردن بەردەست نییە یان زیادکراوەیەک گۆڕاوە. تکایە سەبەتە نوێ بکەرەوە و پێش checkout هەڵبژاردەکان چاک بکە.');
       return;
@@ -81,7 +180,7 @@ export function CheckoutPage() {
     setSubmitting(true);
     try {
       await updateMyPhone(phone);
-      const result = await createCheckout({ deliveryAddress: address, deliveryLat: coordinates?.latitude ?? null, deliveryLng: coordinates?.longitude ?? null, customerNote: note, paymentMethod });
+      const result = await createCheckout({ deliveryAddress: address, deliveryCity: deliveryCity.trim(), deliveryLat: coordinates?.latitude ?? null, deliveryLng: coordinates?.longitude ?? null, customerNote: note, paymentMethod });
       navigate(`/orders?checkout=${result.checkout_id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout سەرنەکەوت.');
@@ -126,6 +225,15 @@ export function CheckoutPage() {
                     disabled={loadingProfile}
                   />
                 </label>
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-sm font-black">شار / ناوچە *</span>
+                  <input list="shakh-delivery-cities" value={deliveryCity} onChange={(event) => { setDeliveryCity(event.target.value); setFeeError(null); }} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3.5 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="بەردەڕەش، هەولێر، دهۆک..." maxLength={100} autoComplete="address-level2" required />
+                  <datalist id="shakh-delivery-cities">
+                    <option value="بەردەڕەش" /><option value="هەولێر" /><option value="دهۆک" /><option value="سلێمانی" /><option value="کەرکووک" /><option value="زاخۆ" /><option value="مووسڵ" /><option value="بەغدا" />
+                  </datalist>
+                  <span className="mt-1 block text-xs font-medium text-black/40">نرخ بەپێی شار هەژمار دەکرێت؛ بۆ شارێکی نوێ نرخی بنەڕەتی بەکار دێت.</span>
+                  {feeError ? <span role="alert" className="mt-1 block text-xs font-bold text-red-600">{feeError}</span> : null}
+                </label>
                 <textarea value={address} onChange={(event) => setAddress(event.target.value)} className="mt-4 min-h-28 w-full resize-y rounded-2xl border border-black/10 bg-white p-4 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="شار، گەڕەک، شەقام، ژمارەی خانوو..." required />
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button type="button" disabled={locating} onClick={() => {
@@ -168,10 +276,12 @@ export function CheckoutPage() {
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex justify-between"><span className="text-black/45">ژمارەی دانە</span><span className="font-black">{items.reduce((sum, item) => sum + item.quantity, 0)}</span></div>
                 <div className="flex justify-between"><span className="text-black/45">کۆی بەرهەمەکان</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
-                <div className="flex justify-between"><span className="text-black/45">گەیاندن</span><span className="font-bold text-black/45">لە ئێستادا هەژمار نەکراوە</span></div>
-                <div className="border-t border-black/[0.06] pt-4 flex justify-between"><span className="font-black">کۆی کاتی</span><span className="text-xl font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
+                <div className="flex justify-between"><span className="text-black/45">گەیاندن</span><span className="font-bold">{feesReady ? deliveryFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : 'شار دیاری بکە'}</span></div>
+                <div className="flex justify-between"><span className="text-black/45">کرێی پلاتفۆرمی شاخ</span><span className="font-bold">{feesReady ? platformFeeTotal.toLocaleString('en-US') + ' د.ع' : feesLoading ? 'هەژماردن...' : '—'}</span></div>
+                <div className="border-t border-black/[0.06] pt-4 flex justify-between"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{quotedTotal.toLocaleString('en-US')} د.ع</span></div>
+                <p className="text-xs leading-5 text-black/40">کرێی گەیاندن بەپێی شار و کاتەگۆری هەر وەسلەیەک جیاوازە؛ ئۆتۆمبێل و حەج/عومرە کرێی گەیاندنیان نییە. کرێی پلاتفۆرمی شاخ بە بڕی جێگیر هەژمار دەکرێت.</p>
               </div>
-              <button disabled={submitting || loadingProfile || hasUnavailableItems} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
+              <button disabled={submitting || loadingProfile || hasUnavailableItems || !feesReady || feesLoading} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{submitting ? 'جێبەجێکردن...' : 'داواکاری تۆمار بکە'}</button>
               <p className="mt-3 text-xs leading-5 text-black/35">نرخ و stock لە server پشتڕاست کراوەتەوە. دووبارە ناردن بە idempotency پارێزراوە.</p>
             </aside>
           </form>

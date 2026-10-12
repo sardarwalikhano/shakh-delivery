@@ -29,6 +29,7 @@ import { CreatePostPage } from '@/features/posts/pages/CreatePostPage';
 import { PostDetailPage } from '@/features/posts/pages/PostDetailPage';
 import { MyPostsPage } from '@/features/posts/pages/MyPostsPage';
 import { ApparelPostOrdersPage } from '@/features/posts/pages/ApparelPostOrdersPage';
+import { DeliveryFeeSettingsPage } from '@/features/fees/pages/DeliveryFeeSettingsPage';
 
 export function App() {
   return (
@@ -57,8 +58,10 @@ export function App() {
         <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/store" element={<RequireAuth><RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/products" element={<RequireAuth><RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission></RequireAuth>} />
+        <Route path="/dashboard/delivery-fees" element={<RequireAuth><RequirePermission permission="settings.manage"><DeliveryFeeSettingsPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/deliveries" element={<RequireAuth><RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/notifications" element={<RequireAuth><RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission></RequireAuth>} />
+        <Route path="/dashboard/fees" element={<RequireAuth><RequirePermission permission="settings.manage"><DeliveryFeeSettingsPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/role-requests" element={<RequireAuth><RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission></RequireAuth>} />
         <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
         <Route path="/dashboard/*" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />

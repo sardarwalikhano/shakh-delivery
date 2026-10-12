@@ -126,6 +126,12 @@ export async function getMyProfilePhone(): Promise<string> {
   return typeof data?.phone === 'string' ? data.phone : '';
 }
 
+export async function getMyProfileCity(): Promise<string> {
+  const { data, error } = await supabase.from('profiles').select('city').maybeSingle();
+  if (error) throw error;
+  return typeof data?.city === 'string' && data.city.trim().length >= 2 ? data.city.trim() : 'هەولێر';
+}
+
 export async function updateMyPhone(phone: string): Promise<void> {
   const normalizedPhone = normalizePhone(phone);
   const phoneError = validatePhone(normalizedPhone);

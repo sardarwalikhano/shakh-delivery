@@ -7,7 +7,9 @@ export type Order = {
   status: OrderStatus;
   subtotal_iqd: number;
   delivery_fee_iqd: number;
+  platform_fee_iqd: number;
   total_iqd: number;
+  delivery_city: string;
   delivery_address: string;
   delivery_lat: number | null;
   delivery_lng: number | null;
