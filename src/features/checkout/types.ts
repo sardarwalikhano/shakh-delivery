@@ -6,6 +6,8 @@ export type CheckoutResult = {
   payment_method: PaymentMethod;
   subtotal_iqd: number;
   delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  delivery_city: string;
   total_iqd: number;
-  orders?: Array<{ id: string; order_number: string; store_id: string }>;
+  orders?: Array<{ id: string; order_number: string; store_id: string; delivery_fee_iqd?: number; platform_fee_iqd?: number; total_iqd?: number }>;
 };
