@@ -1,5 +1,6 @@
--- Configurable, city/category-based delivery fees and a global SHAKH platform fee.
--- Fees are calculated and snapshotted in Postgres; changing settings affects future orders only.
+-- Configurable, city/category-based delivery fees and a fixed global SHAKH platform fee.
+-- Safe upgrade: older production schema used city_name_ku/is_default and fee_percent.
+-- Existing records are retained and converted into compatible city/category rules.
 create table if not exists public.delivery_fee_rules (
   id uuid primary key default gen_random_uuid(),
   city text not null,
@@ -14,6 +15,58 @@ create table if not exists public.delivery_fee_rules (
   constraint delivery_fee_rules_category_valid check (char_length(btrim(category_key)) between 1 and 80)
 );
 
+-- Migrate the older table in place; do not drop its legacy columns/data.
+alter table public.delivery_fee_rules add column if not exists city text;
+alter table public.delivery_fee_rules add column if not exists category_key text;
+alter table public.delivery_fee_rules add column if not exists updated_by uuid references auth.users(id) on delete set null;
+
+do $migration$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='delivery_fee_rules' and column_name='city_name_ku'
+  ) and exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='delivery_fee_rules' and column_name='is_default'
+  ) then
+    execute $sql$
+      update public.delivery_fee_rules
+      set city = case
+        when is_default or city_name_ku = '__default__' then '*'
+        else city_name_ku
+      end
+      where city is null
+    $sql$;
+    execute 'alter table public.delivery_fee_rules alter column city_name_ku drop not null';
+    execute 'alter table public.delivery_fee_rules alter column is_default set default false';
+  end if;
+end
+$migration$;
+
+update public.delivery_fee_rules set city='*' where city is null or btrim(city)='';
+update public.delivery_fee_rules set category_key='all' where category_key is null or btrim(category_key)='';
+alter table public.delivery_fee_rules alter column city set not null;
+alter table public.delivery_fee_rules alter column category_key set default 'all';
+alter table public.delivery_fee_rules alter column category_key set not null;
+
+create unique index if not exists delivery_fee_rules_city_category_unique
+  on public.delivery_fee_rules(city, category_key);
+
+-- Preserve the prior default delivery price where present; otherwise start at 0.
+insert into public.delivery_fee_rules(city, category_key, delivery_fee_iqd, is_active)
+values (
+  '*', 'all',
+  coalesce((select r.delivery_fee_iqd from public.delivery_fee_rules r where r.city='*' and r.category_key='all' limit 1), 0),
+  true
+)
+on conflict (city, category_key) do nothing;
+
+-- Requested starting rule: food delivery in بەردەڕەش is 1,000 IQD.
+-- City-specific category rules override city-wide/category-wide fallback rules.
+insert into public.delivery_fee_rules(city, category_key, delivery_fee_iqd, is_active)
+values ('بەردەڕەش', 'food', 1000, true)
+on conflict (city, category_key) do nothing;
+
 create table if not exists public.platform_fee_settings (
   id smallint primary key default 1 check (id = 1),
   platform_fee_iqd numeric(14,2) not null default 0 check (platform_fee_iqd >= 0),
@@ -22,9 +75,10 @@ create table if not exists public.platform_fee_settings (
   updated_at timestamptz not null default now()
 );
 
-insert into public.delivery_fee_rules(city, category_key, delivery_fee_iqd, is_active)
-values ('*', 'all', 0, true), ('بەردەڕەش', 'food', 1000, true)
-on conflict (city, category_key) do nothing;
+-- Backward-compatible columns for the legacy global percentage setting.
+alter table public.platform_fee_settings add column if not exists platform_fee_iqd numeric(14,2) not null default 0;
+alter table public.platform_fee_settings add column if not exists is_active boolean not null default true;
+alter table public.platform_fee_settings add column if not exists updated_by uuid references auth.users(id) on delete set null;
 
 insert into public.platform_fee_settings(id, platform_fee_iqd, is_active)
 values (1, 0, true)
@@ -94,8 +148,10 @@ alter table public.checkout_sessions drop constraint if exists checkout_totals_n
 alter table public.checkout_sessions add constraint checkout_totals_nonnegative
 check (subtotal_iqd >= 0 and delivery_fee_iqd >= 0 and platform_fee_iqd >= 0 and total_iqd >= 0);
 
+alter table public.food_post_orders drop constraint if exists food_post_orders_fee_total_consistency;
 alter table public.food_post_orders add constraint food_post_orders_fee_total_consistency
 check (delivery_fee_iqd >= 0 and platform_fee_iqd >= 0 and total_iqd = line_total_iqd + delivery_fee_iqd + platform_fee_iqd);
+alter table public.apparel_post_orders drop constraint if exists apparel_post_orders_fee_total_consistency;
 alter table public.apparel_post_orders add constraint apparel_post_orders_fee_total_consistency
 check (delivery_fee_iqd >= 0 and platform_fee_iqd >= 0 and total_iqd = line_total_iqd + delivery_fee_iqd + platform_fee_iqd);
 
