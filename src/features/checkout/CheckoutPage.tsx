@@ -109,6 +109,7 @@ export function CheckoutPage() {
       return;
     }
     setFeesLoading(true);
+    setFeeQuotes({});
     setFeeError(null);
     const timeout = window.setTimeout(() => {
       void Promise.all(feeGroups.map(async (group) => ({
