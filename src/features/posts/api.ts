@@ -259,11 +259,14 @@ export async function getMyPosts(authorId: string): Promise<Post[]> {
 }
 
 export async function getActivePostById(postId: string): Promise<Post | null> {
+  // RLS exposes active posts to permitted viewers and inactive posts only to
+  // their owner or a post manager. This allows owners to repair archived posts
+  // without making archived/deleted rows public.
   const { data, error } = await supabase
     .from('posts')
     .select('*, vehicle_listing:vehicle_listings(*)')
     .eq('id', postId)
-    .eq('status', 'active')
+    .neq('status', 'deleted')
     .maybeSingle();
 
   if (error) throw error;
@@ -271,9 +274,98 @@ export async function getActivePostById(postId: string): Promise<Post | null> {
 }
 
 export async function getManageablePosts(): Promise<Post[]> {
-  const { data, error } = await supabase.from('posts').select('*, vehicle_listing:vehicle_listings(*)').order('created_at', { ascending: false }).limit(100);
-  if (error) throw error;
-  return (data ?? []) as Post[];
+  // Keep the management feed independent from optional category-specific detail
+  // tables (vehicle_listings, apparel_variants, etc.). A broken/missing detail
+  // relation must never hide otherwise visible posts from the owner.
+  const pageSize = 500;
+  const allPosts: Post[] = [];
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) throw error;
+    const page = (data ?? []) as Post[];
+    allPosts.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return allPosts;
+}
+
+export async function replaceOwnedPostImages(postId: string, files: File[]): Promise<Post> {
+  if (files.length < 1) throw new Error('لانیکەم یەک وێنە هەڵبژێرە.');
+  if (files.length > MAX_POST_IMAGES) throw new Error(`زۆرترین ژمارەی وێنە ${MAX_POST_IMAGES} دانەیە.`);
+  files.forEach(validatePostImage);
+
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw new Error('پێویستە دووبارە بچیتە ژوورەوە.');
+  const userId = authData.user.id;
+
+  const { data: existing, error: readError } = await supabase
+    .from('posts')
+    .select('id,author_id,title,images,status')
+    .eq('id', postId)
+    .neq('status', 'deleted')
+    .maybeSingle();
+
+  if (readError) throw readError;
+  if (!existing) throw new Error('پۆستەکە نەدۆزرایەوە یان دەسەڵاتی بینینی نییە.');
+  if (existing.author_id !== userId) {
+    throw new Error('بۆ گۆڕینی وێنەکان دەبێت خاوەنی پۆستەکە بیت.');
+  }
+
+  const oldImages = Array.isArray(existing.images)
+    ? (existing.images as Array<{ storage_path?: unknown }>).filter(
+        (image): image is { storage_path: string } => typeof image?.storage_path === 'string',
+      )
+    : [];
+  const oldPaths = oldImages
+    .map((image) => image.storage_path)
+    .filter((path) => path.startsWith(`posts/${userId}/${postId}/`));
+
+  const uploadedPaths: string[] = [];
+  let committed = false;
+
+  try {
+    for (const file of files) {
+      uploadedPaths.push(await uploadPostImage(userId, postId, file));
+    }
+
+    const nextImages = uploadedPaths.map((storage_path, index) => ({
+      storage_path,
+      alt_ku: existing.title || `وێنەی پۆست ${index + 1}`,
+    }));
+
+    const { data: updated, error: updateError } = await supabase
+      .from('posts')
+      .update({ images: nextImages })
+      .eq('id', postId)
+      .eq('author_id', userId)
+      .neq('status', 'deleted')
+      .select('*')
+      .single();
+
+    if (updateError) throw updateError;
+    committed = true;
+
+    // Removing old images happens after the row points to the new objects. A
+    // cleanup failure must not turn a successful photo replacement into a
+    // reported save failure or remove files now referenced by the post.
+    if (oldPaths.length) {
+      try { await deletePostImages(oldPaths); } catch { /* stale objects can be cleaned up later */ }
+    }
+
+    return updated as Post;
+  } catch (error) {
+    if (!committed && uploadedPaths.length) {
+      try { await deletePostImages(uploadedPaths); } catch { /* preserve the original error */ }
+    }
+    throw error;
+  }
 }
 
 export async function saveManagedApparelPost(input: {
