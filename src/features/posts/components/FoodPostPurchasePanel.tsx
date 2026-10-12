@@ -27,7 +27,6 @@ export function FoodPostPurchasePanel({ post }: Props) {
   }, [user]);
 
   useEffect(() => { setQuantity(1); }, [post.id]);
-  useEffect(() => { setQuantity((current) => Math.min(Math.max(1, current), 100)); }, []);
 
   const discount = Math.max(0, Math.min(99, post.discount_percent ?? 0));
   const price = Math.round(Number(post.price_iqd ?? 0) * (100 - discount) / 100);
