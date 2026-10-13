@@ -3,6 +3,7 @@ import { Banknote, CircleAlert, Clock3, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { supabase } from '@/lib/supabase/client';
+import { AdvancePaymentAdminPanel } from './AdvancePaymentAdminPanel';
 
 type LedgerEntry = {
   id: string;
@@ -72,7 +73,7 @@ export function PaymentsPage() {
 
       {isPlatformAdmin ? (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <BalanceCard title="کۆی پارەی تۆمارکراو" amount={totals.gross} icon={<Banknote size={19} />} />
             <BalanceCard title="داهاتی پلاتفۆرم کە وەرگیراوە" amount={totals.platform} icon={<Banknote size={19} />} />
             <BalanceCard title="داهاتی پلاتفۆرمی چاوەڕوان" amount={totals.pendingPlatform} icon={<Clock3 size={19} />} />
@@ -82,6 +83,7 @@ export function PaymentsPage() {
           <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-950">
             <div className="flex items-start gap-2"><CircleAlert className="mt-1 shrink-0" size={18} /><p><strong>کۆی پارەی کۆکراوە قازانجی پلاتفۆرم نییە.</strong> تەنها کرێ و کۆمیسیۆنی پلاتفۆرم لێرە وەک داهات ژمێردراوە؛ پارەی فرۆشیار و کاپتن وەک قەرزیان پیشان دەدرێت. هەژماری قازانجی پاک پێویستی بە تۆمارکردنی خەرجییەکانیش هەیە.</p></div>
           </section>
+          <AdvancePaymentAdminPanel />
         </>
       ) : (
         <section className="grid gap-3 sm:grid-cols-2">
