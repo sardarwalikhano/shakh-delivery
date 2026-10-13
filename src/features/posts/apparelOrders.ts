@@ -59,3 +59,41 @@ export async function updateApparelPostOrderStatus(orderId: string, status: Appa
   const { error } = await supabase.rpc('update_apparel_post_order_status', { p_order_id: orderId, p_status: status });
   if (error) throw error;
 }
+
+export type FoodPostOrderStatus = ApparelPostOrderStatus;
+export type FoodPostOrder = {
+  id: string;
+  order_number: string;
+  buyer_id: string;
+  seller_id: string;
+  post_id: string;
+  post_title: string;
+  quantity: number;
+  unit_price_iqd: number;
+  line_total_iqd: number;
+  delivery_address: string;
+  buyer_phone: string;
+  customer_note: string | null;
+  payment_method: 'cash_on_delivery' | 'mobile_cash';
+  status: FoodPostOrderStatus;
+  delivery_city: string;
+  delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  total_iqd: number;
+  created_at: string;
+};
+
+export async function listFoodPostOrders(): Promise<FoodPostOrder[]> {
+  const { data, error } = await supabase
+    .from('food_post_orders')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []) as FoodPostOrder[];
+}
+
+export async function updateFoodPostOrderStatus(orderId: string, status: FoodPostOrderStatus): Promise<void> {
+  const { error } = await supabase.rpc('update_food_post_order_status', { p_order_id: orderId, p_status: status });
+  if (error) throw error;
+}
