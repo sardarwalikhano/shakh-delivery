@@ -34,9 +34,9 @@ alter table public.food_post_orders
   add column delivered_at timestamptz,
   add column payment_status text not null default 'pending',
   add column payment_collected_at timestamptz,
-  constraint food_post_orders_delivery_status_check
+  add constraint food_post_orders_delivery_status_check
     check (delivery_status in ('pending','accepted','picked_up','on_the_way','arrived','delivered','failed','cancelled')),
-  constraint food_post_orders_payment_status_check
+  add constraint food_post_orders_payment_status_check
     check (payment_status in ('pending','collected','failed','refunded'));
 
 create index food_post_orders_captain_delivery_idx
