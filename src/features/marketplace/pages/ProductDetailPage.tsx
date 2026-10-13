@@ -148,6 +148,19 @@ export function ProductDetailPage() {
             {!restaurant && product.allergen_warnings ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">هۆشداریی ئەلێرژی: {product.allergen_warnings}</p> : null}
             {product.storage_instructions ? <p className="mt-3 text-sm leading-7 text-black/60">ڕێنمایی هەڵگرتن: {product.storage_instructions}</p> : null}
             {product.cleaning_type ? <p className="mt-3 text-sm leading-7 text-black/60">جۆری پاککەرەوە: {product.cleaning_type}</p> : null}
+            {product.attributes.length ? <section className="mt-6 rounded-2xl border border-black/[0.07] p-4 sm:p-5">
+              <h2 className="text-base font-black">تایبەتمەندییەکانی بەرهەم</h2>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                {product.attributes.map((attribute, index) => {
+                  const label = attribute.name_ku || attribute.name_ar || attribute.name_en;
+                  const value = attribute.value_ku || attribute.value_ar || attribute.value_en;
+                  return label && value ? <div key={`${label}-${index}`} className="rounded-xl bg-[var(--shakh-bg)] px-3 py-3">
+                    <dt className="text-xs font-bold text-black/45">{label}</dt>
+                    <dd className="mt-1 break-words text-sm font-black text-black/80">{value}</dd>
+                  </div> : null;
+                })}
+              </dl>
+            </section> : null}
             <div className="mt-6 flex flex-wrap items-end gap-3"><div><div className="text-3xl font-black tabular-nums">{price.toLocaleString('en-US')} <span className="text-sm text-black/40">د.ع</span></div>{restaurant && selectedOptionsPrice > 0 ? <div className="mt-1 text-xs font-bold text-black/45">زیادکراوەکان: +{selectedOptionsPrice.toLocaleString('en-US')} د.ع</div> : null}</div>{restaurant && product.compare_at_price_iqd && product.compare_at_price_iqd > product.base_price_iqd && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{(product.compare_at_price_iqd + selectedOptionsPrice).toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.max(0, Math.round((1 - price / (product.compare_at_price_iqd + selectedOptionsPrice)) * 100))}٪ داشکاندن</span></> : !restaurant && product.compare_at_price_iqd && product.compare_at_price_iqd > price && (variant?.price_iqd == null || variant.price_iqd === product.base_price_iqd) ? <><div className="pb-1 text-sm text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div><span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1 text-xs font-black text-[var(--shakh-orange)]">{Math.round((1 - price / product.compare_at_price_iqd) * 100)}٪ داشکاندن</span></> : null}</div>
 
             {restaurant && restaurant.is_available && product.restaurantOptionGroups.length ? <div className="mt-7 space-y-4">
