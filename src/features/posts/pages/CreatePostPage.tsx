@@ -108,29 +108,23 @@ export function CreatePostPage() {
     () => roles.find((item) => item !== 'customer' && item !== 'super_admin') ?? roles[0] ?? '',
     [roles],
   );
-  const categories = useMemo(() => [...new Set(targets.map((item) => item.category))], [targets]);
-  const targetForCategory = useCallback((nextCategory: PostTarget['category'] | '') => {
-    if (!nextCategory) return undefined;
-    return targets.find((item) => item.category === nextCategory && item.publisher_role === preferredRole)
-      ?? targets.find((item) => item.category === nextCategory);
-  }, [preferredRole, targets]);
+  const categories = useMemo(
+    () => [...new Set(targets.filter((item) => item.publisher_role === role).map((item) => item.category))],
+    [role, targets],
+  );
 
   useEffect(() => {
     if (!targets.length) return;
-    if (!category) {
-      const initialTarget = targets.find((item) => item.publisher_role === preferredRole && item.category !== 'cars')
-        ?? targets.find((item) => item.publisher_role === preferredRole)
-        ?? targets[0];
-      setRole(initialTarget?.publisher_role ?? '');
-      setCategory(initialTarget?.category ?? '');
-      return;
-    }
-    const target = targetForCategory(category);
-    if (target) { setRole(target.publisher_role); return; }
-    const firstTarget = targets[0];
-    setRole(firstTarget?.publisher_role ?? '');
-    setCategory(firstTarget?.category ?? '');
-  }, [category, preferredRole, targetForCategory, targets]);
+    const nextRole = roles.includes(role as AppRole) ? role as AppRole : preferredRole;
+    const roleTargets = targets.filter((item) => item.publisher_role === nextRole);
+    const nextCategory = roleTargets.some((item) => item.category === category)
+      ? category
+      : roleTargets.find((item) => item.category !== 'cars')?.category
+        ?? roleTargets[0]?.category
+        ?? '';
+    if (role !== nextRole) setRole(nextRole);
+    if (category !== nextCategory) setCategory(nextCategory);
+  }, [category, preferredRole, role, roles, targets]);
 
   const availableSizes = useMemo(() => sizeOptionsFor(apparelType), [apparelType]);
   const combinations = useMemo(
@@ -358,10 +352,18 @@ export function CreatePostPage() {
           <AuthFeedback error={error} />
           {success ? <AuthSuccess>پۆستەکە بە سەرکەوتوویی بڵاوکرایەوە.</AuthSuccess> : null}
 
-          <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
-            <div className="text-xs font-bold text-black/40">بڵاوکردنەوە بە ناوی Role</div>
-            <div className="mt-1 font-black">{role ? postRoleLabels[role] : '—'}</div>
-          </div>
+          <Field label="بڵاوکردنەوە بە ناوی Role">
+            <select
+              className={inputClass}
+              value={role}
+              onChange={(event) => setRole(event.target.value as AppRole)}
+              disabled={busy}
+            >
+              {roles.map((item) => (
+                <option key={item} value={item}>{postRoleLabels[item]}</option>
+              ))}
+            </select>
+          </Field>
 
           <Field label="جۆری پۆست">
             <div className="relative">
