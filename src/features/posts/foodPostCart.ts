@@ -24,9 +24,11 @@ export type FoodPostOrderResult = {
   id: string;
   order_number: string;
   status: string;
+  post_title: string;
   quantity: number;
   unit_price_iqd: number;
   line_total_iqd: number;
+  delivery_city: string;
   delivery_fee_iqd: number;
   platform_fee_iqd: number;
   total_iqd: number;
@@ -85,7 +87,9 @@ export async function checkoutFoodPostCart(input: {
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const result = data as { orders?: FoodPostOrderResult[] } | null;
-  return result?.orders ?? [];
+  if (!result?.orders?.length) throw new Error('داواکارییەک تۆمار نەکرا. سەلەکەت بەتاڵە یان نرخی خواردن بەردەست نییە.');
+  return result.orders;
 }
+

@@ -15,6 +15,10 @@ export type ApparelPostOrder = {
   quantity: number;
   unit_price_iqd: number;
   line_total_iqd: number;
+  delivery_city: string;
+  delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  total_iqd: number;
   delivery_address: string;
   buyer_phone: string;
   customer_note: string | null;
@@ -28,27 +32,29 @@ export async function createApparelPostOrder(input: {
   variantId: string;
   quantity: number;
   deliveryAddress: string;
+  deliveryCity: string;
   buyerPhone: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
-}): Promise<{ id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number }> {
+}): Promise<{ id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number }> {
   const { data, error } = await supabase.rpc('create_apparel_post_order', {
     p_request_id: input.requestId,
     p_variant_id: input.variantId,
     p_quantity: input.quantity,
     p_delivery_address: input.deliveryAddress,
     p_buyer_phone: input.buyerPhone,
+    p_delivery_city: input.deliveryCity,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
   });
-  if (error) throw error;
-  return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number };
+  if (error) throw new Error(error.message);
+  return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number };
 }
 
 export async function listApparelPostOrders(): Promise<ApparelPostOrder[]> {
   const { data, error } = await supabase
     .from('apparel_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -80,20 +86,43 @@ export type FoodPostOrder = {
   delivery_fee_iqd: number;
   platform_fee_iqd: number;
   total_iqd: number;
+  captain_id: string | null;
+  delivery_status: 'pending' | 'accepted' | 'picked_up' | 'on_the_way' | 'arrived' | 'delivered' | 'failed' | 'cancelled';
+  payment_status: 'pending' | 'collected' | 'failed' | 'refunded';
+  payment_collected_at: string | null;
+  payment_event: Array<{ amount_iqd: number; payment_method: 'cash_on_delivery' | 'mobile_cash'; received_at: string; captain_id: string }> | null;
   created_at: string;
 };
 
 export async function listFoodPostOrders(): Promise<FoodPostOrder[]> {
   const { data, error } = await supabase
     .from('food_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,payment_collected_at,payment_event:food_post_payment_events!food_post_payment_events_order_id_fkey(amount_iqd,payment_method,received_at,captain_id),created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
   return (data ?? []) as FoodPostOrder[];
 }
 
+export async function claimFoodPostDelivery(orderId: string): Promise<void> {
+  const { error } = await supabase.rpc('claim_food_post_delivery', { p_order_id: orderId });
+  if (error) throw new Error(error.message);
+}
+
+export type FoodPostDeliveryStatus = FoodPostOrder['delivery_status'];
+
+export async function updateFoodPostDeliveryStatus(orderId: string, status: FoodPostDeliveryStatus): Promise<void> {
+  const { error } = await supabase.rpc('update_food_post_delivery_status', { p_order_id: orderId, p_status: status });
+  if (error) throw new Error(error.message);
+}
+
+export async function recordFoodPostPayment(orderId: string, amountIqd: number): Promise<void> {
+  const { error } = await supabase.rpc('record_food_post_payment', { p_order_id: orderId, p_amount_iqd: amountIqd, p_note: null });
+  if (error) throw new Error(error.message);
+}
+
 export async function updateFoodPostOrderStatus(orderId: string, status: FoodPostOrderStatus): Promise<void> {
   const { error } = await supabase.rpc('update_food_post_order_status', { p_order_id: orderId, p_status: status });
   if (error) throw error;
 }
+

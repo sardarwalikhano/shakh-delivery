@@ -5,6 +5,8 @@ import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { assignCaptain, claimDelivery, getAvailableCaptains, getDispatchDeliveries, getMyDeliveries, updateCaptainDelivery, updateCaptainLocation, type Captain, type Delivery, type DeliveryStatus } from '../api';
 import { useRealtimeCaptainDeliveries } from '@/features/realtime/hooks';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/maps/navigation';
+import { claimFoodPostDelivery, listFoodPostOrders, recordFoodPostPayment, updateFoodPostDeliveryStatus, type FoodPostDeliveryStatus, type FoodPostOrder } from '@/features/posts/apparelOrders';
+import { supabase } from '@/lib/supabase/client';
 
 const statusLabel: Record<DeliveryStatus, string> = {
   pending: 'لە چاوەڕوانی',
@@ -24,6 +26,17 @@ const nextStatus: Partial<Record<DeliveryStatus, DeliveryStatus>> = {
   picked_up: 'on_the_way',
   on_the_way: 'arrived',
   arrived: 'delivered',
+};
+
+const nextFoodDeliveryStatus: Partial<Record<FoodPostDeliveryStatus, FoodPostDeliveryStatus>> = {
+  accepted: 'picked_up',
+  picked_up: 'on_the_way',
+  on_the_way: 'arrived',
+  arrived: 'delivered',
+};
+const foodDeliveryStatusLabel: Record<FoodPostDeliveryStatus, string> = {
+  pending: 'لە چاوەڕوانی', accepted: 'وەرگیراوە', picked_up: 'لە چێشتخانە وەرگیراوە',
+  on_the_way: 'لە ڕێگایە', arrived: 'گەیشتووە', delivered: 'گەیەنراوە', failed: 'سەرنەکەوتووە', cancelled: 'هەڵوەشێنراوەتەوە',
 };
 
 const statusTone: Record<DeliveryStatus, string> = {
@@ -47,6 +60,7 @@ export function DeliveryPage() {
 
 function CaptainOrScopedView({ role, userId }: { role: string | null; userId: string | undefined }) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [foodOrders, setFoodOrders] = useState<FoodPostOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -54,13 +68,27 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
 
   const refresh = useCallback(async () => {
     setLoading(true); setMessage(null);
-    try { setDeliveries(await getMyDeliveries()); }
+    try {
+      const [nextDeliveries, nextFoodOrders] = await Promise.all([
+        getMyDeliveries(),
+        role === 'captain' ? listFoodPostOrders() : Promise.resolve([]),
+      ]);
+      setDeliveries(nextDeliveries);
+      setFoodOrders(nextFoodOrders);
+    }
     catch (error) { setMessage(error instanceof Error ? error.message : 'هەڵەیەک ڕوویدا.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [role]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useRealtimeCaptainDeliveries(userId, refresh);
+  useEffect(() => {
+    if (role !== 'captain') return;
+    const channel = supabase.channel('captain-food-post-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'food_post_orders' }, () => { void refresh(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [refresh, role]);
 
   const advance = async (delivery: Delivery) => {
     const target = nextStatus[delivery.status];
@@ -86,6 +114,7 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   };
 
   const offers = useMemo(() => deliveries.filter((d) => d.status === 'pending' && d.captain_id == null), [deliveries]);
+  const foodOffers = useMemo(() => foodOrders.filter((order) => order.status === 'confirmed' && order.delivery_status === 'pending' && !order.captain_id), [foodOrders]);
   const canAdvance = Boolean(active && nextStatus[active.status]);
 
   const claim = async (delivery: Delivery) => {
@@ -101,6 +130,31 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     }
   };
 
+  const claimFoodOrder = async (order: FoodPostOrder) => {
+    setBusyId(order.id); setMessage(null);
+    try { await claimFoodPostDelivery(order.id); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'وەرگرتنی داواکاری خواردن سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
+  const advanceFoodOrder = async (order: FoodPostOrder) => {
+    const target = nextFoodDeliveryStatus[order.delivery_status];
+    if (!target) return;
+    setBusyId(order.id); setMessage(null);
+    try {
+      await updateFoodPostDeliveryStatus(order.id, target);
+      await refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'نوێکردنەوەی گەیاندن سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
+  const recordFoodPayment = async (order: FoodPostOrder) => {
+    setBusyId(order.id); setMessage(null);
+    try { await recordFoodPostPayment(order.id, Number(order.total_iqd)); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'تۆمارکردنی وەرگرتنی پارە سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
   return (
     <DeliveryLayout eyebrow="Captain workspace" title="گەیاندنەکانی تۆ" subtitle={role === 'captain' ? 'داواکارییە نوێکان لێرە وەردەگریت و دەتوانیت گەیاندنە سپێردراوەکانت بەڕێوەببەیت.' : 'ئەم بەشە بەپێی دەسەڵاتی هەژمارەکەت داتای گەیاندن پیشان دەدات.'} onRefresh={() => void refresh()} refreshing={loading}>
       {message ? <Notice text={message} /> : null}
@@ -110,9 +164,32 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
           {offers.map((delivery) => (
             <OfferRow key={delivery.id} delivery={delivery} busy={busyId === delivery.id} onClaim={() => void claim(delivery)} />
           ))}
-          {!loading && offers.length === 0 ? <Empty text="هێشتا هیچ داواکارییەکی نوێ بۆ وەرگرتن نییە." /> : null}
+          {foodOffers.map((order) => (
+            <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id} onAction={() => void claimFoodOrder(order)} actionLabel="وەرگرتنی داواکاری" />
+          ))}
+          {!loading && offers.length === 0 && foodOffers.length === 0 ? <Empty text="هێشتا هیچ داواکارییەکی نوێ بۆ وەرگرتن نییە." /> : null}
         </section>
       ) : null}
+      {role === 'captain' ? <section className="space-y-3">
+        <div className="flex items-center gap-2 px-1"><Truck size={18} className="text-[var(--shakh-blue)]"/><h2 className="text-lg font-black">داواکاریی خواردنی سپێردراو</h2></div>
+        {foodOrders.filter((order) => order.captain_id === userId && !['delivered','failed','cancelled'].includes(order.delivery_status)).map((order) => {
+          const target = nextFoodDeliveryStatus[order.delivery_status];
+          return <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id}
+            onAction={() => void advanceFoodOrder(order)}
+            actionLabel={target ? `گواستنەوە بۆ ${foodDeliveryStatusLabel[target]}` : 'چاوەڕوانی'} />;
+        })}
+        {foodOrders.filter((order) => order.captain_id === userId && order.delivery_status === 'delivered' && order.payment_status === 'pending').map((order) => (
+          <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id} onAction={() => void recordFoodPayment(order)} actionLabel="تۆمارکردنی وەرگرتنی پارە" />
+        ))}
+        {!loading && !foodOrders.some((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending'))) ? <Empty text="هیچ داواکاریی خواردنێکی سپێردراو نییە." /> : null}
+      </section> : null}
+      {role === 'captain' ? <section className="space-y-3">
+        <div className="flex items-center gap-2 px-1"><PackageCheck size={18} className="text-[var(--shakh-green)]"/><h2 className="text-lg font-black">مێژووی داواکاریی خواردن</h2></div>
+        {foodOrders.filter((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')).map((order) => (
+          <FoodPostCaptainCard key={order.id} order={order} busy={false} />
+        ))}
+        {!loading && !foodOrders.some((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')) ? <Empty text="مێژووی داواکاریی خواردن بەتاڵە." /> : null}
+      </section> : null}
       <section className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
         <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_60px_rgba(16,22,35,.05)] sm:p-7">
           <div className="flex items-center justify-between gap-4">
@@ -227,6 +304,30 @@ function OfferRow({ delivery, busy, onClaim }: { delivery: Delivery; busy: boole
 
 function DeliveryRow({ delivery }: { delivery: Delivery }) { return <article className="rounded-2xl border border-black/[0.06] bg-white p-4"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-bg)]"><Truck size={18} /></div><div className="min-w-0"><div className="truncate font-black">{delivery.order?.store?.name_ku ?? '—'}</div><div className="mt-0.5 truncate text-xs font-bold text-black/35" dir="ltr">{delivery.order?.order_number}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span></div></article>; }
 
+function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: FoodPostOrder; busy: boolean; onAction?: () => void; actionLabel?: string }) {
+  return <article className="rounded-[28px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:p-6">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[11px] font-black text-[var(--shakh-orange)]">چێشتخانە · {foodDeliveryStatusLabel[order.delivery_status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{order.order_number}</span></div>
+        <h3 className="mt-2 font-black">{order.post_title} × {order.quantity}</h3>
+        <div className="mt-2 space-y-1 text-sm font-bold text-black/55"><div>{order.delivery_city} · {order.delivery_address}</div><div dir="ltr" className="text-start">{order.buyer_phone}</div></div>
+        <div className="mt-4 grid gap-2 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm">
+          <FoodAmount label="کۆی خواردن" amount={order.line_total_iqd} />
+          <FoodAmount label="کرێی گەیاندن" amount={order.delivery_fee_iqd} />
+          <FoodAmount label="کرێی پلاتفۆرم" amount={order.platform_fee_iqd} />
+          <FoodAmount label="ئەو بڕەی لە کڕیار وەردەگریت" amount={order.total_iqd} strong />
+        </div>
+        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
+      </div>
+      {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy ? 'چاوەڕوانبە...' : actionLabel}</button> : null}
+    </div>
+  </article>;
+}
+
+function FoodAmount({ label, amount, strong = false }: { label: string; amount: number; strong?: boolean }) {
+  return <div className={`flex justify-between gap-4 ${strong ? 'border-t border-black/10 pt-2 font-black text-[var(--shakh-navy)]' : 'text-black/55'}`}><span>{label}</span><span>{Number(amount).toLocaleString('en-US')} د.ع</span></div>;
+}
+
 function DeliveryLayout({ eyebrow, title, subtitle, onRefresh, refreshing, children }: { eyebrow: string; title: string; subtitle: string; onRefresh: () => void; refreshing: boolean; children: React.ReactNode }) {
   return <div className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb]"><div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8"><header className="rounded-[32px] bg-[var(--shakh-navy)] p-6 text-white shadow-[0_22px_70px_rgba(11,18,32,.14)] sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="text-xs font-black text-[var(--shakh-orange)]">{eyebrow}</div><h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{title}</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-white/55">{subtitle}</p></div><button onClick={onRefresh} disabled={refreshing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white disabled:opacity-50"><RefreshCw className={refreshing ? 'animate-spin' : ''} size={17} />نوێکردنەوە</button></div></header>{children}</div></div>;
 }
@@ -235,3 +336,4 @@ function Empty({ text }: { text: string }) { return <div className="grid min-h-4
 function Stat({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-white/5 p-4"><div className="text-xs font-bold text-white/40">{label}</div><div className="mt-1 text-xl font-black">{value}</div></div>; }
 function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="rounded-3xl border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)]"><div className="flex items-center gap-2 text-xs font-black text-black/40">{icon}{label}</div><div className="mt-2 text-2xl font-black">{value.toLocaleString('en-US')}</div></div>; }
 function MiniInfo({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-white p-4"><div className="text-[11px] font-bold text-black/35">{label}</div><div className="mt-1 truncate text-sm font-black">{value}</div></div>; }
+
