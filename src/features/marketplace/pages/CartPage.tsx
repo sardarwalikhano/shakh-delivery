@@ -8,6 +8,7 @@ import { getProductImageUrl } from '@/lib/storage/catalogMedia';
 import { formatSupermarketQuantity, isSupermarketItemExpired } from '@/lib/catalog/supermarket';
 import { isRestaurantMenuAvailable, restaurantMenuCategoryLabels } from '@/lib/catalog/restaurant';
 import { supabase } from '@/lib/supabase/client';
+import { FoodPostCartSection } from '@/features/posts/components/FoodPostCartSection';
 
 export function CartPage() {
   const { user } = useAuth();
@@ -77,7 +78,7 @@ export function CartPage() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><ShoppingBag size={21} /></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">سەبەتە</div><h1 className="text-3xl font-black">بەرهەمەکانت</h1></div></div>
         {message ? <div role="alert" className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{message}</div> : null}
-        {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : items.length === 0 ? <div className="mt-6 rounded-[28px] border border-dashed border-black/10 bg-white px-6 py-16 text-center"><h2 className="text-xl font-black">سەبەتەکەت بەتاڵە</h2><p className="mt-2 text-sm leading-7 text-black/45">بچۆ بۆ بازاڕ و بەرهەمێک زیاد بکە.</p><Link to="/search" className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">بچۆ بۆ بازاڕ</Link></div> : (
+        {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : items.length === 0 ? <div className="mt-6 rounded-[28px] border border-dashed border-black/10 bg-white px-6 py-16 text-center"><h2 className="text-xl font-black">سەبەتەکەت بەتاڵە</h2><p className="mt-2 text-sm leading-7 text-black/45">بەرهەمێکی بازاڕ زیاد بکە، یان پۆستی خواردن لە بەشی چێشتخانەی خوارەوە ببینە.</p><Link to="/search" className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">بچۆ بۆ بازاڕ</Link></div> : (
           <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
             <div className="space-y-3">{items.map((item) => <div key={item.id} className="rounded-[26px] border border-black/[0.06] bg-white p-4 shadow-[0_12px_35px_rgba(16,22,35,.035)]"><div className="flex gap-4"><div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-[var(--shakh-bg)]">{item.product?.images?.[0] ? <img src={getProductImageUrl(item.product.images[0].storage_path)} alt={item.product.images[0].alt_ku ?? item.product.name_ku} className="h-full w-full object-cover" loading="lazy" /> : null}</div><div className="min-w-0 flex-1"><div className="font-black leading-6">{item.product?.name_ku ?? 'بەرهەم'}</div>{item.variant ? <div className="mt-1 text-xs font-bold text-black/40">{item.variant.name_ku}</div> : null}
 {item.product?.restaurantMenu ? <div className="mt-1 text-[11px] font-bold text-black/40">{restaurantMenuCategoryLabels[item.product.restaurantMenu.menu_category] ?? 'خواردن'} · {item.product.restaurantMenu.prep_time_minutes} خولەک</div> : null}
@@ -86,6 +87,7 @@ export function CartPage() {
             <aside className="h-fit rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.035)] lg:sticky lg:top-24"><h2 className="text-lg font-black">کورتەی سەبەتە</h2><div className="mt-5 flex justify-between text-sm"><span className="text-black/45">کۆی بەرهەمەکان</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div><div className="mt-4 flex justify-between border-t border-black/[0.06] pt-4"><span className="font-black">کۆی گشتی</span><span className="text-xl font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>{hasUnavailableItems ? <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-800">هەندێک کاڵا بەردەست نییە، ستۆکی گۆڕاوە یان زیادکراوەیەک لە چێشتخانە ناچالاک کراوە. پێش checkout، هەڵبژاردەکان نوێ بکەرەوە یان کاڵاکە لە سەبەتە لاببە.</div> : null}{hasUnavailableItems ? <button type="button" disabled className="mt-5 flex w-full cursor-not-allowed items-center justify-center rounded-2xl bg-black/10 px-5 py-4 text-sm font-black text-black/35">پێداچوونەوە بە کۆگا پێویستە</button> : <Link to="/checkout" className="mt-5 flex w-full items-center justify-center rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white">چێکئاوت و تەواوکردن</Link>}<p className="mt-3 text-xs leading-5 text-black/35">نرخی کۆتایی، بەرواری بەسەرچوون و ستۆک لە کاتی checkout لەسەر داتابەیس پشتڕاست دەکرێنەوە.</p></aside>
           </div>
         )}
+        {user ? <FoodPostCartSection userId={user.id} /> : null}
       </div>
     </section>
   );
