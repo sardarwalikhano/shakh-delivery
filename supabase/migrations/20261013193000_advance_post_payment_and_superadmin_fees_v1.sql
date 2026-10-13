@@ -68,6 +68,9 @@ create index if not exists advance_payment_submissions_status_created_idx
 create unique index if not exists advance_payment_one_open_car_fee_per_post
   on public.advance_payment_submissions(post_id)
   where purpose='car_listing' and status in ('pending','approved');
+create unique index if not exists advance_payment_unique_open_provider_reference
+  on public.advance_payment_submissions(provider,lower(btrim(transaction_reference)))
+  where status in ('pending','approved');
 
 alter table public.advance_payment_submissions enable row level security;
 grant select,insert on public.advance_payment_submissions to authenticated;
@@ -151,6 +154,12 @@ begin
   ) then
     raise exception using errcode='22023',message='Payment provider is disabled';
   end if;
+  if p_approve and v_submission.purpose='umrah_booking' and not exists (
+    select 1 from public.posts p
+    where p.id=v_submission.post_id and p.category='umrah' and p.status='active' and p.author_id<>v_submission.payer_id
+  ) then
+    raise exception using errcode='22023',message='The Umrah trip is no longer open for booking';
+  end if;
 
   update public.advance_payment_submissions
   set status=case when p_approve then 'approved' else 'rejected' end,
@@ -165,7 +174,8 @@ begin
 
   if p_approve then
     insert into public.financial_ledger_entries(entry_kind,amount_iqd,status,source_table,source_id,note,created_by)
-    values ('listing_fee',v_submission.amount_iqd,'paid','advance_payment_submissions',v_submission.id,
+    values (case when v_submission.purpose='car_listing' then 'listing_fee' else 'advance_payment' end,
+      v_submission.amount_iqd,'paid','advance_payment_submissions',v_submission.id,
       case when v_submission.purpose='car_listing' then 'Car listing advance fee' else 'Umrah booking advance payment' end,auth.uid())
     on conflict do nothing;
   end if;
