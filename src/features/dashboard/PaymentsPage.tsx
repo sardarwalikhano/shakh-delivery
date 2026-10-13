@@ -8,7 +8,7 @@ import { AdvancePaymentAdminPanel } from './AdvancePaymentAdminPanel';
 type LedgerEntry = {
   id: string;
   owner_id: string | null;
-  entry_kind: 'captain_earning' | 'seller_sale' | 'platform_delivery_fee' | 'platform_sale_fee' | 'listing_fee' | 'payout' | 'refund' | 'adjustment';
+  entry_kind: 'captain_earning' | 'seller_sale' | 'platform_delivery_fee' | 'platform_sale_fee' | 'listing_fee' | 'advance_payment' | 'payout' | 'refund' | 'adjustment';
   amount_iqd: number;
   status: 'pending' | 'paid' | 'reversed';
   source_table: string;
@@ -22,7 +22,7 @@ const money = (value: number) => `${Math.round(value).toLocaleString('en-US')} �
 const kindLabels: Record<LedgerEntry['entry_kind'], string> = {
   captain_earning: 'داهاتی کاپتن', seller_sale: 'فرۆشی فرۆشیار',
   platform_delivery_fee: 'کرێی گەیاندنی پلاتفۆرم', platform_sale_fee: 'کۆمیسیۆنی فرۆشتن',
-  listing_fee: 'کرێی پۆستکردن', payout: 'پارەی دەرچوو', refund: 'گەڕاندنەوەی پارە', adjustment: 'ڕێکخستن',
+  listing_fee: 'کرێی پۆستکردن', advance_payment: 'پارەی پێشوەختەی حەجز', payout: 'پارەی دەرچوو', refund: 'گەڕاندنەوەی پارە', adjustment: 'ڕێکخستن',
 };
 
 export function PaymentsPage() {
@@ -57,9 +57,9 @@ export function PaymentsPage() {
     return {
       captain: total(['captain_earning'], 'pending'),
       seller: total(['seller_sale'], 'pending'),
-      platform: total(['platform_delivery_fee', 'platform_sale_fee', 'listing_fee'], 'paid'),
-      pendingPlatform: total(['platform_delivery_fee', 'platform_sale_fee', 'listing_fee'], 'pending'),
-      gross: entries.filter((entry) => entry.status !== 'reversed' && ['captain_earning', 'seller_sale', 'platform_delivery_fee', 'platform_sale_fee', 'listing_fee'].includes(entry.entry_kind)).reduce((sum, entry) => sum + Number(entry.amount_iqd), 0),
+      platform: total(['platform_delivery_fee', 'platform_sale_fee', 'listing_fee', 'advance_payment'], 'paid'),
+      pendingPlatform: total(['platform_delivery_fee', 'platform_sale_fee', 'listing_fee', 'advance_payment'], 'pending'),
+      gross: entries.filter((entry) => entry.status !== 'reversed' && ['captain_earning', 'seller_sale', 'platform_delivery_fee', 'platform_sale_fee', 'listing_fee', 'advance_payment'].includes(entry.entry_kind)).reduce((sum, entry) => sum + Number(entry.amount_iqd), 0),
     };
   }, [entries]);
 
