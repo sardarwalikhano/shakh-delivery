@@ -20,7 +20,7 @@ revoke all on public.payment_provider_settings from anon, authenticated;
 create table if not exists public.financial_ledger_entries (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid references public.profiles(id) on delete restrict,
-  entry_kind text not null check (entry_kind in ('captain_earning','seller_sale','platform_delivery_fee','platform_sale_fee','listing_fee','payout','refund','adjustment')),
+  entry_kind text not null check (entry_kind in ('captain_earning','seller_sale','platform_delivery_fee','platform_sale_fee','listing_fee','advance_payment','payout','refund','adjustment')),
   amount_iqd numeric(14,2) not null check (amount_iqd > 0),
   status text not null default 'pending' check (status in ('pending','paid','reversed')),
   source_table text not null,
