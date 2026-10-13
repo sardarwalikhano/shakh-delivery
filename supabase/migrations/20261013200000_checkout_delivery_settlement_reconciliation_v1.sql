@@ -57,5 +57,5 @@ $$;
 
 drop trigger if exists deliveries_checkout_captain_settlement on public.deliveries;
 create trigger deliveries_checkout_captain_settlement
-after insert or update of status, captain_id on public.deliveries
+after insert or update on public.deliveries
 for each row execute function private.allocate_checkout_captain_on_delivery();
