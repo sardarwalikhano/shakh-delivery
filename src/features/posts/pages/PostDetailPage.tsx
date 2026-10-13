@@ -53,6 +53,7 @@ export function PostDetailPage() {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [addingFoodToCart, setAddingFoodToCart] = useState(false);
   const [foodCartMessage, setFoodCartMessage] = useState<string | null>(null);
+  const [foodCartError, setFoodCartError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,10 +144,12 @@ export function PostDetailPage() {
     if (!user) { navigate('/login', { state: { from: '/posts/' + post.id } }); return; }
     setAddingFoodToCart(true);
     setFoodCartMessage(null);
+    setFoodCartError(false);
     try {
       await addFoodPostToCart(post.id);
       setFoodCartMessage('خواردنەکە زیادکرا بۆ سەلە.');
     } catch (nextError) {
+      setFoodCartError(true);
       setFoodCartMessage(nextError instanceof Error ? nextError.message : 'زیادکردن بۆ سەلە سەرنەکەوت.');
     } finally {
       setAddingFoodToCart(false);
@@ -447,7 +450,7 @@ export function PostDetailPage() {
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
-            {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className="mt-3 text-center text-sm font-bold text-emerald-700">{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
+            {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 
             {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
               <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>
