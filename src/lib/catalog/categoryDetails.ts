@@ -272,7 +272,7 @@ export function sanitizeCategoryDetails(
       return { values: {}, error: `زانیاریی «${field.label}» زۆر درێژە.` };
     }
     if (field.type === 'date') {
-      const isoDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(normalized);
+      const isoDate = /^\d{4}-\d{2}-\d{2}$/.test(normalized);
       const parsedDate = isoDate ? new Date(normalized + 'T00:00:00.000Z') : null;
       if (!parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== normalized) {
         return { values: {}, error: `بەرواری «${field.label}» دروست نییە.` };
