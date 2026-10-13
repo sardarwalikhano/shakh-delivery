@@ -631,4 +631,3 @@ export function CreatePostPage() {
     </AuthPageShell>
   );
 }
-
