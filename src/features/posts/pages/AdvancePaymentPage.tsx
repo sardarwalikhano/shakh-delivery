@@ -60,7 +60,7 @@ export function AdvancePaymentPage() {
   }, [postId, purpose]);
 
   const validContext = post && (purpose === 'car_listing'
-    ? post.category === 'cars' && post.author_id === user?.id && post.status === 'archived'
+    ? post.category === 'cars' && post.author_id === user?.id && (post.status === 'archived' || submission?.status === 'approved')
     : post.category === 'umrah' && post.author_id !== user?.id && post.status === 'active');
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -107,8 +107,9 @@ export function AdvancePaymentPage() {
 
   return <AuthPageShell><AuthCard title={purpose === 'car_listing' ? 'پارەی پێشوەختەی پۆستی ئۆتۆمبێل' : 'داواکاریی حەجزکردنی گەشتی عومرە'} description={post.title}>
     <AuthFeedback error={error}/>
-    {submission ? <div className={`mb-4 rounded-2xl p-4 text-sm leading-7 ${submission.status === 'approved' ? 'bg-emerald-50 text-emerald-800' : submission.status === 'rejected' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900'}`}><strong>{statusLabel}</strong>{submission.review_note ? <div>{submission.review_note}</div> : null}{submission.status === 'pending' ? <div>سوپەر ئەدمین وەسڵ و داواکارییەکەت دەپشکنێت.</div> : null}</div>
+    {submission && submission.status !== 'rejected' ? <div className={`mb-4 rounded-2xl p-4 text-sm leading-7 ${submission.status === 'approved' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}><strong>{statusLabel}</strong>{submission.review_note ? <div>{submission.review_note}</div> : null}{submission.status === 'pending' ? <div>سوپەر ئەدمین وەسڵ و داواکارییەکەت دەپشکنێت.</div> : null}</div>
       : <form onSubmit={submit} className="space-y-4">
+        {submission?.status === 'rejected' ? <div className="rounded-xl bg-red-50 p-3 text-sm leading-6 text-red-800">وەسڵی پێشووتر ڕەت کرایەوە{submission.review_note ? `: ${submission.review_note}` : ''}. دەتوانیت وەسڵی دروست دووبارە بنێریت.</div> : null}
         <div className="flex items-center justify-between rounded-2xl bg-[var(--shakh-bg)] p-4"><span className="text-sm font-bold">بڕی پێشوەختە</span><strong dir="ltr">{fee?.amount_iqd ? formatIQD(Number(fee.amount_iqd)) : 'ڕێکنەخراوە'}</strong></div>
         {purpose === 'umrah_booking' ? <div className="grid gap-4 sm:grid-cols-2"><Field label="ژمارەی مۆبایل"><input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} required inputMode="tel" /></Field><Field label="ژمارەی گەشتیاران"><input className={inputClass} type="number" min="1" max="20" value={travelerCount} onChange={(e) => setTravelerCount(e.target.value)} required /></Field><Field label="تێبینی"><input className={inputClass} value={travelNote} onChange={(e) => setTravelNote(e.target.value)} maxLength={300} placeholder="کاتی گەشت یان داواکارییەک" /></Field></div> : null}
         <Field label="شێوازی پارەدان"><select className={inputClass} value={provider} onChange={(e) => setProvider(e.target.value as Provider)} required disabled={!providers.length}><option value="">هەڵبژێرە</option>{providers.map((p) => <option key={p} value={p}>{p === 'fib' ? 'FIB' : 'FastPay'}</option>)}</select></Field>
