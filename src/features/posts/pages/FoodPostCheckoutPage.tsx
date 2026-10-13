@@ -11,6 +11,12 @@ function itemPrice(item: FoodPostCartItem): number {
   return Math.round(base * (100 - discount) / 100);
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') return error.message;
+  return fallback;
+}
+
 export function FoodPostCheckoutPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<FoodPostCartItem[]>([]);
@@ -54,7 +60,7 @@ export function FoodPostCheckoutPage() {
       }));
       setItems([]);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'تەواوکردنی داواکاری سەرنەکەوت.');
+      setError(errorMessage(nextError, 'تۆمارکردنی داواکاری سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.'));
     } finally {
       setBusy(false);
     }
@@ -70,8 +76,18 @@ export function FoodPostCheckoutPage() {
           <div className="mt-6 rounded-[28px] bg-white p-6 text-center shadow-sm">
             <PackageCheck size={42} className="mx-auto text-emerald-600"/>
             <h2 className="mt-3 text-2xl font-black">داواکارییەکەت تۆمارکرا</h2>
-            <p className="mt-2 text-sm leading-6 text-black/50">چێشتخانەکە ئاگادار کراوەتەوە. ژمارەی داواکارییەکان:</p>
-            <div className="mt-4 space-y-2">{orders.map((order) => <div key={order.id} dir="ltr" className="rounded-xl bg-[var(--shakh-bg)] p-3 text-sm font-black">{order.order_number}</div>)}</div>
+            <p className="mt-2 text-sm leading-6 text-black/50">وەسڵی داواکاری بۆ چێشتخانە نێردرا. کۆی پارەی داواکاری بۆ تۆ و کاپتن لەم وەسڵەدا دیارە:</p>
+            <div className="mt-5 space-y-3 text-start">
+              {orders.map((order) => <article key={order.id} className="rounded-2xl border border-black/5 bg-[var(--shakh-bg)] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-black">{order.post_title} × {order.quantity}</div><div className="mt-1 text-xs font-bold text-black/45" dir="ltr">{order.order_number}</div></div><span className="text-sm font-black">{Number(order.line_total_iqd).toLocaleString('en-US')} د.ع</span></div>
+                <div className="mt-3 space-y-2 border-t border-black/5 pt-3 text-sm">
+                  <ReceiptLine label="کۆی خواردن" value={order.line_total_iqd} />
+                  <ReceiptLine label="کرێی گەیاندن" value={order.delivery_fee_iqd} />
+                  <ReceiptLine label="کرێی پلاتفۆرم" value={order.platform_fee_iqd} />
+                  <div className="flex justify-between border-t border-black/10 pt-2 text-base"><span className="font-black">کۆی پارەی وەسڵ · بۆ کاپتن</span><strong>{Number(order.total_iqd).toLocaleString('en-US')} د.ع</strong></div>
+                </div>
+              </article>)}
+            </div>
             <Link to="/post-orders" className="mt-5 inline-flex rounded-xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">بینینی داواکارییەکان</Link>
           </div>
         ) : !loading && items.length === 0 ? (
@@ -109,3 +125,8 @@ export function FoodPostCheckoutPage() {
     </section>
   );
 }
+
+function ReceiptLine({ label, value }: { label: string; value: number }) {
+  return <div className="flex justify-between gap-3 text-black/60"><span>{label}</span><span className="font-bold">{Number(value).toLocaleString('en-US')} د.ع</span></div>;
+}
+
