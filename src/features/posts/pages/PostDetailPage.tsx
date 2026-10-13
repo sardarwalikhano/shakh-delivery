@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Check, Package, Pencil, Save, Tag, Trash2, Warehouse, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Package, Pencil, Save, ShoppingBag, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getActivePostById, getApparelVariants, replaceOwnedPostImages, softDeleteOwnedPost, updateOwnedPostDetails } from '../api';
@@ -12,6 +12,7 @@ import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { singleVehicleListing } from '../vehicleTypes';
+import { addFoodPostToCart } from '../foodPostCart';
 
 const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', women: 'ئافرەتان', kids: 'منداڵان', all: 'هەمووان' };
 
@@ -50,6 +51,9 @@ export function PostDetailPage() {
   const [imageSaveError, setImageSaveError] = useState<string | null>(null);
   const [imageSaveMessage, setImageSaveMessage] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [addingFoodToCart, setAddingFoodToCart] = useState(false);
+  const [foodCartMessage, setFoodCartMessage] = useState<string | null>(null);
+  const [foodCartError, setFoodCartError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +139,22 @@ export function PostDetailPage() {
   const ownsPost = Boolean(user && post.author_id === user.id);
   const canEditPost = Boolean((ownsPost && permissions.has('posts.update_own')) || canManageAllPosts);
   const canDeletePost = Boolean((ownsPost && permissions.has('posts.delete_own')) || canManageAllPosts);
+
+  const addFoodPost = async () => {
+    if (!user) { navigate('/login', { state: { from: '/posts/' + post.id } }); return; }
+    setAddingFoodToCart(true);
+    setFoodCartMessage(null);
+    setFoodCartError(false);
+    try {
+      await addFoodPostToCart(post.id);
+      setFoodCartMessage('خواردنەکە زیادکرا بۆ سەلە.');
+    } catch (nextError) {
+      setFoodCartError(true);
+      setFoodCartMessage(nextError instanceof Error ? nextError.message : 'زیادکردن بۆ سەلە سەرنەکەوت.');
+    } finally {
+      setAddingFoodToCart(false);
+    }
+  };
 
   const startEditing = () => {
     setEditTitle(post.title);
@@ -430,6 +450,7 @@ export function PostDetailPage() {
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
+            {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 
             {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
               <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>

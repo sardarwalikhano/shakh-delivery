@@ -29,6 +29,7 @@ import { CreatePostPage } from '@/features/posts/pages/CreatePostPage';
 import { PostDetailPage } from '@/features/posts/pages/PostDetailPage';
 import { MyPostsPage } from '@/features/posts/pages/MyPostsPage';
 import { ApparelPostOrdersPage } from '@/features/posts/pages/ApparelPostOrdersPage';
+import { FoodPostCheckoutPage } from '@/features/posts/pages/FoodPostCheckoutPage';
 
 export function App() {
   return (
@@ -53,6 +54,7 @@ export function App() {
         <Route path="/dashboard/posts/manage" element={<RequireAuth><RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/posts/new" element={<RequireAuth><RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission></RequireAuth>} />
         <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+        <Route path="/food-post-checkout" element={<RequireAuth><FoodPostCheckoutPage /></RequireAuth>} />
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/store" element={<RequireAuth><RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission></RequireAuth>} />
