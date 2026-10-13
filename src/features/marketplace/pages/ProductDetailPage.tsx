@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Heart, ShoppingBag, Store, Truck } from 'lucide-react';
+import { ArrowRight, Check, Heart, ShoppingBag, Store, Tag, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { addToCart, getProductBySlug, isWishlisted, toggleWishlist } from '../api';
