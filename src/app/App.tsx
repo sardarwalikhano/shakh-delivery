@@ -33,6 +33,7 @@ import { PostDetailPage } from '@/features/posts/pages/PostDetailPage';
 import { MyPostsPage } from '@/features/posts/pages/MyPostsPage';
 import { ApparelPostOrdersPage } from '@/features/posts/pages/ApparelPostOrdersPage';
 import { FoodPostCheckoutPage } from '@/features/posts/pages/FoodPostCheckoutPage';
+import { AdvancePaymentPage } from '@/features/posts/pages/AdvancePaymentPage';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function App() {
@@ -69,6 +70,7 @@ export function App() {
         <Route path="/dashboard/posts/new" element={<RequireAuth><RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission></RequireAuth>} />
         <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
         <Route path="/food-post-checkout" element={<RequireAuth><FoodPostCheckoutPage /></RequireAuth>} />
+        <Route path="/advance-payment/:postId" element={<RequireAuth><AdvancePaymentPage /></RequireAuth>} />
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/store" element={<RequireAuth><RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission></RequireAuth>} />
