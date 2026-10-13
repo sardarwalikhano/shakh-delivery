@@ -68,17 +68,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           setNotifications((current) => [nextNotification, ...current.filter((item) => item.id !== nextNotification.id)].slice(0, 60));
           if (!nextNotification.read_at) setUnreadCount((count) => count + 1);
 
-          void navigator.serviceWorker?.ready.then((registration) => {
-            if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return;
-            const title = nextNotification.title_ku || nextNotification.title_en;
-            void registration.showNotification(title, {
-              body: nextNotification.body_ku || nextNotification.body_en,
-              tag: `shakh-notification-${nextNotification.id}`,
-              data: { route: nextNotification.route },
-              icon: '/pwa-192.png',
-              badge: '/pwa-192.png',
-            });
-          }).catch(() => undefined);
         },
       )
       .subscribe();
@@ -122,3 +111,4 @@ export function useNotifications(): NotificationContextValue {
   if (!context) throw new Error('useNotifications must be used inside NotificationProvider.');
   return context;
 }
+

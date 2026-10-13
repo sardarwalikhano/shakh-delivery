@@ -14,8 +14,17 @@ export async function getMyOrders(): Promise<Order[]> {
   return (data ?? []) as unknown as Order[];
 }
 
+export async function updateStoreOrderStatus(orderId: string, status: Order['status']): Promise<void> {
+  const { error } = await supabase.rpc('update_store_order_status', {
+    p_order_id: orderId,
+    p_status: status,
+  });
+  if (error) throw error;
+}
+
 export async function getMyOrder(id: string): Promise<Order | null> {
   const { data, error } = await supabase.from('orders').select(orderSelect).eq('id', id).maybeSingle();
   if (error) throw error;
   return data as unknown as Order | null;
 }
+

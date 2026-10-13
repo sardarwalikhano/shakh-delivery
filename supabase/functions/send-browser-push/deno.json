@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@mmmike/web-push/": "npm:@mmmike/web-push@1.0.1/"
+  }
+}
+
