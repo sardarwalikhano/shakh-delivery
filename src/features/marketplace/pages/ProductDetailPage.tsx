@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Heart, ShoppingBag, Store, Truck } from 'lucide-react';
+import { ArrowRight, Check, Heart, ShoppingBag, Store, Tag, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { addToCart, getProductBySlug, isWishlisted, toggleWishlist } from '../api';
@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { getProductImageUrl } from '@/lib/storage/catalogMedia';
 import { formatSupermarketQuantity, isSupermarketItemExpired, supermarketTypeLabel } from '@/lib/catalog/supermarket';
 import { isRestaurantMenuAvailable, restaurantDietaryLabels, restaurantMenuCategoryLabels } from '@/lib/catalog/restaurant';
+import { getVisibleCategoryDetails, normalizeCategoryRootSlug } from '@/lib/catalog/categoryDetails';
 import { supabase } from '@/lib/supabase/client';
 
 export function ProductDetailPage() {
@@ -63,6 +64,7 @@ export function ProductDetailPage() {
   if (!product) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="text-2xl font-black">بەرهەم نەدۆزرایەوە</h1><Link className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white" to="/search">گەڕانەوە بۆ بازاڕ</Link></div>;
 
   const restaurant = product.restaurantMenu;
+  const categoryDetails = getVisibleCategoryDetails(normalizeCategoryRootSlug(product.category?.slug), product.category_details, product.apparel_product_type ?? '');
   const menuAvailable = restaurant
     ? isRestaurantMenuAvailable(restaurant.is_available, restaurant.available_from, restaurant.available_until)
     : false;
@@ -148,6 +150,15 @@ export function ProductDetailPage() {
             {!restaurant && product.allergen_warnings ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">هۆشداریی ئەلێرژی: {product.allergen_warnings}</p> : null}
             {product.storage_instructions ? <p className="mt-3 text-sm leading-7 text-black/60">ڕێنمایی هەڵگرتن: {product.storage_instructions}</p> : null}
             {product.cleaning_type ? <p className="mt-3 text-sm leading-7 text-black/60">جۆری پاککەرەوە: {product.cleaning_type}</p> : null}
+            {categoryDetails.length ? <section className="mt-6 rounded-2xl border border-black/[0.07] bg-white p-4 sm:p-5">
+              <div className="flex items-center gap-2"><div className="grid size-9 place-items-center rounded-xl bg-[var(--shakh-blue)]/10 text-[var(--shakh-blue)]"><Tag size={17} /></div><h2 className="text-base font-black">وردەکاریی تایبەتی ئەم کاتەگۆرییە</h2></div>
+              <dl className="mt-4 grid gap-2 sm:grid-cols-2">
+                {categoryDetails.map((item) => <div key={item.key} className="rounded-xl bg-[var(--shakh-bg)] px-3 py-3">
+                  <dt className="text-xs font-bold text-black/45">{item.label}</dt>
+                  <dd className="mt-1 break-words text-sm font-black text-black/80">{item.value}</dd>
+                </div>)}
+              </dl>
+            </section> : null}
             {product.attributes.length ? <section className="mt-6 rounded-2xl border border-black/[0.07] p-4 sm:p-5">
               <h2 className="text-base font-black">تایبەتمەندییەکانی بەرهەم</h2>
               <dl className="mt-3 grid gap-2 sm:grid-cols-2">

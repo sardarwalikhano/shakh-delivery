@@ -1,4 +1,5 @@
 import type { ApparelProductType } from '@/lib/catalog/apparel';
+import type { CategoryDetails } from '@/lib/catalog/categoryDetails';
 
 export type ProductAttribute = {
   name_ku: string;
@@ -66,6 +67,7 @@ export type Product = {
   flavor: string | null;
   cleaning_type: string | null;
   attributes: ProductAttribute[];
+  category_details: CategoryDetails;
   store: StoreSummary | null;
   category: Category | null;
   images: ProductImage[];
