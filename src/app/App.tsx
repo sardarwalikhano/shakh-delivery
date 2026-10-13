@@ -13,6 +13,7 @@ import { RequireAuth } from '@/routes/RequireAuth';
 import { RequirePermission } from '@/routes/RequirePermission';
 import { ForbiddenPage } from '@/routes/ForbiddenPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { DashboardLayout } from '@/features/dashboard/DashboardLayout';
 import { MarketplacePage } from '@/features/marketplace/pages/MarketplacePage';
 import { ProductDetailPage } from '@/features/marketplace/pages/ProductDetailPage';
 import { WishlistPage } from '@/features/marketplace/pages/WishlistPage';
@@ -58,29 +59,31 @@ export function App() {
         <Route path="/cart" element={<RequireAuth><CartPage /></RequireAuth>} />
         <Route path="/wishlist" element={<RequireAuth><WishlistPage /></RequireAuth>} />
         <Route path="/product/:slug" element={<ProductDetailPage />} />
+        <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+        <Route path="/food-post-checkout" element={<RequireAuth><FoodPostCheckoutPage /></RequireAuth>} />
         <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
         <Route path="/orders/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
-        <Route path="/posts" element={<RequireAuth><RequirePermission permission="posts.view"><PostsPage /></RequirePermission></RequireAuth>} />
-        <Route path="/posts/:id" element={<RequireAuth><RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission></RequireAuth>} />
-        <Route path="/post-orders" element={<RequireAuth><RequirePermission permission="posts.view"><ApparelPostOrdersPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/posts/manage" element={<RequireAuth><RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/posts/new" element={<RequireAuth><RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission></RequireAuth>} />
-        <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
-        <Route path="/food-post-checkout" element={<RequireAuth><FoodPostCheckoutPage /></RequireAuth>} />
-        <Route path="/403" element={<ForbiddenPage />} />
-        <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/store" element={<RequireAuth><RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/products" element={<RequireAuth><RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/orders" element={<RequireAuth><RequirePermission permission="orders.view"><VendorOrdersPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/deliveries" element={<RequireAuth><RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/notifications" element={<RequireAuth><RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission></RequireAuth>} />
-        <Route path="/dashboard/role-requests" element={<RequireAuth><RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission></RequireAuth>} />
         <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
-        <Route path="/dashboard/*" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
+        <Route path="/403" element={<ForbiddenPage />} />
+
+        <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+          <Route path="/dashboard" element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
+          <Route path="/dashboard/store" element={<RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission>} />
+          <Route path="/dashboard/products" element={<RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission>} />
+          <Route path="/dashboard/orders" element={<RequirePermission permission="orders.view"><VendorOrdersPage /></RequirePermission>} />
+          <Route path="/dashboard/deliveries" element={<RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission>} />
+          <Route path="/dashboard/notifications" element={<RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission>} />
+          <Route path="/dashboard/role-requests" element={<RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission>} />
+          <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission>} />
+          <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission>} />
+          <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
+          <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
+          <Route path="/post-orders" element={<RequirePermission permission="posts.view"><ApparelPostOrdersPage /></RequirePermission>} />
+          <Route path="/dashboard/*" element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
+        </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AppShell>
   );
 }
-
