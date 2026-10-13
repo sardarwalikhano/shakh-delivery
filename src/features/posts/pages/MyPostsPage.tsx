@@ -313,4 +313,3 @@ function PostThumbnail({ post }: { post: Post }) {
 
   return <img src={getPostImageUrl(path)} alt={post.title} onError={() => setFailed(true)} className="size-20 shrink-0 rounded-xl bg-[var(--shakh-bg)] object-cover" loading="lazy"/>;
 }
-
