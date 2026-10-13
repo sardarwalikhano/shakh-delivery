@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import type { ApparelProductType } from '@/lib/catalog/apparel';
+import type { ProductAttribute } from '@/features/marketplace/types';
 
 export type VendorStore = {
   id: string;
@@ -52,6 +53,7 @@ export type VendorProduct = {
   allergen_warnings: string | null;
   flavor: string | null;
   cleaning_type: string | null;
+  attributes: ProductAttribute[];
   category?: { name_ku: string; name_ar: string; name_en: string } | null;
 };
 
@@ -131,7 +133,7 @@ export async function updateVendorStore(userId: string, storeId: string, input: 
 export async function getVendorProducts(userId: string, storeId?: string): Promise<VendorProduct[]> {
   let query = supabase
     .from('products')
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,categories(name_ku,name_ar,name_en),stores!inner(owner_id)')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,attributes,categories(name_ku,name_ar,name_en),stores!inner(owner_id)')
     .eq('stores.owner_id', userId)
     .order('created_at', { ascending: false });
   if (storeId) query = query.eq('store_id', storeId);
@@ -165,23 +167,24 @@ export async function createVendorProduct(userId: string, input: {
   supermarket_type?: VendorProduct['supermarket_type']; quantity_value?: number | null; quantity_unit?: VendorProduct['quantity_unit'];
   package_count?: number | null; barcode?: string | null; manufacturing_date?: string | null; expiry_date?: string | null;
   storage_instructions?: string | null; ingredients?: string | null; allergen_warnings?: string | null; flavor?: string | null; cleaning_type?: string | null;
+  attributes?: ProductAttribute[];
 }): Promise<VendorProduct> {
   const { data, error } = await supabase
     .from('products')
     .insert({ ...input, status: 'draft', currency: 'IQD' })
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,attributes')
     .single();
   if (error) throw error;
   await assertStoreOwner(userId, input.store_id);
   return data as VendorProduct;
 }
 
-export async function updateVendorProduct(userId: string, productId: string, input: Partial<Pick<VendorProduct, 'category_id' | 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'description_ku' | 'description_ar' | 'description_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'is_featured' | 'apparel_product_type' | 'brand' | 'material' | 'country_of_origin' | 'season' | 'seller_location' | 'supermarket_type' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'barcode' | 'manufacturing_date' | 'expiry_date' | 'storage_instructions' | 'ingredients' | 'allergen_warnings' | 'flavor' | 'cleaning_type'>>): Promise<VendorProduct> {
+export async function updateVendorProduct(userId: string, productId: string, input: Partial<Pick<VendorProduct, 'category_id' | 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'description_ku' | 'description_ar' | 'description_en' | 'base_price_iqd' | 'compare_at_price_iqd' | 'stock_quantity' | 'is_featured' | 'apparel_product_type' | 'brand' | 'material' | 'country_of_origin' | 'season' | 'seller_location' | 'supermarket_type' | 'quantity_value' | 'quantity_unit' | 'package_count' | 'barcode' | 'manufacturing_date' | 'expiry_date' | 'storage_instructions' | 'ingredients' | 'allergen_warnings' | 'flavor' | 'cleaning_type' | 'attributes'>>): Promise<VendorProduct> {
   const { data, error } = await supabase
     .from('products')
     .update(input)
     .eq('id', productId)
-    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type')
+    .select('id,store_id,category_id,name_ku,name_ar,name_en,slug,description_ku,description_ar,description_en,base_price_iqd,compare_at_price_iqd,currency,status,stock_quantity,is_featured,apparel_product_type,brand,material,country_of_origin,season,seller_location,supermarket_type,quantity_value,quantity_unit,package_count,barcode,manufacturing_date,expiry_date,storage_instructions,ingredients,allergen_warnings,flavor,cleaning_type,attributes')
     .single();
   if (error) throw error;
   await assertProductOwner(userId, productId);
