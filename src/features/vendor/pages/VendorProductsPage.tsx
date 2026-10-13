@@ -752,6 +752,10 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
               {(spec.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>;
+          if (spec.type === 'date') return <label key={spec.key} className="block min-w-0">
+            <span className="text-xs font-black text-black/55">{spec.label}{spec.required ? ' *' : ''}</span>
+            <input type="date" value={inputValue} onChange={(event) => updateCategoryDetail(spec.key, event.target.value)} disabled={saving} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" />
+          </label>;
           if (spec.type === 'textarea') return <label key={spec.key} className="block min-w-0 sm:col-span-2">
             <span className="text-xs font-black text-black/55">{spec.label}{spec.required ? ' *' : ''}</span>
             <textarea value={inputValue} onChange={(event) => updateCategoryDetail(spec.key, event.target.value)} maxLength={spec.maxLength ?? 2000} disabled={saving} rows={3} placeholder={spec.placeholder} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm leading-7 outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" />
