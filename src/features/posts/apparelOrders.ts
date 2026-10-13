@@ -90,7 +90,7 @@ export type FoodPostOrder = {
   delivery_status: 'pending' | 'accepted' | 'picked_up' | 'on_the_way' | 'arrived' | 'delivered' | 'failed' | 'cancelled';
   payment_status: 'pending' | 'collected' | 'failed' | 'refunded';
   payment_collected_at: string | null;
-  payment_event: { amount_iqd: number; payment_method: 'cash_on_delivery' | 'mobile_cash'; received_at: string; captain_id: string } | null;
+  payment_event: Array<{ amount_iqd: number; payment_method: 'cash_on_delivery' | 'mobile_cash'; received_at: string; captain_id: string }> | null;
   created_at: string;
 };
 

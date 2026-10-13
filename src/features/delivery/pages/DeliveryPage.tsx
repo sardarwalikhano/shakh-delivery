@@ -317,7 +317,7 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
           <FoodAmount label="کرێی پلاتفۆرم" amount={order.platform_fee_iqd} />
           <FoodAmount label="ئەو بڕەی لە کڕیار وەردەگریت" amount={order.total_iqd} strong />
         </div>
-        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
+        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
       </div>
       {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy ? 'چاوەڕوانبە...' : actionLabel}</button> : null}
     </div>
