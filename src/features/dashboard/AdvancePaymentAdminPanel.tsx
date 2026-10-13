@@ -69,7 +69,7 @@ export function AdvancePaymentAdminPanel() {
   };
 
   return <section className="space-y-5 rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
-    <div><div className="text-sm font-bold text-[var(--shakh-orange)]">تەنها سوپەر ئەدمین</div><h2 className="mt-1 text-xl font-black">ڕێژەی فرۆش و پارەی پێشوەختە</h2><p className="mt-2 text-sm leading-7 text-black/50">ڕێژەی فرۆش تەنها لە فرۆشتنی بازاڕدا بەکاردێت. ئۆتۆمبێل کۆمیسیۆنی فرۆشتنی نییە؛ تەنها کرێی پۆستکردنی پێشوەختەی هەیە.</p></div>
+    <div><div className="text-sm font-bold text-[var(--shakh-orange)]">تەنها سوپەر ئەدمین</div><h2 className="mt-1 text-xl font-black">ڕێژەی فرۆش و پارەی پێشوەختە</h2><p className="mt-2 text-sm leading-7 text-black/50">ڕێژەی فرۆش تەنها لە فرۆشتنی بازاڕدا بەکاردێت. ئۆتۆمبێل و حەجزکردنی عومرە کۆمیسیۆنی فرۆشیان نییە؛ تەنها پارەی پێشوەختەیان هەیە.</p></div>
     {error ? <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
     {message ? <div role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</div> : null}
     {loading ? <p className="text-sm text-black/45">بارکردن...</p> : <>
