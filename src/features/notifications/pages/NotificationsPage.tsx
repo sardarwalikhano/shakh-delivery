@@ -1,6 +1,9 @@
 import { Bell, CheckCheck, ChevronLeft, CircleCheck, Clock3, CreditCard, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../hooks/NotificationContext';
+import { useEffect, useState } from 'react';
+import { removePushSubscription, savePushSubscription } from '../api';
+import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import type { NotificationType } from '../types';
 
 const iconByType: Record<NotificationType, typeof Bell> = {
@@ -20,11 +23,48 @@ function formatTime(value: string): string {
 
 export function NotificationsPage() {
   const { notifications, unreadCount, loading, markRead, markAllRead, refresh } = useNotifications();
+  const { roles } = useAuthorization();
+  const [filter, setFilter] = useState<'all' | 'unread' | 'orders' | 'delivery' | 'payments'>('all');
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState('');
 
-  const enableBrowserNotifications = async () => {
-    if (!('Notification' in window)) return;
-    await Notification.requestPermission();
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    void navigator.serviceWorker.ready.then(async (registration) => setPushEnabled(Boolean(await registration.pushManager.getSubscription()))).catch(() => undefined);
+  }, []);
+
+  const toggleBrowserPush = async () => {
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushMessage('ئەم browser ـە پشتگیری ئاگادارکردنەوەی Push ناکات.'); return;
+    }
+    if (!vapidKey) { setPushMessage('Browser Push هێشتا لە ڕێکخستنی سێرڤەرەکەدا چالاک نەکراوە.'); return; }
+    setPushBusy(true); setPushMessage('');
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        await removePushSubscription(existing.endpoint); await existing.unsubscribe(); setPushEnabled(false); setPushMessage('ئاگادارکردنەوەی browser ناچالاک کرا.');
+      } else {
+        if (await Notification.requestPermission() !== 'granted') throw new Error('permission');
+        const normalizedKey = vapidKey.replace(/-/g, '+').replace(/_/g, '/');
+        const applicationServerKey = Uint8Array.from(atob(normalizedKey), (char) => char.charCodeAt(0));
+        const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        await savePushSubscription(subscription.toJSON()); setPushEnabled(true); setPushMessage('ئاگادارکردنەوەی browser چالاک کرا.');
+      }
+    } catch { setPushMessage('چالاککردنی ئاگادارکردنەوە سەرکەوتوو نەبوو. مۆڵەتی browser و پەیوەندی بپشکنە.'); }
+    finally { setPushBusy(false); }
   };
+
+  const roleLabel = roles.includes('captain') ? 'کاپتن' : roles.some((role) => role.endsWith('_vendor')) ? 'فرۆشگا' : 'کڕیار';
+  const visibleNotifications = notifications.filter((item) => {
+    if (filter === 'unread') return !item.read_at;
+    if (filter === 'orders') return item.type.startsWith('order_');
+    if (filter === 'delivery') return item.type.startsWith('delivery_');
+    if (filter === 'payments') return item.type === 'payment_status';
+    return true;
+  });
 
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10">
@@ -33,11 +73,11 @@ export function NotificationsPage() {
           <div>
             <div className="text-xs font-black text-[var(--shakh-orange)]">Notifications</div>
             <h1 className="mt-1 text-3xl font-black">ئاگادارکردنەوەکان</h1>
-            <p className="mt-2 text-sm font-bold leading-7 text-black/45">ئاگادارکردنەوە ڕاستەقینەکان لە Orders، Deliveries و Payments ـەوە.</p>
+            <p className="mt-2 text-sm font-bold leading-7 text-black/45">ئاگادارکردنەوە تایبەتەکانت وەک {roleLabel} لە ئۆردەر، گەیاندن و پارەدان.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => void enableBrowserNotifications()} className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 text-xs font-black text-black/60 hover:bg-black/[0.03]">
-              <Bell size={16} /> ئاگادارکردنەوەی browser
+            <button disabled={pushBusy} onClick={() => void toggleBrowserPush()} className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 text-xs font-black text-black/60 hover:bg-black/[0.03] disabled:opacity-50">
+              <Bell size={16} /> {pushBusy ? 'چاوەڕوانبە...' : pushEnabled ? 'ناچالاککردنی Browser Push' : 'چالاککردنی Browser Push'}
             </button>
             <button disabled={unreadCount === 0} onClick={() => void markAllRead()} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">
               <CheckCheck size={16} /> هەموو بخوێنەوە
@@ -45,8 +85,13 @@ export function NotificationsPage() {
           </div>
         </div>
 
+        {pushMessage ? <p role="status" className="mt-3 rounded-2xl bg-white px-4 py-3 text-xs font-bold text-black/55">{pushMessage}</p> : null}
+        <div className="mt-6 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="جۆری ئاگادارکردنەوە">
+          {([['all','هەموو'],['unread','نەخوێندراوەکان'],['orders','ئۆردەر'],['delivery','گەیاندن'],['payments','پارەدان']] as const).map(([value,label]) => <button key={value} role="tab" aria-selected={filter === value} onClick={() => setFilter(value)} className={`min-h-10 shrink-0 rounded-xl px-4 text-xs font-black ${filter === value ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/55'}`}>{label}</button>)}
+        </div>
 
-        {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : notifications.length === 0 ? (
+
+        {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : visibleNotifications.length === 0 ? (
           <div className="mt-6 rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center">
             <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Bell size={23} /></div>
             <h2 className="mt-5 text-xl font-black">هێشتا هیچ ئاگادارکردنەوەیەک نییە</h2>
@@ -54,7 +99,7 @@ export function NotificationsPage() {
           </div>
         ) : (
           <div className="mt-6 space-y-3">
-            {notifications.map((notification) => {
+            {visibleNotifications.map((notification) => {
               const Icon = iconByType[notification.type] ?? Bell;
               const content = (
                 <div className={`rounded-[26px] border bg-white p-4 shadow-[0_12px_35px_rgba(16,22,35,.035)] transition sm:p-5 ${notification.read_at ? 'border-black/[0.05]' : 'border-[var(--shakh-orange)]/25 bg-[var(--shakh-orange)]/[0.035]'}`}>
@@ -82,10 +127,11 @@ export function NotificationsPage() {
         )}
 
         <div className="mt-8 flex items-center justify-between gap-4 rounded-3xl border border-black/[0.05] bg-white p-4 text-xs font-bold text-black/45">
-          <span className="flex items-center gap-2"><Clock3 size={15} /> {notifications.length.toLocaleString('en-US')} ئاگادارکردنەوە نیشان دەدرێت.</span>
+          <span className="flex items-center gap-2"><Clock3 size={15} /> {visibleNotifications.length.toLocaleString('en-US')} ئاگادارکردنەوە نیشان دەدرێت.</span>
           <button onClick={() => void refresh()} className="font-black text-[var(--shakh-blue)]">نوێکردنەوە</button>
         </div>
       </div>
     </section>
   );
 }
+

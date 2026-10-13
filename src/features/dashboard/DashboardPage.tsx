@@ -26,7 +26,7 @@ const navItems: NavItem[] = [
   { label: 'پارەدان', href: '/dashboard/payments', icon: WalletCards, permission: 'payments.view' },
   { label: 'بەکارهێنەران', href: '/dashboard/users', icon: Users, permission: 'users.view' },
   { label: 'ڕاپۆرتەکان', href: '/dashboard/reports', icon: BarChart3, permission: 'reports.view' },
-  { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.manage' },
+  { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.view_own' },
   { label: 'پشتیوانی', href: '/dashboard/support', icon: CircleHelp, permission: 'support.manage' },
   { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review' },
   { label: 'Audit Logs', href: '/dashboard/audit', icon: ShieldCheck, permission: 'audit.view' },
@@ -117,3 +117,4 @@ function DashboardCard({ title, text, icon }: { title: string; text: string; ico
     </div>
   );
 }
+

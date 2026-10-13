@@ -31,3 +31,21 @@ export async function markAllNotificationsRead(): Promise<number> {
   if (error) throw error;
   return Number(data ?? 0);
 }
+
+export async function savePushSubscription(subscription: PushSubscriptionJSON): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !subscription.endpoint) throw new Error('Sign in before enabling push notifications.');
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    user_id: user.id,
+    endpoint: subscription.endpoint,
+    subscription,
+    expires_at: subscription.expirationTime ? new Date(subscription.expirationTime).toISOString() : null,
+  }, { onConflict: 'endpoint' });
+  if (error) throw error;
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) throw error;
+}
+

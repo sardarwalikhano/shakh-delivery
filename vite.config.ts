@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt'],
+      includeAssets: ['favicon.svg', 'robots.txt', 'push-handler.js'],
       manifest: {
         id: '/',
         name: 'SHAKH Delivery',
@@ -36,6 +36,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        importScripts: ['/push-handler.js'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
@@ -54,3 +55,4 @@ export default defineConfig({
     alias: { '@': '/src' }
   }
 });
+

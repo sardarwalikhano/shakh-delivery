@@ -9,6 +9,7 @@ type AuthContextValue = {
   loading: boolean;
   isAuthenticated: boolean;
   isEmailVerified: boolean;
+  isPasswordRecovery: boolean;
   login: typeof signIn;
   register: typeof signUp;
   logout: typeof signOut;
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -27,10 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Subscribe before reading the stored session. Supabase emits INITIAL_SESSION
     // after its auth storage has been initialized; that event is the authoritative
     // startup state and avoids a late getSession() result overwriting a newer event.
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
       authEventReceived = true;
       setSession(nextSession);
+      if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') setIsPasswordRecovery(false);
       setLoading(false);
     });
 
@@ -64,10 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isAuthenticated: Boolean(session?.user),
     isEmailVerified: Boolean(session?.user?.email_confirmed_at),
+    isPasswordRecovery,
     login: signIn,
     register: signUp,
     logout: signOut,
-  }), [loading, session]);
+  }), [isPasswordRecovery, loading, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -77,3 +82,4 @@ export function useAuth(): AuthContextValue {
   if (!context) throw new Error('useAuth must be used inside AuthProvider.');
   return context;
 }
+

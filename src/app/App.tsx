@@ -1,4 +1,5 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { HomePage } from '@/routes/HomePage';
 import { NotFoundPage } from '@/routes/NotFoundPage';
@@ -21,6 +22,7 @@ import { VendorProductsPage } from '@/features/vendor/pages/VendorProductsPage';
 import { DeliveryPage } from '@/features/delivery/pages/DeliveryPage';
 import { CheckoutPage } from '@/features/checkout/CheckoutPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
+import { VendorOrdersPage } from '@/features/orders/VendorOrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { NotificationsPage } from '@/features/notifications/pages/NotificationsPage';
 import { RoleRequestsPage } from '@/features/role-requests/pages/RoleRequestsPage';
@@ -30,8 +32,19 @@ import { PostDetailPage } from '@/features/posts/pages/PostDetailPage';
 import { MyPostsPage } from '@/features/posts/pages/MyPostsPage';
 import { ApparelPostOrdersPage } from '@/features/posts/pages/ApparelPostOrdersPage';
 import { FoodPostCheckoutPage } from '@/features/posts/pages/FoodPostCheckoutPage';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export function App() {
+  const { isPasswordRecovery } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isPasswordRecovery && location.pathname !== '/reset-password') {
+      navigate('/reset-password', { replace: true });
+    }
+  }, [isPasswordRecovery, location.pathname, navigate]);
+
   return (
     <AppShell>
       <Routes>
@@ -59,6 +72,7 @@ export function App() {
         <Route path="/dashboard" element={<RequireAuth><RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/store" element={<RequireAuth><RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/products" element={<RequireAuth><RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission></RequireAuth>} />
+        <Route path="/dashboard/orders" element={<RequireAuth><RequirePermission permission="orders.view"><VendorOrdersPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/deliveries" element={<RequireAuth><RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/notifications" element={<RequireAuth><RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission></RequireAuth>} />
         <Route path="/dashboard/role-requests" element={<RequireAuth><RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission></RequireAuth>} />
@@ -69,3 +83,4 @@ export function App() {
     </AppShell>
   );
 }
+
