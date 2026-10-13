@@ -322,7 +322,7 @@ export function VendorProductsPage() {
         package_count: supermarket && data.package_count.trim() ? Number(data.package_count) : null,
         barcode: supermarket ? data.barcode.trim() || null : null,
         manufacturing_date: supermarket ? data.manufacturing_date || null : null,
-        expiry_date: supermarket ? data.expiry_date || null : null,
+        expiry_date: supermarket ? data.expiry_date || null : (typeof category_details.expiry_date === 'string' ? category_details.expiry_date : null),
         storage_instructions: supermarket && ['food','beverage','fresh_food'].includes(data.supermarket_type) ? data.storage_instructions.trim() || null : null,
         ingredients: supermarket && ['food','beverage','fresh_food'].includes(data.supermarket_type) ? data.ingredients.trim() || null : null,
         allergen_warnings: supermarket && ['food','beverage','fresh_food'].includes(data.supermarket_type) ? data.allergen_warnings.trim() || null : null,
