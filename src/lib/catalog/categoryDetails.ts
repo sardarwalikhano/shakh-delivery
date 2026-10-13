@@ -3,7 +3,7 @@ export type CategoryDetails = Record<string, string | boolean>;
 export type CategoryDetailField = {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'textarea' | 'select' | 'checkbox';
+  type: 'text' | 'number' | 'date' | 'textarea' | 'select' | 'checkbox';
   required?: boolean;
   min?: number;
   max?: number;
@@ -117,6 +117,7 @@ const beautyFields: CategoryDetailField[] = [
   { key: 'main_concern', label: 'مەبەست / کێشەی سەرەکی', type: 'text', maxLength: 200, placeholder: 'وەک وشکی پێست، پاراستن لە خۆر' },
   { key: 'shade_or_tone', label: 'سایە / تۆنی ڕەنگ', type: 'text', maxLength: 120 },
   { key: 'volume_value', label: 'بڕ / قەبارە', type: 'number', min: 0, max: 100000, unit: 'بڕی هەڵبژێردراو' },
+  { key: 'expiry_date', label: 'بەرواری بەسەرچوون / بەکارهێنانی پێش', type: 'date' },
   { key: 'volume_unit', label: 'یەکەی بڕ', type: 'select', options: [
     { value: 'ml', label: 'ملیلتر' }, { value: 'l', label: 'لیتر' }, { value: 'g', label: 'گرام' },
     { value: 'kg', label: 'کیلۆگرام' }, { value: 'piece', label: 'دانە' },
@@ -270,6 +271,15 @@ export function sanitizeCategoryDetails(
     if ((field.type === 'text' || field.type === 'textarea') && normalized.length > (field.maxLength ?? (field.type === 'textarea' ? 2000 : 120))) {
       return { values: {}, error: `زانیاریی «${field.label}» زۆر درێژە.` };
     }
+    if (field.type === 'date') {
+      const isoDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(normalized);
+      const parsedDate = isoDate ? new Date(normalized + 'T00:00:00.000Z') : null;
+      if (!parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== normalized) {
+        return { values: {}, error: `بەرواری «${field.label}» دروست نییە.` };
+      }
+      values[field.key] = normalized;
+      continue;
+    }
     if (field.type === 'number') {
       const number = Number(normalized);
       if (!Number.isFinite(number) || (field.min !== undefined && number < field.min) || (field.max !== undefined && number > field.max)) {
@@ -293,6 +303,7 @@ export function getVisibleCategoryDetails(
 ): Array<{ key: string; label: string; value: string }> {
   const values = value ?? {};
   return getCategoryDetailFields(rootSlug, apparelType).flatMap((field) => {
+    if (field.key === 'expiry_date') return [];
     const raw = values[field.key];
     if (typeof raw === 'boolean') return raw ? [{ key: field.key, label: field.label, value: 'بەڵێ' }] : [];
     if (typeof raw !== 'string' || !raw.trim()) return [];
