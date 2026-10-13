@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { addVendorProductImage, createVendorProduct, createVendorVariant, deleteDraftProduct, deleteVendorProductImage, deleteVendorVariant, getRestaurantMenuConfiguration, getVendorProductImages, getVendorProducts, getVendorStores, getVendorVariants, saveRestaurantMenuDetails, saveRestaurantMenuOptionGroups, updateVendorProduct, updateVendorVariant, type RestaurantMenuDetails, type RestaurantMenuGroupDraft, type VendorProduct, type VendorProductImage, type VendorStore, type VendorVariant } from '../api';
 import { supabase } from '@/lib/supabase/client';
+import type { ProductAttribute } from '@/features/marketplace/types';
 import { ImageUploadField } from '@/components/media/ImageUploadField';
 import { deleteProductImage, getProductImageUrl, uploadProductImage } from '@/lib/storage/catalogMedia';
 import { apparelColorPalette, apparelSeasonOptions, apparelTypeOptions, defaultSizesForApparel, isShoeType, type ApparelColor, type ApparelProductType } from '@/lib/catalog/apparel';
@@ -26,6 +27,7 @@ type SupermarketVariantDraft = {
 type RestaurantMenuDetailsInput = Omit<RestaurantMenuDetails, 'product_id'>;
 type RestaurantSizeDraft = { id?: string; name_ku: string; name_ar: string; name_en: string; price_iqd: string };
 type ProductFormPayload = ProductFormState & {
+  attributes: ProductAttribute[];
   imageFiles: File[];
   colors: ApparelColor[];
   sizes: string[];
@@ -223,6 +225,22 @@ export function VendorProductsPage() {
       const restaurantMenu = restaurantVendor && isRestaurantCategory(data.category_id, categories);
       if (restaurantVendor && !restaurantMenu) throw new Error('بۆ خواردنی چێشتخانە، بەشی «خواردن» یان بەشی لاوەکییەکانی هەڵبژێرە.');
       const marketVariants = data.marketVariants;
+      const attributes = data.attributes
+        .map((item) => ({
+          name_ku: item.name_ku.trim(),
+          name_ar: item.name_ar.trim(),
+          name_en: item.name_en.trim(),
+          value_ku: item.value_ku.trim(),
+          value_ar: item.value_ar.trim(),
+          value_en: item.value_en.trim(),
+        }))
+        .filter((item) => Object.values(item).some(Boolean));
+      if (attributes.length > 30) throw new Error('زۆرترین ژمارەی تایبەتمەندی ٣٠ دانەیە.');
+      if (attributes.some((item) =>
+        !item.name_ku || !item.value_ku
+        || item.name_ku.length > 80 || item.name_ar.length > 80 || item.name_en.length > 80
+        || item.value_ku.length > 250 || item.value_ar.length > 250 || item.value_en.length > 250
+      )) throw new Error('ناو و بەهای کوردیی هەر تایبەتمەندییەک پێویستن؛ سنووری ناو ٨٠ و بەها ٢٥٠ پیتە.');
       const apparelType = apparel && data.apparel_product_type ? data.apparel_product_type as ApparelProductType : null;
       const combinations = apparel ? data.colors.flatMap((color) => data.sizes.flatMap((size) => {
         const cell = data.matrix[comboKey(color.key, size)];
@@ -301,6 +319,7 @@ export function VendorProductsPage() {
         allergen_warnings: supermarket && ['food','beverage','fresh_food'].includes(data.supermarket_type) ? data.allergen_warnings.trim() || null : null,
         flavor: supermarket && data.supermarket_type === 'beverage' ? data.flavor.trim() || null : null,
         cleaning_type: supermarket && data.supermarket_type === 'cleaning' ? data.cleaning_type.trim() || null : null,
+        attributes,
       };
 
       if (editing) {
@@ -544,9 +563,13 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
   const [restaurantSizes, setRestaurantSizes] = useState<RestaurantSizeDraft[]>(() => editingVariants
     .filter((item) => !(item.color_name_ku && item.size_label) && item.is_active)
     .map((item) => ({ id: item.id, name_ku: item.name_ku, name_ar: item.name_ar, name_en: item.name_en, price_iqd: item.price_iqd == null ? '' : String(item.price_iqd) })));
+  const [attributes, setAttributes] = useState<ProductAttribute[]>(() => editing?.attributes ?? []);
   const [restaurantGroups, setRestaurantGroups] = useState<RestaurantMenuGroupDraft[]>(() => initialRestaurantGroups.map((group) => ({
     ...group, options: group.options.map((option) => ({ ...option })),
   })));
+  const updateAttribute = (index: number, patch: Partial<ProductAttribute>) => setAttributes((current) => current.map((item, position) => position === index ? { ...item, ...patch } : item));
+  const addAttribute = () => setAttributes((current) => current.length >= 30 ? current : [...current, { name_ku: '', name_ar: '', name_en: '', value_ku: '', value_ar: '', value_en: '' }]);
+  const removeAttribute = (index: number) => setAttributes((current) => current.filter((_, position) => position !== index));
   const updateRestaurantDetails = (patch: Partial<RestaurantMenuDetailsInput>) => setRestaurantDetails((current) => ({ ...current, ...patch }));
   const updateRestaurantSize = (index: number, patch: Partial<RestaurantSizeDraft>) => setRestaurantSizes((current) => current.map((item, position) => position === index ? { ...item, ...patch } : item));
   const updateRestaurantGroup = (index: number, patch: Partial<RestaurantMenuGroupDraft>) => setRestaurantGroups((current) => current.map((item, position) => position === index ? { ...item, ...patch } : item));
@@ -655,6 +678,35 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
       {apparel ? <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگا بە شێوەی خۆکار</div><div className="mt-1 text-2xl font-black text-emerald-900">{totalStock.toLocaleString('en-US')} دانە</div><div className="mt-1 text-xs text-emerald-800/75">کۆی دانەکانی تێکەڵەکانی ڕەنگ × قەبارە</div></div> : supermarket && marketVariants.length ? <div className="rounded-2xl bg-emerald-50 p-4"><div className="text-xs font-black text-emerald-800">کۆی کۆگای وەشانەکان</div><div className="mt-1 text-2xl font-black text-emerald-900">{marketVariantStock.toLocaleString('en-US')} دانە</div></div> : <Field label="کۆی کۆگا" value={form.stock_quantity} onChange={(v) => field('stock_quantity', v)} dir="ltr" inputMode="numeric" />}
       <label className="md:col-span-2"><span className="text-xs font-black text-black/55">وەسفی بەرهەم بە کوردی</span><textarea value={form.description_ku} onChange={(e) => field('description_ku', e.target.value)} rows={4} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>
     </div>
+
+    <section className="mt-8 rounded-3xl border border-black/[0.07] p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-blue)]/10 text-[var(--shakh-blue)]"><Tag size={19} /></div>
+          <div>
+            <h3 className="text-lg font-black">تایبەتمەندیی زیاتر بۆ بەرهەم</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-6 text-black/45">بۆ هەر جۆرێک بەکاردێت؛ وەک RAM، بیرگە، مۆدێل، جۆری ماددە، ڕەنگ یان هەر زانیارییەکی تر. ناو و بەهای کوردی پێویستن؛ عەرەبی و ئینگلیزی ئارەزوومەندانەن.</p>
+          </div>
+        </div>
+        <button type="button" onClick={addAttribute} disabled={saving || attributes.length >= 30} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-3 text-xs font-black text-white disabled:opacity-40"><Plus size={15} /> زیادکردنی تایبەتمەندی ({attributes.length}/30)</button>
+      </div>
+      {attributes.length ? <div className="mt-5 space-y-4">
+        {attributes.map((attribute, index) => <div key={index} className="rounded-2xl border border-black/[0.07] bg-[var(--shakh-bg)]/60 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="text-sm font-black">تایبەتمەندی {index + 1}</div>
+            <button type="button" onClick={() => removeAttribute(index)} disabled={saving} className="grid size-9 place-items-center rounded-xl bg-red-50 text-red-600 disabled:opacity-40" aria-label={`سڕینەوەی تایبەتمەندی ${index + 1}`}><Trash2 size={16} /></button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="ناوی تایبەتمەندی بە کوردی *" value={attribute.name_ku} onChange={(v) => updateAttribute(index, { name_ku: v })} />
+            <Field label="ناوی تایبەتمەندی بە عەرەبی" value={attribute.name_ar} onChange={(v) => updateAttribute(index, { name_ar: v })} />
+            <Field label="Feature name (English)" value={attribute.name_en} onChange={(v) => updateAttribute(index, { name_en: v })} dir="ltr" />
+            <Field label="بەها / وردەکاری بە کوردی *" value={attribute.value_ku} onChange={(v) => updateAttribute(index, { value_ku: v })} />
+            <Field label="بەها / وردەکاری بە عەرەبی" value={attribute.value_ar} onChange={(v) => updateAttribute(index, { value_ar: v })} />
+            <Field label="Feature value (English)" value={attribute.value_en} onChange={(v) => updateAttribute(index, { value_en: v })} dir="ltr" />
+          </div>
+        </div>)}
+      </div> : <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] px-4 py-5 text-sm text-black/45">هێشتا تایبەتمەندی زیاد نەکراوە. دەتوانیت ٣٠ تایبەتمەندی بۆ هەر بەرهەم زیاد بکەیت.</div>}
+    </section>
 
     <ImageUploadField
       files={imageFiles}
@@ -844,7 +896,7 @@ function ProductForm({ form, setForm, categories, editing, editingVariants, exis
     </div> : null}
 
     {localError ? <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">{localError}</div> : null}
-    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, imageFiles, colors, sizes, matrix, marketVariants, restaurantDetails, restaurantSizes, restaurantGroups }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
+    <div className="mt-7 flex flex-wrap gap-3"><button type="button" disabled={saving} onClick={async () => { setLocalError(null); setSaving(true); try { await onSave({ ...form, attributes, imageFiles, colors, sizes, matrix, marketVariants, restaurantDetails, restaurantSizes, restaurantGroups }); } finally { setSaving(false); } }} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><Save size={17} /> {saving ? 'پاشەکەوت و بارکردنی وێنەکان...' : 'پاشەکەوتکردن'}</button><button type="button" disabled={saving} onClick={onCancel} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black disabled:opacity-50">هەڵوەشاندنەوە</button></div>
     {apparel ? <p className="mt-4 text-xs leading-6 text-black/40">بەرهەمە نوێکان وەک پێشوو بە دۆخی draft هەڵدەگیرێن؛ هەموو زانیاری، وێنە و کۆگاکان لە Supabase پاشەکەوت دەکرێن.</p> : null}
   </section>;
 }
