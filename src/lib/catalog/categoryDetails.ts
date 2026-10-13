@@ -20,11 +20,6 @@ const conditionOptions = [
   { value: 'used', label: 'بەکارهاتوو' },
 ];
 
-const yesNoOptions = [
-  { value: 'yes', label: 'بەڵێ' },
-  { value: 'no', label: 'نەخێر' },
-];
-
 const foodFields: CategoryDetailField[] = [
   { key: 'product_type', label: 'جۆری بەرهەم', type: 'select', required: true, options: [
     { value: 'prepared_meal', label: 'خواردنی ئامادە' }, { value: 'bakery', label: 'نان و شیرینی' },
@@ -165,6 +160,7 @@ const generalFields: CategoryDetailField[] = [
 ];
 
 const clothingFields: CategoryDetailField[] = [
+  { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', options: conditionOptions },
   { key: 'pattern', label: 'نەخش / پاتێرن', type: 'select', options: [
     { value: 'solid', label: 'یەکڕەنگ' }, { value: 'striped', label: 'هێڵدار' }, { value: 'printed', label: 'چاپکراو' },
     { value: 'floral', label: 'گوڵدار' }, { value: 'checked', label: 'خانەخانە' }, { value: 'other', label: 'جۆری تر' },
@@ -185,6 +181,7 @@ const clothingFields: CategoryDetailField[] = [
 ];
 
 const shoeFields: CategoryDetailField[] = [
+  { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', options: conditionOptions },
   { key: 'shoe_material', label: 'ماددەی سەرەوەی پێڵاو', type: 'text', maxLength: 160 },
   { key: 'sole_material', label: 'ماددەی بن پێڵاو', type: 'text', maxLength: 160 },
   { key: 'shoe_closure', label: 'جۆری داخستن', type: 'select', options: [
@@ -199,6 +196,7 @@ const shoeFields: CategoryDetailField[] = [
 ];
 
 const bagFields: CategoryDetailField[] = [
+  { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', options: conditionOptions },
   { key: 'bag_type', label: 'جۆری جانتا / ئەکسسوارات', type: 'text', maxLength: 120 },
   { key: 'capacity_liters', label: 'قەبارەی ناوەوە', type: 'number', min: 0, max: 10000, unit: 'لیتر' },
   { key: 'strap_type', label: 'جۆری شانەبەند', type: 'text', maxLength: 120 },
