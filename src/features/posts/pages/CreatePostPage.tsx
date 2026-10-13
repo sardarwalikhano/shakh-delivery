@@ -244,9 +244,10 @@ export function CreatePostPage() {
             details: vehicleListing,
             imageKinds: images.map((file) => vehiclePhotoKinds.get(file) ?? ''),
           },
+          requireAdvancePayment: role !== 'super_admin',
         });
         setSuccess(true);
-        navigate(`/posts/${created.id}`, { replace: true });
+        navigate(role !== 'super_admin' ? `/advance-payment/${created.id}?purpose=car_listing` : `/posts/${created.id}`, { replace: true });
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : 'پۆستکردنی ئۆتۆمبێل سەرکەوتوو نەبوو.');
       } finally {

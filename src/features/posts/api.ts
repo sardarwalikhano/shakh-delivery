@@ -42,6 +42,7 @@ export async function createPost(input: {
   images?: File[];
   apparel?: ApparelPostInput;
   vehicle?: { details: VehicleListingDraft; imageKinds?: VehiclePhotoKind[] };
+  requireAdvancePayment?: boolean;
 }): Promise<Post> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error('Not authenticated');
@@ -172,7 +173,7 @@ export async function createPost(input: {
     });
     const { data: published, error: publishError } = await supabase
       .from('posts')
-      .update({ images: postImages, status: 'active' })
+      .update({ images: postImages, status: input.requireAdvancePayment ? 'archived' : 'active' })
       .eq('id', postId)
       .eq('author_id', user.id)
       .select('*')

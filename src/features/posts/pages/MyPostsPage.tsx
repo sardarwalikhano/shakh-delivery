@@ -225,6 +225,7 @@ export function MyPostsPage() {
                     <span className="mb-1 inline-flex rounded-full bg-[var(--shakh-blue)]/8 px-2 py-1 text-[10px] font-black text-[var(--shakh-blue)]">{postCategoryLabels[post.category]}</span>
                     <span className="block truncate font-black">{post.title}</span>
                     <span className="mt-1 block text-xs text-black/45">{post.status === 'active' ? 'چالاک' : post.status === 'archived' ? 'ئەرشیف' : post.status}</span>
+                    {post.category === 'cars' && post.status === 'archived' ? <span className="mt-2 block text-xs font-black text-[var(--shakh-orange)]">ناردنی وەسڵ / پشکنینی پارەی پێشوەختە ←</span> : null}
                     {post.price_iqd !== null ? <span className="mt-2 block text-sm font-black">{Number(post.price_iqd).toLocaleString('en-US')} <span className="text-[10px] font-bold text-black/40">{post.category === 'cars' ? 'نرخ' : 'د.ع'}</span></span> : <span className="mt-2 block text-xs text-black/35">نرخ دیاری نەکراوە</span>}
                     {canManageAll ? <span className="mt-1 block truncate text-[10px] text-black/35">نووسەر: {post.author_id}</span> : null}
                   </span>
@@ -233,7 +234,9 @@ export function MyPostsPage() {
               );
               return post.category === 'fashion'
                 ? <button key={post.id} type="button" onClick={() => void startEdit(post)} className={rowClass}>{rowContent}</button>
-                : <Link key={post.id} to={`/posts/${post.id}`} className={rowClass}>{rowContent}</Link>;
+                : post.category === 'cars' && post.status === 'archived'
+                  ? <Link key={post.id} to={`/advance-payment/${post.id}?purpose=car_listing`} className={rowClass}>{rowContent}</Link>
+                  : <Link key={post.id} to={`/posts/${post.id}`} className={rowClass}>{rowContent}</Link>;
             })}
           </div>
 
