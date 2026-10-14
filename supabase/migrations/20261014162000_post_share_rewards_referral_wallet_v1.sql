@@ -458,8 +458,7 @@ begin
     );
   end if;
 
-  select a.*,p.author_id,p.referral_reward_iqd
-    into v_attr,v_author_id,v_reward
+  select a.* into v_attr
   from public.post_share_attributions a
   join public.post_share_links l on l.id=a.share_link_id
   join public.posts p on p.id=a.post_id
@@ -473,6 +472,8 @@ begin
   limit 1;
 
   if found then
+    select p.author_id,p.referral_reward_iqd into v_author_id,v_reward
+    from public.posts p where p.id=v_attr.post_id;
     new.share_link_id := v_attr.share_link_id;
     new.referrer_id := (select sharer_id from public.post_share_links where id=v_attr.share_link_id);
     new.referral_reward_iqd := v_reward;
@@ -513,8 +514,7 @@ begin
     );
   end if;
 
-  select a.*,p.author_id,p.referral_reward_iqd
-    into v_attr,v_author_id,v_reward
+  select a.* into v_attr
   from public.post_share_attributions a
   join public.post_share_links l on l.id=a.share_link_id
   join public.posts p on p.id=a.post_id
@@ -528,6 +528,8 @@ begin
   limit 1;
 
   if found then
+    select p.author_id,p.referral_reward_iqd into v_author_id,v_reward
+    from public.posts p where p.id=v_attr.post_id;
     new.share_link_id := v_attr.share_link_id;
     new.referrer_id := (select sharer_id from public.post_share_links where id=v_attr.share_link_id);
     new.referral_reward_iqd := v_reward;
@@ -585,7 +587,7 @@ begin
   if new.referral_reward_status <> 'pending' or new.referrer_id is null or new.referral_reward_iqd<=0 then
     return new;
   end if;
-  v_settle := new.delivery_status='delivered' and old.delivery_status is distinct from new.delivery_status;
+  v_settle := new.delivery_status='delivered' and new.payment_status='collected' and (old.delivery_status is distinct from new.delivery_status or old.payment_status is distinct from new.payment_status);
   v_reverse := (new.status in ('cancelled','rejected') or new.delivery_status in ('failed','cancelled'))
     and (old.status is distinct from new.status or old.delivery_status is distinct from new.delivery_status);
   if not v_settle and not v_reverse then return new; end if;
@@ -697,7 +699,7 @@ create trigger apparel_post_order_record_referral_reward
 
 drop trigger if exists food_post_order_settle_referral_reward on public.food_post_orders;
 create trigger food_post_order_settle_referral_reward
-  after update of status,delivery_status,referral_reward_status on public.food_post_orders
+  after update of status,delivery_status,payment_status,referral_reward_status on public.food_post_orders
   for each row execute function private.settle_food_post_referral_reward();
 
 drop trigger if exists apparel_post_order_settle_referral_reward on public.apparel_post_orders;
