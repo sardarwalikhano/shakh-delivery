@@ -122,7 +122,7 @@ export function PwaManager() {
           role="status"
           aria-live="polite"
           dir="rtl"
-          className="fixed inset-x-4 bottom-4 z-[70] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:end-4"
+          className="fixed inset-x-4 bottom-20 z-[70] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:end-4 sm:bottom-4"
         >
           <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
             <RefreshCw size={19} aria-hidden="true" />
@@ -148,7 +148,7 @@ export function PwaManager() {
           role="status"
           aria-live="polite"
           dir="rtl"
-          className="fixed inset-x-4 bottom-4 z-[70] mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:end-4"
+          className="fixed inset-x-4 bottom-20 z-[70] mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:end-4 sm:bottom-4"
         >
           <div className="min-w-0 flex-1">
             <p className="font-black text-[var(--shakh-ink)]">بەشی سەرەکیی ئەپ ئامادەیە</p>
