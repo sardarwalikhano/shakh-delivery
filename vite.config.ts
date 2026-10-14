@@ -37,9 +37,7 @@ export default defineConfig({
       },
       workbox: {
         importScripts: ['/push-handler.js'],
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
+        cleanupOutdatedCaches: true,        clientsClaim: true,
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
