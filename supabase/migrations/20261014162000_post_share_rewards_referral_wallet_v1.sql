@@ -201,9 +201,6 @@ grant select on public.post_share_links, public.post_share_attributions,
   public.post_referral_rewards, public.referral_withdrawal_requests
   to authenticated;
 
-revoke insert, update, delete on public.food_post_cart_items from authenticated;
-grant select, insert, update, delete on public.food_post_cart_items to authenticated;
-
 create or replace function public.create_post_share_link(p_post_id uuid)
 returns jsonb
 language plpgsql
