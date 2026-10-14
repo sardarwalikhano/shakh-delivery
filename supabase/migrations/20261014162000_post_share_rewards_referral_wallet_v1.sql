@@ -707,6 +707,230 @@ create trigger apparel_post_order_settle_referral_reward
   after update of status,referral_reward_status on public.apparel_post_orders
   for each row execute function private.settle_apparel_post_referral_reward();
 
+
+create or replace function private.apply_wallet_payment_after_food_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $
+begin
+  if new.payment_method <> 'wallet' or old.payment_method is not distinct from new.payment_method or new.wallet_paid_iqd > 0 then
+    return new;
+  end if;
+
+  insert into public.referral_wallets(user_id) values(new.buyer_id) on conflict(user_id) do nothing;
+  update public.referral_wallets
+    set available_iqd=available_iqd-new.total_iqd,
+        total_spent_iqd=total_spent_iqd+new.total_iqd,
+        updated_at=now()
+  where user_id=new.buyer_id and available_iqd>=new.total_iqd;
+  if not found then
+    raise exception using errcode='22023', message='Insufficient referral wallet balance for this order';
+  end if;
+
+  insert into public.referral_wallet_transactions(
+    user_id,transaction_type,amount_iqd,balance_bucket,reference_type,reference_id,description_ku
+  ) values (
+    new.buyer_id,'platform_spend',-new.total_iqd,'available','food_post_order',new.id,
+    'پارەدانی داواکاری بە باڵانسی شاخ'
+  );
+
+  update public.food_post_orders
+    set wallet_paid_iqd=total_iqd,
+        payment_status='collected',
+        payment_collected_at=now()
+  where id=new.id;
+  return new;
+end;
+$;
+
+create or replace function private.apply_wallet_payment_after_apparel_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $
+begin
+  if new.payment_method <> 'wallet' or old.payment_method is not distinct from new.payment_method or new.wallet_paid_iqd > 0 then
+    return new;
+  end if;
+
+  insert into public.referral_wallets(user_id) values(new.buyer_id) on conflict(user_id) do nothing;
+  update public.referral_wallets
+    set available_iqd=available_iqd-new.total_iqd,
+        total_spent_iqd=total_spent_iqd+new.total_iqd,
+        updated_at=now()
+  where user_id=new.buyer_id and available_iqd>=new.total_iqd;
+  if not found then
+    raise exception using errcode='22023', message='Insufficient referral wallet balance for this order';
+  end if;
+
+  insert into public.referral_wallet_transactions(
+    user_id,transaction_type,amount_iqd,balance_bucket,reference_type,reference_id,description_ku
+  ) values (
+    new.buyer_id,'platform_spend',-new.total_iqd,'available','apparel_post_order',new.id,
+    'پارەدانی داواکاری بە باڵانسی شاخ'
+  );
+
+  update public.apparel_post_orders
+    set wallet_paid_iqd=total_iqd,payment_status='collected'
+  where id=new.id;
+  return new;
+end;
+$;
+
+drop trigger if exists food_post_order_wallet_payment on public.food_post_orders;
+create trigger food_post_order_wallet_payment
+  after update of payment_method on public.food_post_orders
+  for each row when (new.payment_method='wallet' and old.payment_method is distinct from new.payment_method)
+  execute function private.apply_wallet_payment_after_food_update();
+
+drop trigger if exists apparel_post_order_wallet_payment on public.apparel_post_orders;
+create trigger apparel_post_order_wallet_payment
+  after update of payment_method on public.apparel_post_orders
+  for each row when (new.payment_method='wallet' and old.payment_method is distinct from new.payment_method)
+  execute function private.apply_wallet_payment_after_apparel_update();
+
+create or replace function public.create_apparel_post_order_with_wallet(
+  p_request_id uuid,
+  p_variant_id uuid,
+  p_quantity integer,
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_customer_note text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = pg_catalog, public, private
+as $
+declare
+  v_user_id uuid := (select auth.uid());
+  v_order jsonb;
+  v_order_id uuid;
+begin
+  if v_user_id is null then raise exception using errcode='42501', message='Authentication required'; end if;
+  if not (select private.has_permission('checkout.create')) then
+    raise exception using errcode='42501', message='Checkout is not permitted for this role';
+  end if;
+  v_order := public.create_apparel_post_order(
+    p_request_id,p_variant_id,p_quantity,p_delivery_address,p_buyer_phone,p_customer_note,'cash_on_delivery'
+  );
+  v_order_id := nullif(v_order->>'id','')::uuid;
+  if v_order_id is null then raise exception using errcode='P0002', message='Order could not be created'; end if;
+
+  update public.apparel_post_orders
+    set payment_method='wallet'
+  where id=v_order_id and buyer_id=v_user_id and payment_method<>'wallet';
+  if not found and not exists (
+    select 1 from public.apparel_post_orders
+    where id=v_order_id and buyer_id=v_user_id and payment_method='wallet' and wallet_paid_iqd=total_iqd
+  ) then
+    raise exception using errcode='42501', message='This order cannot be paid from the referral wallet';
+  end if;
+
+  return v_order || jsonb_build_object('payment_method','wallet','payment_status','collected','wallet_paid_iqd',v_order->>'total_iqd');
+end;
+$;
+
+create or replace function public.checkout_food_post_cart_with_wallet(
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_delivery_city text,
+  p_customer_note text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = pg_catalog, public, private
+as $
+declare
+  v_user_id uuid := (select auth.uid());
+  v_result jsonb;
+  v_order jsonb;
+  v_order_id uuid;
+begin
+  if v_user_id is null then raise exception using errcode='42501', message='Authentication required'; end if;
+  if not (select private.has_permission('checkout.create')) then
+    raise exception using errcode='42501', message='Checkout is not permitted for this role';
+  end if;
+
+  v_result := public.checkout_food_post_cart(
+    p_delivery_address,p_buyer_phone,p_delivery_city,p_customer_note,'cash_on_delivery'
+  );
+  for v_order in select value from jsonb_array_elements(coalesce(v_result->'orders','[]'::jsonb))
+  loop
+    v_order_id := nullif(v_order->>'id','')::uuid;
+    update public.food_post_orders
+      set payment_method='wallet'
+    where id=v_order_id and buyer_id=v_user_id and payment_method<>'wallet';
+    if not found and not exists (
+      select 1 from public.food_post_orders
+      where id=v_order_id and buyer_id=v_user_id and payment_method='wallet' and wallet_paid_iqd=total_iqd
+    ) then
+      raise exception using errcode='42501', message='A food order cannot be paid from the referral wallet';
+    end if;
+  end loop;
+
+  select jsonb_build_object(
+    'orders',coalesce(jsonb_agg(
+      order_item.value || jsonb_build_object('payment_method','wallet','payment_status','collected','wallet_paid_iqd',order_item.value->>'total_iqd')
+    ),'[]'::jsonb),
+    'count',coalesce(jsonb_array_length(coalesce(v_result->'orders','[]'::jsonb)),0)
+  ) into v_result
+  from jsonb_array_elements(coalesce(v_result->'orders','[]'::jsonb)) as order_item(value);
+
+  return v_result;
+end;
+$;
+
+create or replace function public.get_referral_wallet_summary()
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $
+declare
+  v_user_id uuid := (select auth.uid());
+  v_wallet public.referral_wallets%rowtype;
+  v_transactions jsonb;
+  v_withdrawals jsonb;
+  v_rewards jsonb;
+begin
+  if v_user_id is null then raise exception using errcode='42501', message='Authentication required'; end if;
+  insert into public.referral_wallets(user_id) values(v_user_id) on conflict(user_id) do nothing;
+  select * into v_wallet from public.referral_wallets where user_id=v_user_id;
+  select coalesce(jsonb_agg(to_jsonb(t) order by t.created_at desc),'[]'::jsonb)
+    into v_transactions
+  from (
+    select transaction_type,amount_iqd,balance_bucket,reference_type,reference_id,description_ku,created_at
+    from public.referral_wallet_transactions where user_id=v_user_id
+    order by created_at desc limit 100
+  ) t;
+  select coalesce(jsonb_agg(to_jsonb(w) order by w.requested_at desc),'[]'::jsonb)
+    into v_withdrawals
+  from (
+    select id,month_key,amount_iqd,payout_method,account_holder_name,payout_account,note,status,admin_note,requested_at,reviewed_at,paid_at
+    from public.referral_withdrawal_requests where user_id=v_user_id
+    order by requested_at desc limit 24
+  ) w;
+  select coalesce(jsonb_agg(to_jsonb(r) order by r.created_at desc),'[]'::jsonb)
+    into v_rewards
+  from (
+    select id,order_type,order_id,post_id,buyer_id,sharer_id,reward_iqd,status,created_at,settled_at
+    from public.post_referral_rewards where sharer_id=v_user_id
+    order by created_at desc limit 100
+  ) r;
+  return jsonb_build_object(
+    'wallet',to_jsonb(v_wallet),
+    'transactions',v_transactions,
+    'withdrawals',v_withdrawals,
+    'rewards',v_rewards
+  );
+end;
+$;
+
 revoke all on function public.create_post_share_link(uuid) from public,anon;
 grant execute on function public.create_post_share_link(uuid) to authenticated;
 revoke all on function public.register_post_share_attribution(uuid) from public,anon;
@@ -721,5 +945,15 @@ revoke all on function private.attach_post_share_to_apparel_order() from public,
 revoke all on function private.record_post_referral_reward_after_insert() from public,anon,authenticated;
 revoke all on function private.settle_food_post_referral_reward() from public,anon,authenticated;
 revoke all on function private.settle_apparel_post_referral_reward() from public,anon,authenticated;
+
+
+revoke all on function public.create_apparel_post_order_with_wallet(uuid,uuid,integer,text,text,text) from public,anon;
+grant execute on function public.create_apparel_post_order_with_wallet(uuid,uuid,integer,text,text,text) to authenticated;
+revoke all on function public.checkout_food_post_cart_with_wallet(text,text,text,text) from public,anon;
+grant execute on function public.checkout_food_post_cart_with_wallet(text,text,text,text) to authenticated;
+revoke all on function public.get_referral_wallet_summary() from public,anon;
+grant execute on function public.get_referral_wallet_summary() to authenticated;
+revoke all on function private.apply_wallet_payment_after_food_update() from public,anon,authenticated;
+revoke all on function private.apply_wallet_payment_after_apparel_update() from public,anon,authenticated;
 
 commit;
