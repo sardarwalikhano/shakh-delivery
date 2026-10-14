@@ -65,6 +65,7 @@ export function CreatePostPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [price, setPrice] = useState('');
+  const [referralRewardIqd, setReferralRewardIqd] = useState('0');
   const [location, setLocation] = useState('');
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
@@ -238,6 +239,7 @@ export function CreatePostPage() {
           title,
           content,
           priceIqd: Number(vehicleListing.price_amount),
+          referralRewardIqd: 0,
           location: vehicleListing.location,
           images,
           vehicle: {
@@ -302,6 +304,7 @@ export function CreatePostPage() {
           title,
           content,
           priceIqd: numericPrice,
+          referralRewardIqd: Number(referralRewardIqd || '0'),
           location,
           itemCondition,
           apparelAudience,
@@ -373,6 +376,32 @@ export function CreatePostPage() {
               </select>
             </div>
           </Field>
+
+          {category === 'food' || category === 'fashion' ? (
+            <section className="space-y-2 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.045] p-4">
+              <label className="block text-sm font-black" htmlFor="post-referral-reward">
+                خەڵاتی شێرکردن بۆ هەر داواکارییەکی تەواوبوو (د.ع)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  id="post-referral-reward"
+                  type="number"
+                  min="0"
+                  max="100000000"
+                  step="1"
+                  inputMode="numeric"
+                  value={referralRewardIqd}
+                  onChange={(event) => setReferralRewardIqd(event.target.value)}
+                  disabled={busy}
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-orange)]"
+                />
+                <span className="shrink-0 text-sm font-black">د.ع</span>
+              </div>
+              <p className="text-xs leading-6 text-black/50">
+                ٠ واتە خەڵات ناچالاکە. ئەگەر بڕێک دابنێیت، ئەو کەسەی لینکی تایبەتی خۆی شێر دەکات ئەگەر کڕیار لەو لینکەوە داوا بکات، دوای گەیاندن و پشتڕاستبوونەوەی پارەدان بڕە دیاریکراوەکە وەردەگرێت. خەڵات بۆ هەر داواکارییەکە، نەک بۆ هەر دانەیەک، هەژمار دەکرێت.
+              </p>
+            </section>
+          ) : null}
 
           {category === 'cars' ? (
             <VehicleListingFields
