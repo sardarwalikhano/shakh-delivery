@@ -1,8 +1,9 @@
-import { ArrowLeft, Banknote, MapPin, PackageCheck, Smartphone } from 'lucide-react';
+import { ArrowLeft, Banknote, MapPin, PackageCheck, Smartphone, WalletCards } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 import { getFoodPostCart, checkoutFoodPostCart, type FoodPostCartItem, type FoodPostOrderResult } from '../foodPostCart';
 
 function itemPrice(item: FoodPostCartItem): number {
@@ -25,15 +26,25 @@ export function FoodPostCheckoutPage() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [note, setNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
+  const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash' | 'wallet'>('cash_on_delivery');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<FoodPostOrderResult[]>([]);
+  const [walletAvailable, setWalletAvailable] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    void Promise.all([getFoodPostCart(user.id), getMyProfilePhone()])
-      .then(([nextItems, nextPhone]) => { setItems(nextItems); setPhone(nextPhone); })
+    void Promise.all([
+      getFoodPostCart(user.id),
+      getMyProfilePhone(),
+      supabase.from('referral_wallets').select('available_iqd').eq('user_id', user.id).maybeSingle(),
+    ])
+      .then(([nextItems, nextPhone, walletResult]) => {
+        if (walletResult.error) throw walletResult.error;
+        setItems(nextItems);
+        setPhone(nextPhone);
+        setWalletAvailable(Number(walletResult.data?.available_iqd ?? 0));
+      })
       .catch((nextError) => setError(nextError instanceof Error ? nextError.message : 'نەتوانرا زانیاری داواکاری بخوێندرێتەوە.'))
       .finally(() => setLoading(false));
   }, [user]);
@@ -84,7 +95,7 @@ export function FoodPostCheckoutPage() {
                   <ReceiptLine label="کۆی خواردن" value={order.line_total_iqd} />
                   <ReceiptLine label="کرێی گەیاندن" value={order.delivery_fee_iqd} />
                   <ReceiptLine label="کرێی پلاتفۆرم" value={order.platform_fee_iqd} />
-                  <div className="flex justify-between border-t border-black/10 pt-2 text-base"><span className="font-black">کۆی پارەی وەسڵ · بۆ کاپتن</span><strong>{Number(order.total_iqd).toLocaleString('en-US')} د.ع</strong></div>
+                  <div className="flex justify-between border-t border-black/10 pt-2 text-base"><span className="font-black">{order.payment_method === 'wallet' ? 'پارەی کەوتووەتە باڵانس · کاپتن پارە وەرناگرێت' : 'کۆی پارەی وەسڵ · بۆ کاپتن'}</span><strong>{order.payment_method === 'wallet' ? '٠ د.ع' : Number(order.total_iqd).toLocaleString('en-US') + ' د.ع'}</strong></div>
                 </div>
               </article>)}
             </div>
@@ -107,6 +118,12 @@ export function FoodPostCheckoutPage() {
                 <div className="mt-3 grid gap-3">
                   <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-4"><input type="radio" name="food-payment" checked={paymentMethod==='cash_on_delivery'} onChange={()=>setPaymentMethod('cash_on_delivery')}/><Banknote size={18}/><span className="text-sm font-black">پارە لە کاتی گەیاندن</span></label>
                   <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-4"><input type="radio" name="food-payment" checked={paymentMethod==='mobile_cash'} onChange={()=>setPaymentMethod('mobile_cash')}/><Smartphone size={18}/><span className="text-sm font-black">Mobile Cash</span></label>
+                  <label className={'flex items-center gap-3 rounded-2xl border p-4 ' + (walletAvailable >= subtotal ? 'border-emerald-600/20 bg-emerald-500/[0.035]' : 'border-black/10 opacity-60')}>
+                    <input type="radio" name="food-payment" checked={paymentMethod==='wallet'} disabled={walletAvailable <= 0} onChange={()=>setPaymentMethod('wallet')}/>
+                    <WalletCards size={19} className="text-emerald-700"/>
+                    <span className="min-w-0 flex-1"><span className="block text-sm font-black">باڵانسی خەڵاتی شاخ</span><span className="mt-1 block text-xs text-black/45">بەردەست: {walletAvailable.toLocaleString('en-US')} د.ع · کۆی خواردن: {subtotal.toLocaleString('en-US')} د.ع</span></span>
+                  </label>
+                  {paymentMethod==='wallet' && walletAvailable < subtotal ? <p role="alert" className="text-xs font-bold text-red-700">باڵانسی بەردەست کەمە؛ کرێی گەیاندن و پلاتفۆرمیش لە کۆتایی هەژمار دەکرێن.</p> : null}
                 </div>
               </section>
               {error ? <div role="alert" className="rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
