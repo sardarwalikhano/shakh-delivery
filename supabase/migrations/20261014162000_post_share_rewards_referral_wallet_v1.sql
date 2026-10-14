@@ -710,7 +710,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private
-as $
+as $referral$
 begin
   if new.payment_method <> 'wallet' or old.payment_method is not distinct from new.payment_method or new.wallet_paid_iqd > 0 then
     return new;
@@ -740,14 +740,14 @@ begin
   where id=new.id;
   return new;
 end;
-$;
+$referral$;
 
 create or replace function private.apply_wallet_payment_after_apparel_update()
 returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private
-as $
+as $referral$
 begin
   if new.payment_method <> 'wallet' or old.payment_method is not distinct from new.payment_method or new.wallet_paid_iqd > 0 then
     return new;
@@ -775,7 +775,7 @@ begin
   where id=new.id;
   return new;
 end;
-$;
+$referral$;
 
 drop trigger if exists food_post_order_wallet_payment on public.food_post_orders;
 create trigger food_post_order_wallet_payment
@@ -802,7 +802,7 @@ returns jsonb
 language plpgsql
 security invoker
 set search_path = pg_catalog, public, private
-as $
+as $referral$
 declare
   v_user_id uuid := (select auth.uid());
   v_order jsonb;
@@ -830,7 +830,7 @@ begin
 
   return v_order || jsonb_build_object('payment_method','wallet','payment_status','collected','wallet_paid_iqd',v_order->>'total_iqd');
 end;
-$;
+$referral$;
 
 create or replace function public.checkout_food_post_cart_with_wallet(
   p_delivery_address text,
@@ -842,7 +842,7 @@ returns jsonb
 language plpgsql
 security invoker
 set search_path = pg_catalog, public, private
-as $
+as $referral$
 declare
   v_user_id uuid := (select auth.uid());
   v_result jsonb;
@@ -881,14 +881,14 @@ begin
 
   return v_result;
 end;
-$;
+$referral$;
 
 create or replace function public.get_referral_wallet_summary()
 returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private
-as $
+as $referral$
 declare
   v_user_id uuid := (select auth.uid());
   v_wallet public.referral_wallets%rowtype;
@@ -927,7 +927,7 @@ begin
     'rewards',v_rewards
   );
 end;
-$;
+$referral$;
 
 revoke all on function public.create_post_share_link(uuid) from public,anon;
 grant execute on function public.create_post_share_link(uuid) to authenticated;
