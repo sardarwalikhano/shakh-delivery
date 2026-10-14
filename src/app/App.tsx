@@ -1,6 +1,7 @@
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { PwaManager } from '@/components/PwaManager';
 import { HomePage } from '@/routes/HomePage';
 import { NotFoundPage } from '@/routes/NotFoundPage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
@@ -84,6 +85,7 @@ export function App() {
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <PwaManager />
     </AppShell>
   );
 }
