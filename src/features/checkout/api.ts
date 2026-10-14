@@ -16,7 +16,6 @@ export async function createCheckout(input: {
         p_delivery_lat: input.deliveryLat ?? null,
         p_delivery_lng: input.deliveryLng ?? null,
         p_customer_note: input.customerNote ?? null,
-        p_delivery_city: 'هەولێر',
       })
     : await supabase.rpc('create_checkout', {
         p_idempotency_key: key,
