@@ -1,8 +1,8 @@
 import { Edit3, ExternalLink, Package, Plus, Save } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getManageablePosts, getApparelVariants, saveManagedApparelPost } from '../api';
-import type { ApparelAudience, ApparelCondition, Post, PostCategory } from '../types';
+import { getAllowedPostTargets, getManageablePosts, getApparelVariants, saveManagedApparelPost } from '../api';
+import type { ApparelAudience, ApparelCondition, Post, PostCategory, PostTarget } from '../types';
 import { postCategoryLabels } from '../labels';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
@@ -24,8 +24,9 @@ type EditableApparelVariant = {
 
 export function MyPostsPage() {
   const { user } = useAuth();
-  const { permissions } = useAuthorization();
+  const { permissions, roles } = useAuthorization();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [allowedTargets, setAllowedTargets] = useState<PostTarget[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<PostCategory | 'all'>('all');
   const [selected, setSelected] = useState<Post | null>(null);
   const [variants, setVariants] = useState<EditableApparelVariant[]>([]);
@@ -46,23 +47,53 @@ export function MyPostsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canManageAll = permissions.has('posts.manage');
+  const isSuperAdmin = roles.includes('super_admin');
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    try { setPosts(await getManageablePosts()); }
-    catch (err) { setError(err instanceof Error ? err.message : 'نەتوانرا پۆستەکان بخوێندرێنەوە.'); }
-    finally { setLoading(false); }
+    setError(null);
+    try {
+      const [nextPosts, nextTargets] = await Promise.all([
+        getManageablePosts(),
+        getAllowedPostTargets(),
+      ]);
+      setPosts(nextPosts);
+      setAllowedTargets(nextTargets);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'نەتوانرا پۆستەکان و کاتەگۆرییە ڕێگەپێدراوەکان بخوێندرێنەوە.');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  // Use the same database-approved role/category targets as the create-post form.
+  // This keeps the management filters aligned with the insert policy in Supabase.
+  const allowedCategories = useMemo(
+    () => new Set(allowedTargets
+      .filter((target) => roles.includes(target.publisher_role))
+      .map((target) => target.category)),
+    [allowedTargets, roles],
+  );
+  const availableCategories = useMemo(
+    () => (Object.keys(postCategoryLabels) as PostCategory[])
+      .filter((category) => allowedCategories.has(category)),
+    [allowedCategories],
+  );
+
+  useEffect(() => {
+    if (selected && !allowedCategories.has(selected.category)) setSelected(null);
+    if (categoryFilter !== 'all' && !allowedCategories.has(categoryFilter)) setCategoryFilter('all');
+  }, [allowedCategories, categoryFilter, selected]);
+
   const visiblePosts = posts.filter((post) =>
     post.status !== 'deleted'
+    && allowedCategories.has(post.category)
     && (canManageAll || post.author_id === user?.id)
     && (categoryFilter === 'all' || post.category === categoryFilter),
   );
-  const availableCategories = Object.keys(postCategoryLabels) as PostCategory[];
 
   const startEdit = async (post: Post) => {
     setError(null);
@@ -196,7 +227,7 @@ export function MyPostsPage() {
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post management</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی هەموو پۆستەکان</h1><p className="mt-2 text-sm leading-6 text-black/50">پۆستەکانی هەموو کاتەگۆرییەکان ببینە؛ پۆستەکانی جل‌وبەرگ لێرە دەستکاریی وردی کۆگا و قەبارەیان هەیە، کاتەگۆرییەکانی تر لە وردەکاریی پۆست دەکرێن.</p></div>
+          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post management</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی پۆستەکان</h1><p className="mt-2 text-sm leading-6 text-black/50">{isSuperAdmin ? 'سوپەر ئەدمین دەتوانێت پۆست و هەموو کاتەگۆرییەکان ببینێت و بەڕێوەیان ببات.' : 'تەنها کاتەگۆرییە پەیوەندیدارەکان بە ڕۆڵەکەت لێرە پیشان دەدرێن؛ ئۆتۆمبێل لەگەڵ کاتەگۆریی تایبەت بە ڕۆڵەکەت دەبێت.'} پۆستەکانی جل‌وبەرگ لێرە دەستکاریی وردی کۆگا و قەبارەیان هەیە.</p></div>
           <Link to="/dashboard/posts/new" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white"><Package size={16}/> پۆستی نوێ</Link>
         </div>
         {error ? <div role="alert" className="mt-4 rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
@@ -208,7 +239,7 @@ export function MyPostsPage() {
                 <span>فلتەری کاتەگۆری</span><span>{visiblePosts.length} پۆست</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => { setSelected(null); setCategoryFilter('all'); }} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>هەموو</button>
+                {availableCategories.length > 1 ? <button type="button" onClick={() => { setSelected(null); setCategoryFilter('all'); }} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>هەموو</button> : null}
                 {availableCategories.map((item) => (
                   <button key={item} type="button" onClick={() => { setSelected(null); setCategoryFilter(item); }} className={'rounded-xl px-3 py-2 text-xs font-black ' + (categoryFilter === item ? 'bg-[var(--shakh-orange)] text-white' : 'bg-[var(--shakh-bg)] text-black/60')}>{postCategoryLabels[item]}</button>
                 ))}
