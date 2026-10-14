@@ -1,9 +1,10 @@
-import { ArrowLeft, Banknote, LocateFixed, MapPin, Navigation, Smartphone, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Banknote, LocateFixed, MapPin, Navigation, Smartphone, ShoppingBag, WalletCards } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getCart } from '@/features/marketplace/api';
 import type { CartItem } from '@/features/marketplace/types';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth';
 import { createCheckout } from './api';
 import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
@@ -25,13 +26,20 @@ export function CheckoutPage() {
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletAvailable, setWalletAvailable] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    void Promise.all([getCart(user.id), getMyProfilePhone()])
-      .then(([cart, profilePhone]) => {
+    void Promise.all([
+      getCart(user.id),
+      getMyProfilePhone(),
+      supabase.from('referral_wallets').select('available_iqd').eq('user_id', user.id).maybeSingle(),
+    ])
+      .then(([cart, profilePhone, walletResult]) => {
+        if (walletResult.error) throw walletResult.error;
         setItems(cart.items);
         setPhone(profilePhone);
+        setWalletAvailable(Number(walletResult.data?.available_iqd ?? 0));
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'نەتوانرا زانیاری checkout بخوێندرێتەوە.'))
       .finally(() => {
@@ -156,6 +164,11 @@ export function CheckoutPage() {
                     <input type="radio" name="payment" value="mobile_cash" checked={paymentMethod === 'mobile_cash'} onChange={() => setPaymentMethod('mobile_cash')} />
                     <Smartphone size={20} className="text-[var(--shakh-blue)]" /><span><span className="block text-sm font-black">Mobile Cash</span><span className="mt-1 block text-xs text-black/45">لە ئێستادا pending ـە تا provider بەسترێت</span></span>
                   </label>
+                  <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 ${paymentMethod === 'wallet' ? 'border-emerald-600/20 bg-emerald-500/[0.04]' : 'border-black/10'}`}>
+                    <input type="radio" name="payment" value="wallet" checked={paymentMethod === 'wallet'} disabled={walletAvailable <= 0} onChange={() => setPaymentMethod('wallet')} />
+                    <WalletCards size={20} className="text-emerald-700" /><span className="min-w-0 flex-1"><span className="block text-sm font-black">باڵانسی خەڵاتی شاخ</span><span className="mt-1 block text-xs text-black/45">بەردەست: {walletAvailable.toLocaleString('en-US')} د.ع</span></span>
+                  </label>
+                  {paymentMethod === 'wallet' ? <p className="text-xs leading-5 text-black/45">کۆی پارە لە server لەگەڵ کرێی گەیاندن و پلاتفۆرم هەژمار دەکرێت؛ ئەگەر باڵانس کەم بێت، داواکاری بە پارەدان تۆمار نابێت.</p> : null}
                 </div>
               </div>
 
