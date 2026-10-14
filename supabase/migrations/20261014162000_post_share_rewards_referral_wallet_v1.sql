@@ -800,7 +800,7 @@ create or replace function public.create_apparel_post_order_with_wallet(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = pg_catalog, public, private
 as $referral$
 declare
@@ -840,7 +840,7 @@ create or replace function public.checkout_food_post_cart_with_wallet(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = pg_catalog, public, private
 as $referral$
 declare
