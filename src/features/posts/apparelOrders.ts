@@ -22,7 +22,7 @@ export type ApparelPostOrder = {
   delivery_address: string;
   buyer_phone: string;
   customer_note: string | null;
-  payment_method: 'cash_on_delivery' | 'mobile_cash';
+  payment_method: 'cash_on_delivery' | 'mobile_cash' | 'wallet';
   status: ApparelPostOrderStatus;
   created_at: string;
 };
@@ -35,18 +35,28 @@ export async function createApparelPostOrder(input: {
   deliveryCity: string;
   buyerPhone: string;
   customerNote?: string | null;
-  paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  paymentMethod: 'cash_on_delivery' | 'mobile_cash' | 'wallet';
 }): Promise<{ id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number }> {
-  const { data, error } = await supabase.rpc('create_apparel_post_order', {
-    p_request_id: input.requestId,
-    p_variant_id: input.variantId,
-    p_quantity: input.quantity,
-    p_delivery_address: input.deliveryAddress,
-    p_buyer_phone: input.buyerPhone,
-    p_delivery_city: input.deliveryCity,
-    p_customer_note: input.customerNote ?? null,
-    p_payment_method: input.paymentMethod,
-  });
+  const { data, error } = input.paymentMethod === 'wallet'
+    ? await supabase.rpc('create_apparel_post_order_with_wallet', {
+        p_request_id: input.requestId,
+        p_variant_id: input.variantId,
+        p_quantity: input.quantity,
+        p_delivery_address: input.deliveryAddress,
+        p_buyer_phone: input.buyerPhone,
+        p_delivery_city: input.deliveryCity,
+        p_customer_note: input.customerNote ?? null,
+      })
+    : await supabase.rpc('create_apparel_post_order', {
+        p_request_id: input.requestId,
+        p_variant_id: input.variantId,
+        p_quantity: input.quantity,
+        p_delivery_address: input.deliveryAddress,
+        p_buyer_phone: input.buyerPhone,
+        p_delivery_city: input.deliveryCity,
+        p_customer_note: input.customerNote ?? null,
+        p_payment_method: input.paymentMethod,
+      });
   if (error) throw new Error(error.message);
   return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number };
 }
@@ -54,7 +64,7 @@ export async function createApparelPostOrder(input: {
 export async function listApparelPostOrders(): Promise<ApparelPostOrder[]> {
   const { data, error } = await supabase
     .from('apparel_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,wallet_paid_iqd,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -80,7 +90,7 @@ export type FoodPostOrder = {
   delivery_address: string;
   buyer_phone: string;
   customer_note: string | null;
-  payment_method: 'cash_on_delivery' | 'mobile_cash';
+  payment_method: 'cash_on_delivery' | 'mobile_cash' | 'wallet';
   status: FoodPostOrderStatus;
   delivery_city: string;
   delivery_fee_iqd: number;
@@ -90,14 +100,14 @@ export type FoodPostOrder = {
   delivery_status: 'pending' | 'accepted' | 'picked_up' | 'on_the_way' | 'arrived' | 'delivered' | 'failed' | 'cancelled';
   payment_status: 'pending' | 'collected' | 'failed' | 'refunded';
   payment_collected_at: string | null;
-  payment_event: Array<{ amount_iqd: number; payment_method: 'cash_on_delivery' | 'mobile_cash'; received_at: string; captain_id: string }> | null;
+  payment_event: Array<{ amount_iqd: number; payment_method: 'cash_on_delivery' | 'mobile_cash' | 'wallet'; received_at: string; captain_id: string }> | null;
   created_at: string;
 };
 
 export async function listFoodPostOrders(): Promise<FoodPostOrder[]> {
   const { data, error } = await supabase
     .from('food_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,payment_collected_at,payment_event:food_post_payment_events!food_post_payment_events_order_id_fkey(amount_iqd,payment_method,received_at,captain_id),created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,payment_collected_at,payment_event:food_post_payment_events!food_post_payment_events_order_id_fkey(amount_iqd,payment_method,received_at,captain_id),wallet_paid_iqd,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
