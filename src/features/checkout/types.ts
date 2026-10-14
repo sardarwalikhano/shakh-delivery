@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cash_on_delivery' | 'mobile_cash';
+export type PaymentMethod = 'cash_on_delivery' | 'mobile_cash' | 'wallet';
 
 export type CheckoutResult = {
   checkout_id: string;
