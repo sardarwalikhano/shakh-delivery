@@ -1,6 +1,6 @@
-import { AlertTriangle, ArrowRight, Check, Package, Pencil, Save, ShoppingBag, Tag, Trash2, Warehouse, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Gift, Package, Pencil, Save, Share2, ShoppingBag, Tag, Trash2, Warehouse, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getActivePostById, getApparelVariants, replaceOwnedPostImages, softDeleteOwnedPost, updateOwnedPostDetails } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import { getPostImageUrl, MAX_POST_IMAGES } from '@/lib/storage/postMedia';
@@ -13,11 +13,13 @@ import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { singleVehicleListing } from '../vehicleTypes';
 import { addFoodPostToCart } from '../foodPostCart';
+import { createPostShareLink, getPostShareToken, recordPostShareAttribution, rememberPostShareToken } from '../shareRewards';
 
 const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', women: 'ئافرەتان', kids: 'منداڵان', all: 'هەمووان' };
 
 export function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { permissions } = useAuthorization();
@@ -54,6 +56,8 @@ export function PostDetailPage() {
   const [addingFoodToCart, setAddingFoodToCart] = useState(false);
   const [foodCartMessage, setFoodCartMessage] = useState<string | null>(null);
   const [foodCartError, setFoodCartError] = useState(false);
+  const [sharingPost, setSharingPost] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +91,21 @@ export function PostDetailPage() {
 
     return () => { cancelled = true; void supabase.removeChannel(channel); };
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const tokenFromUrl = new URLSearchParams(location.search).get('share');
+    if (tokenFromUrl) rememberPostShareToken(id, tokenFromUrl);
+    if (!user) return;
+
+    // A share link can be opened before sign-in. Keep its token in session storage,
+    // then bind it to this authenticated buyer once their session is available.
+    const token = tokenFromUrl || getPostShareToken(id);
+    if (!token) return;
+    void recordPostShareAttribution(id).catch((nextError) => {
+      setShareMessage(nextError instanceof Error ? nextError.message : 'نەتوانرا لینکی شێرکردن تۆمار بکرێت.');
+    });
+  }, [id, location.search, user]);
 
   const images = useMemo(() => (Array.isArray(post?.images) ? post.images.filter((image) => Boolean(image?.storage_path)) : []), [post]);
   const colors = useMemo(() => {
@@ -139,6 +158,44 @@ export function PostDetailPage() {
   const ownsPost = Boolean(user && post.author_id === user.id);
   const canEditPost = Boolean((ownsPost && permissions.has('posts.update_own')) || canManageAllPosts);
   const canDeletePost = Boolean((ownsPost && permissions.has('posts.delete_own')) || canManageAllPosts);
+
+  const sharePost = async () => {
+    setShareMessage(null);
+    if (!user) {
+      navigate('/login', { state: { from: '/posts/' + post.id } });
+      return;
+    }
+    if (ownsPost) {
+      setShareMessage('خاوەنی پۆست ناتوانێت لە شێرکردنی پۆستی خۆی خەڵات وەربگرێت.');
+      return;
+    }
+    setSharingPost(true);
+    try {
+      const share = await createPostShareLink(post.id);
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: share.title || post.title,
+          text: share.reward_enabled
+            ? `ئەم پۆستە ببینە؛ لە کڕینی ڕێگەپێدراوەوە خەڵاتی شێرکردن بەردەستە.`
+            : (post.content || post.title),
+          url: share.url,
+        });
+        setShareMessage(share.reward_enabled
+          ? `لینکی تایبەتت شێر کرا. بۆ هەر داواکارییەکی تەواوبوو ${Number(share.reward_iqd).toLocaleString('en-US')} د.ع خەڵات وەردەگریت.`
+          : 'لینکی تایبەتت شێر کرا. ئەم پۆستە خەڵاتی پارەیی بۆ کڕین دانەنراوە.');
+      } else {
+        await navigator.clipboard.writeText(share.url);
+        setShareMessage(share.reward_enabled
+          ? `لینکی تایبەت کۆپی کرا. بۆ هەر داواکارییەکی تەواوبوو ${Number(share.reward_iqd).toLocaleString('en-US')} د.ع خەڵات وەردەگریت.`
+          : 'لینکی تایبەت کۆپی کرا. ئەم پۆستە خەڵاتی پارەیی بۆ کڕین دانەنراوە.');
+      }
+    } catch (nextError) {
+      if (nextError instanceof Error && nextError.name === 'AbortError') return;
+      setShareMessage(nextError instanceof Error ? nextError.message : 'شێرکردن سەرکەوتوو نەبوو؛ تکایە دووبارە هەوڵ بدەوە.');
+    } finally {
+      setSharingPost(false);
+    }
+  };
 
   const addFoodPost = async () => {
     if (!user) { navigate('/login', { state: { from: '/posts/' + post.id } }); return; }
@@ -280,6 +337,23 @@ export function PostDetailPage() {
           </div>
         ) : null}
 
+        {!ownsPost && post.status === 'active' ? (
+          <div className="mt-4 rounded-2xl border border-[var(--shakh-orange)]/20 bg-white p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => void sharePost()} disabled={sharingPost} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-orange)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
+                <Share2 size={17}/>{sharingPost ? 'ئامادەکردنی لینک...' : 'شێرکردن و وەرگرتنی خەڵات'}
+              </button>
+              {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800"><Gift size={15}/> {Number(post.referral_reward_iqd).toLocaleString('en-US')} د.ع بۆ هەر داواکارییەکی تەواوبوو</span>
+              ) : null}
+            </div>
+            {shareMessage ? <p role="status" className="mt-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{shareMessage}</p> : null}
+            {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+              <p className="mt-2 text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی تۆ. لینکەکە بۆ ئەم کڕیارە تا ٣٠ ڕۆژ attribution هەڵدەگرێت؛ خۆت ناتوانیت لە پۆستی خۆت خەڵات وەربگریت.</p>
+            ) : null}
+          </div>
+        ) : null}
+
         {editMessage ? <div role="status" className="mt-4 rounded-2xl border border-emerald-600/15 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">{editMessage}</div> : null}
 
         {isEditing ? (
@@ -409,6 +483,12 @@ export function PostDetailPage() {
             {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
             {isApparel && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
             {isApparel && post.item_condition ? <div className="mt-2 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">دۆخ: {post.item_condition === 'new' ? 'نوێ' : 'بەکارهاتوو'}</span>{post.apparel_audience ? <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">{APPAREL_AUDIENCE_LABELS[post.apparel_audience] ?? 'هەمووان'}</span> : null}</div> : null}
+            {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-600/15 bg-emerald-500/[0.055] p-4">
+                <Gift size={19} className="mt-0.5 shrink-0 text-emerald-700"/>
+                <div><div className="font-black text-emerald-800">خەڵاتی شێرکردن: {Number(post.referral_reward_iqd).toLocaleString('en-US')} د.ع</div><p className="mt-1 text-xs leading-6 text-emerald-800/75">ئەگەر بە لینکی تایبەتی کەسێک داواکاری بکەیت و داواکارییەکە تەواو بێت، ئەو کەسە ئەم بڕە وەردەگرێت.</p></div>
+              </div>
+            ) : null}
             <p className="mt-4 whitespace-pre-wrap leading-8 text-black/60">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
