@@ -1,8 +1,9 @@
-import { MapPin, Minus, Plus, ShoppingBag, Smartphone, Truck } from 'lucide-react';
+import { MapPin, Minus, Plus, ShoppingBag, Smartphone, Truck, WalletCards } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 import type { ApparelVariant, Post } from '../types';
 import { createApparelPostOrder } from '../apparelOrders';
 
@@ -23,14 +24,22 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
+  const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash' | 'wallet'>('cash_on_delivery');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletAvailable, setWalletAvailable] = useState(0);
   const requestId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    void getMyProfilePhone().then(setPhone).catch(() => undefined);
+    void Promise.all([
+      getMyProfilePhone(),
+      supabase.from('referral_wallets').select('available_iqd').eq('user_id', user.id).maybeSingle(),
+    ]).then(([nextPhone, walletResult]) => {
+      if (walletResult.error) throw walletResult.error;
+      setPhone(nextPhone);
+      setWalletAvailable(Number(walletResult.data?.available_iqd ?? 0));
+    }).catch(() => undefined);
   }, [user]);
 
   useEffect(() => {
@@ -111,6 +120,8 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white p-3 text-xs font-bold"><input type="radio" name="apparel-payment" checked={paymentMethod === 'cash_on_delivery'} onChange={() => setPaymentMethod('cash_on_delivery')} /><Truck size={17} className="text-[var(--shakh-orange)]" />پارە لە کاتی گەیاندن</label>
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white p-3 text-xs font-bold"><input type="radio" name="apparel-payment" checked={paymentMethod === 'mobile_cash'} onChange={() => setPaymentMethod('mobile_cash')} /><Smartphone size={17} className="text-[var(--shakh-blue)]" />Mobile Cash (pending)</label>
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-emerald-600/15 bg-emerald-500/[0.03] p-3 text-xs font-bold sm:col-span-2"><input type="radio" name="apparel-payment" checked={paymentMethod === 'wallet'} disabled={walletAvailable <= 0} onChange={() => setPaymentMethod('wallet')} /><WalletCards size={17} className="text-emerald-700" /><span className="flex-1">باڵانسی خەڵاتی شاخ · بەردەست {walletAvailable.toLocaleString('en-US')} د.ع</span></label>
+            {paymentMethod === 'wallet' && walletAvailable < subtotal ? <p className="text-xs font-bold leading-5 text-red-700 sm:col-span-2">باڵانسەکە دەبێت کۆی داواکاری لەگەڵ کرێی گەیاندن و کرێی پلاتفۆرم بگرێتەوە.</p> : null}
           </div>
           {error ? <div role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{error}</div> : null}
           <div className="flex gap-2"><button type="button" onClick={() => setShowCheckout(false)} disabled={busy} className="min-h-12 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black">پاشگەزبوونەوە</button><button type="submit" disabled={busy || variant.stock_quantity < quantity} className="min-h-12 flex-1 rounded-2xl bg-[var(--shakh-orange)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy ? 'تۆمارکردن...' : 'داواکاری پشتڕاست بکەرەوە'}</button></div>
