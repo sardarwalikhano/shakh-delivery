@@ -795,6 +795,7 @@ create or replace function public.create_apparel_post_order_with_wallet(
   p_quantity integer,
   p_delivery_address text,
   p_buyer_phone text,
+  p_delivery_city text,
   p_customer_note text default null
 )
 returns jsonb
@@ -812,7 +813,7 @@ begin
     raise exception using errcode='42501', message='Checkout is not permitted for this role';
   end if;
   v_order := public.create_apparel_post_order(
-    p_request_id,p_variant_id,p_quantity,p_delivery_address,p_buyer_phone,p_customer_note,'cash_on_delivery'
+    p_request_id,p_variant_id,p_quantity,p_delivery_address,p_buyer_phone,p_delivery_city,p_customer_note,'cash_on_delivery'
   );
   v_order_id := nullif(v_order->>'id','')::uuid;
   if v_order_id is null then raise exception using errcode='P0002', message='Order could not be created'; end if;
@@ -944,8 +945,8 @@ revoke all on function private.settle_food_post_referral_reward() from public,an
 revoke all on function private.settle_apparel_post_referral_reward() from public,anon,authenticated;
 
 
-revoke all on function public.create_apparel_post_order_with_wallet(uuid,uuid,integer,text,text,text) from public,anon;
-grant execute on function public.create_apparel_post_order_with_wallet(uuid,uuid,integer,text,text,text) to authenticated;
+revoke all on function public.create_apparel_post_order_with_wallet(uuid,uuid,integer,text,text,text,text) from public,anon;
+grant execute on function public.create_apparel_post_order_with_wallet(uuid,uuid,integer,text,text,text,text) to authenticated;
 revoke all on function public.checkout_food_post_cart_with_wallet(text,text,text,text) from public,anon;
 grant execute on function public.checkout_food_post_cart_with_wallet(text,text,text,text) to authenticated;
 revoke all on function public.get_referral_wallet_summary() from public,anon;
