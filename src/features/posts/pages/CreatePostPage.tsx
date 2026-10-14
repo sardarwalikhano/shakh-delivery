@@ -332,7 +332,7 @@ export function CreatePostPage() {
     if (!reviewing) { setReviewing(true); return; }
     setBusy(true);
     try {
-      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, location, images });
+      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, referralRewardIqd: Number(referralRewardIqd || '0'), location, images });
       setSuccess(true);
       navigate(`/posts/${created.id}`, { replace: true });
     } catch (nextError) {
