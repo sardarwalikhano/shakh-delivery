@@ -151,13 +151,11 @@ values
 on conflict (code) do update set description=excluded.description;
 
 insert into public.role_permissions(role, permission_code)
-select r.role, 'share_rewards.view_own'
-from public.user_roles ur
-join (select distinct role from public.user_roles) r on r.role=ur.role
-on conflict (role, permission_code) do nothing;
-
-insert into public.role_permissions(role, permission_code)
-select 'super_admin'::public.app_role, 'share_rewards.view_own'
+select e.enumlabel::public.app_role, 'share_rewards.view_own'
+from pg_enum e
+join pg_type t on t.oid=e.enumtypid
+join pg_namespace n on n.oid=t.typnamespace
+where n.nspname='public' and t.typname='app_role'
 on conflict (role, permission_code) do nothing;
 
 insert into public.role_permissions(role, permission_code)
@@ -663,7 +661,6 @@ begin
   where l.id=new.share_link_id
     and l.post_id=new.post_id
     and l.sharer_id<>v_user_id
-    and l.sharer_id<>new.seller_id
   on conflict (order_type,order_id) do nothing
   returning id into v_earning_id;
 
