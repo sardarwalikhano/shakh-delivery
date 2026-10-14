@@ -78,15 +78,22 @@ export async function checkoutFoodPostCart(input: {
   buyerPhone: string;
   deliveryCity: string;
   customerNote?: string | null;
-  paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  paymentMethod: 'cash_on_delivery' | 'mobile_cash' | 'wallet';
 }): Promise<FoodPostOrderResult[]> {
-  const { data, error } = await supabase.rpc('checkout_food_post_cart', {
-    p_delivery_address: input.deliveryAddress,
-    p_buyer_phone: input.buyerPhone,
-    p_delivery_city: input.deliveryCity,
-    p_customer_note: input.customerNote ?? null,
-    p_payment_method: input.paymentMethod,
-  });
+  const { data, error } = input.paymentMethod === 'wallet'
+    ? await supabase.rpc('checkout_food_post_cart_with_wallet', {
+        p_delivery_address: input.deliveryAddress,
+        p_buyer_phone: input.buyerPhone,
+        p_delivery_city: input.deliveryCity,
+        p_customer_note: input.customerNote ?? null,
+      })
+    : await supabase.rpc('checkout_food_post_cart', {
+        p_delivery_address: input.deliveryAddress,
+        p_buyer_phone: input.buyerPhone,
+        p_delivery_city: input.deliveryCity,
+        p_customer_note: input.customerNote ?? null,
+        p_payment_method: input.paymentMethod,
+      });
   if (error) throw new Error(error.message);
   const result = data as { orders?: FoodPostOrderResult[] } | null;
   if (!result?.orders?.length) throw new Error('داواکارییەک تۆمار نەکرا. سەلەکەت بەتاڵە یان نرخی خواردن بەردەست نییە.');
