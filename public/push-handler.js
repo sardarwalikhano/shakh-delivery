@@ -1,7 +1,12 @@
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let payload;
-  try { payload = event.data.json(); } catch { payload = { title: 'SHAKH Delivery', body: event.data.text() }; }
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'SHAKH Delivery', body: event.data.text() };
+  }
+
   event.waitUntil(self.registration.showNotification(payload.title || 'SHAKH Delivery', {
     body: payload.body || '',
     tag: payload.tag || 'shakh-notification',
@@ -15,11 +20,33 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const destination = new URL(event.notification.data?.url || '/', self.location.origin).href;
-  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-    const existing = clients.find((client) => client.url === destination);
-    if (existing) return existing.focus();
-    return self.clients.openWindow(destination);
+
+  // Notifications may contain a route for deep linking, but never open a
+  // foreign origin from a payload.
+  let destination = new URL('/', self.location.origin);
+  try {
+    const requested = new URL(event.notification.data?.url || '/', self.location.origin);
+    if (requested.origin === self.location.origin) destination = requested;
+  } catch {
+    // Fall back to the app home page if the notification URL is malformed.
+  }
+
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
+    const existing = windows.find((client) => {
+      try {
+        return new URL(client.url).origin === self.location.origin;
+      } catch {
+        return false;
+      }
+    });
+
+    if (existing) {
+      const focusedClient = existing.url === destination.href
+        ? existing
+        : await existing.navigate(destination.href) || existing;
+      return focusedClient.focus();
+    }
+
+    return self.clients.openWindow(destination.href);
   }));
 });
-

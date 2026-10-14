@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'robots.txt', 'push-handler.js'],
       manifest: {
         id: '/',
@@ -37,9 +37,7 @@ export default defineConfig({
       },
       workbox: {
         importScripts: ['/push-handler.js'],
-        cleanupOutdatedCaches: true,
-        skipWaiting: true,
-        clientsClaim: true,
+        cleanupOutdatedCaches: true,        clientsClaim: true,
         navigateFallback: '/index.html',
         runtimeCaching: [
           {

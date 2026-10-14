@@ -1,13 +1,41 @@
 const PENDING_REDIRECT_KEY = 'shakh.pending_auth_redirect';
-
 const FALLBACK_REDIRECT = '/dashboard';
+const AUTH_ONLY_PATHS = new Set([
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+]);
 
+/**
+ * Accept only same-origin absolute paths. Keep valid deep links (path, query,
+ * and hash) while rejecting protocol-relative URLs, backslash parsing tricks,
+ * control characters, and auth-loop destinations.
+ */
 export function sanitizeInternalPath(path: string | null | undefined): string {
-  if (!path || !path.startsWith('/') || path.startsWith('//')) return FALLBACK_REDIRECT;
-  if (path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/forgot-password') || path.startsWith('/reset-password') || path.startsWith('/verify-email')) {
+  if (
+    !path
+    || !path.startsWith('/')
+    || path.startsWith('//')
+    || path.includes('\\')
+    || /[\u0000-\u001f\u007f]/.test(path)
+  ) {
     return FALLBACK_REDIRECT;
   }
-  return path;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(path, 'https://shakh-internal.invalid');
+  } catch {
+    return FALLBACK_REDIRECT;
+  }
+
+  if (parsed.origin !== 'https://shakh-internal.invalid' || AUTH_ONLY_PATHS.has(parsed.pathname)) {
+    return FALLBACK_REDIRECT;
+  }
+
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
 export function rememberAuthRedirect(path: string): void {
