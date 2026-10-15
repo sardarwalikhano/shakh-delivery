@@ -11,6 +11,7 @@ import { MAX_POST_IMAGES } from '@/lib/storage/postMedia';
 import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, PostTarget } from '../types';
+import { getCategoryDetailFields, getVisibleCategoryDetails, sanitizeCategoryDetails, type CategoryDetails } from '@/lib/catalog/categoryDetails';
 
 type ApparelColor = { name: string; hex: string };
 type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
@@ -69,6 +70,7 @@ export function CreatePostPage() {
   const [location, setLocation] = useState('');
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
+  const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
   const [material, setMaterial] = useState('');
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
   const [season, setSeason] = useState<ApparelSeason>('all_seasons');
@@ -257,6 +259,38 @@ export function CreatePostPage() {
       return;
     }
 
+    if (category === 'electronics') {
+      if (!brand.trim()) return setError('بڕاندی ئامێر دیاری بکە.');
+      const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
+      if (numericPrice === null || !Number.isFinite(numericPrice) || numericPrice <= 0) return setError('نرخی ئەلیکترۆنیات دەبێت لە سفر زیاتر بێت.');
+      if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ پۆستی ئەلیکترۆنیات لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+      const details = sanitizeCategoryDetails('electronics', electronicsDetails);
+      if (details.error) return setError(details.error);
+      if (!reviewing) { setReviewing(true); return; }
+      setBusy(true);
+      try {
+        const created = await createPost({
+          publisherRole: role,
+          category: 'electronics',
+          title,
+          content,
+          priceIqd: numericPrice,
+          referralRewardIqd: Number(referralRewardIqd || '0'),
+          brand: brand.trim(),
+          categoryDetails: details.values,
+          location,
+          images,
+        });
+        setSuccess(true);
+        navigate(`/posts/${created.id}`, { replace: true });
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : 'پۆستکردنی ئەلیکترۆنیات سەرکەوتوو نەبوو.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
     if (numericPrice !== null && (!Number.isFinite(numericPrice) || numericPrice < 0)) return setError('نرخی پۆست دروست نییە.');
 
@@ -355,7 +389,7 @@ export function CreatePostPage() {
           <AuthFeedback error={error} />
           {success ? <AuthSuccess>پۆستەکە بە سەرکەوتوویی بڵاوکرایەوە.</AuthSuccess> : null}
 
-          {category === 'food' || category === 'fashion' ? (
+          {category === 'food' || category === 'fashion' || category === 'electronics' ? (
             <section className="space-y-2 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.045] p-4">
               <label className="block text-sm font-black" htmlFor="post-referral-reward">
                 خەڵاتی شێرکردن بۆ هەر داواکارییەکی تەواوبوو (د.ع)
@@ -427,8 +461,8 @@ export function CreatePostPage() {
             onChange={updateImages}
             maxFiles={MAX_POST_IMAGES}
             disabled={busy}
-            required={category === 'fashion'}
-            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : 'وێنەکانی پۆست / بەرهەم'}
+            required={category === 'fashion' || category === 'electronics'}
+            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : category === 'electronics' ? 'وێنەکانی ئەلیکترۆنیات' : 'وێنەکانی پۆست / بەرهەم'}
             hint="کامێرا یان گەلەری بەکاربهێنە؛ ڕیزی وێنەکان دەتوانیت بگۆڕیت، وێنەی یەکەم وێنەی سەرەکییە."
           />
 
@@ -589,6 +623,57 @@ export function CreatePostPage() {
             </section>
           ) : null}
 
+          {category === 'electronics' ? (
+            <section className="space-y-5 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
+              <div>
+                <h2 className="text-xl font-black">زانیاریی ئەلیکترۆنیات</h2>
+                <p className="mt-1 text-sm leading-6 text-black/45">بڕاند، جۆری ئامێر، ڕەنگ، بیرگە، RAM و کۆگای بەردەست دیاری بکە. بۆ مۆبایل، تابلێت، لاپتۆپ و دیسکتۆپ RAM و Storage پێویستن.</p>
+              </div>
+              <Field label="بڕاند / کۆمپانیا *">
+                <input className={inputClass} required value={brand} onChange={(event) => setBrand(event.target.value)} maxLength={120} placeholder="وەک Apple، Samsung، Lenovo، Dell" />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {getCategoryDetailFields('electronics').map((field) => {
+                  const current = electronicsDetails[field.key];
+                  const memoryRequired = ['phone', 'tablet', 'laptop', 'desktop'].includes(String(electronicsDetails.product_type ?? ''))
+                    && ['ram_capacity', 'storage_capacity'].includes(field.key);
+                  const required = Boolean(field.required || memoryRequired);
+                  const value = typeof current === 'string' ? current : '';
+                  const changeValue = (nextValue: string) => setElectronicsDetails((previous) => ({ ...previous, [field.key]: nextValue }));
+                  if (field.type === 'select') {
+                    return (
+                      <Field key={field.key} label={field.label + (required ? ' *' : '')}>
+                        <select className={inputClass} required={required} value={value} onChange={(event) => changeValue(event.target.value)}>
+                          <option value="">هەڵبژاردەیەک دیاری بکە</option>
+                          {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </Field>
+                    );
+                  }
+                  if (field.type === 'number') {
+                    return (
+                      <Field key={field.key} label={field.label + (required ? ' *' : '')} hint={field.unit}>
+                        <input className={inputClass} type="number" min={field.min} max={field.max} step="1" required={required} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.unit ?? 'ژمارە بنووسە'} />
+                      </Field>
+                    );
+                  }
+                  if (field.type === 'textarea') {
+                    return (
+                      <Field key={field.key} label={field.label + (required ? ' *' : '')}>
+                        <textarea className={inputClass + ' min-h-24'} required={required} maxLength={field.maxLength ?? 2000} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} />
+                      </Field>
+                    );
+                  }
+                  return (
+                    <Field key={field.key} label={field.label + (required ? ' *' : '')}>
+                      <input className={inputClass} required={required} maxLength={field.maxLength ?? 120} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} />
+                    </Field>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
           <Field label="ناوی بەرهەم / ناونیشانی پۆست">
             <div className="relative">
               <FileText className="pointer-events-none absolute start-4 top-4 text-black/30" size={17} />
@@ -601,10 +686,10 @@ export function CreatePostPage() {
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={category === 'fashion' ? 'نرخی سەرەکی (د.ع)' : 'نرخ (IQD)'} hint={category === 'fashion' ? 'نرخی ئەو ڕەنگ و قەبارانەی نرخی تایبەتیان نییە.' : 'نرخی پۆست؛ ئەگەر گونجاوە.'}>
+            <Field label={category === 'fashion' ? 'نرخی سەرەکی (د.ع)' : category === 'electronics' ? 'نرخی ئەلیکترۆنیات (د.ع)' : 'نرخ (IQD)'} hint={category === 'fashion' ? 'نرخی ئەو ڕەنگ و قەبارانەی نرخی تایبەتیان نییە.' : 'نرخی پۆست؛ ئەگەر گونجاوە.'}>
               <div className="relative">
                 <BadgeDollarSign className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-black/30" size={17} />
-                <input className={inputClass + ' ps-11'} type="number" min={category === 'fashion' ? 1 : 0} step="1" inputMode="decimal" required={category === 'fashion'} value={price} onChange={(event) => setPrice(event.target.value)} placeholder="0" dir="ltr" />
+                <input className={inputClass + ' ps-11'} type="number" min={category === 'fashion' || category === 'electronics' ? 1 : 0} step="1" inputMode="decimal" required={category === 'fashion' || category === 'electronics'} value={price} onChange={(event) => setPrice(event.target.value)} placeholder="0" dir="ltr" />
               </div>
             </Field>
             <Field label="شوێنی فرۆشیار">
@@ -644,6 +729,15 @@ export function CreatePostPage() {
                       const imageIndex = draft.imageIndex === '' ? -1 : Number(draft.imageIndex);
                       return <div key={item.key} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--shakh-bg)] p-3"><span className="flex items-center gap-2 font-bold"><span className="size-4 rounded-full border border-black/10" style={{backgroundColor:item.color.hex}}/>{item.color.name} / {item.size}</span><span className="text-xs text-black/55">{Number(draft.stock || 0)} دانە</span><span className="text-xs font-black">{Number.isFinite(finalPrice) && finalPrice > 0 ? finalPrice.toLocaleString('en-US') + ' د.ع دوای داشکاندن' : 'نرخ پێویستە'}</span><span className="text-[11px] text-black/40">{imageIndex >= 0 ? 'وێنەی ' + (imageIndex + 1) : 'وێنەی گشتی'}</span></div>;
                     })}</div></div>
+                  </>
+                ) : null}
+                {category === 'electronics' ? (
+                  <>
+                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">بڕاند:</span><strong className="ms-1">{brand.trim() || '—'}</strong></div>
+                    {getVisibleCategoryDetails('electronics', electronicsDetails).map((detail) => (
+                      <div key={detail.key} className="rounded-xl bg-white p-3"><span className="text-black/45">{detail.label}:</span><strong className="ms-1 break-words">{detail.value}</strong></div>
+                    ))}
+                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">خەڵاتی شێرکردن:</span><strong className="ms-1">{Number(referralRewardIqd || 0).toLocaleString('en-US')} د.ع بۆ هەر فرۆشتنێکی تەواوبوو</strong></div>
                   </>
                 ) : null}
                 <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">وێنەکان بە ڕیز:</span><div className="mt-2 space-y-1">{images.map((image, index) => <div key={image.name + image.size + image.lastModified + index} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="font-bold">وێنەی {index + 1}: {image.name}</span><span className="text-black/40">{(image.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی سەرەکی' : ''}</span></div>)}</div></div>
