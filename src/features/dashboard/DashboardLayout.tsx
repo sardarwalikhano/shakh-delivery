@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
+import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -13,6 +13,7 @@ const navItems: NavItem[] = [
   { label: 'بەرهەمەکان', href: '/dashboard/products', icon: Boxes, permission: 'products.view' },
   { label: 'پۆستەکان', href: '/posts', icon: Package, permission: 'posts.view' },
   { label: 'بەڕێوەبردنی پۆستەکان', href: '/dashboard/posts/manage', icon: Package, permission: 'posts.update_own' },
+  { label: 'شێر و قازانج', href: '/dashboard/referral-wallet', icon: Gift, permission: 'posts.view' },
   { label: 'داواکاریی جل‌وبەرگ', href: '/post-orders', icon: ShoppingCart, permission: 'posts.view' },
   { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view' },
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view' },
