@@ -371,7 +371,7 @@ export async function replaceOwnedPostImages(postId: string, files: File[]): Pro
 
   const { data: existing, error: readError } = await supabase
     .from('posts')
-    .select('id,author_id,title,images,status')
+    .select('id,author_id,title,images,status,category,category_details')
     .eq('id', postId)
     .neq('status', 'deleted')
     .maybeSingle();
@@ -390,6 +390,22 @@ export async function replaceOwnedPostImages(postId: string, files: File[]): Pro
   const oldPaths = oldImages
     .map((image) => image.storage_path)
     .filter((path) => path.startsWith(`posts/${userId}/${postId}/`));
+  const existingCategoryDetails = existing.category_details && typeof existing.category_details === 'object' && !Array.isArray(existing.category_details)
+    ? existing.category_details as Record<string, unknown>
+    : {};
+  let electronicsColorValues: string[] = [];
+  if (existing.category === 'electronics' && typeof existingCategoryDetails.color_image_paths === 'string' && existingCategoryDetails.color_image_paths.trim()) {
+    const configured = typeof existingCategoryDetails.available_colors === 'string'
+      ? existingCategoryDetails.available_colors.split(',').map((value) => value.trim()).filter(Boolean)
+      : [];
+    const fallback = typeof existingCategoryDetails.color === 'string' && existingCategoryDetails.color.trim()
+      ? [existingCategoryDetails.color.trim()]
+      : [];
+    electronicsColorValues = [...new Set(configured.length ? configured : fallback)];
+    if (files.length < electronicsColorValues.length) {
+      throw new Error(`ئەم پۆستە ${electronicsColorValues.length} ڕەنگی وێنەدار هەیە؛ بۆ نوێکردنەوەیان لانیکەم ${electronicsColorValues.length} وێنە هەڵبژێرە و ڕیزی وێنەکان بە ڕیزی ڕەنگەکان بگونجێنە.`);
+    }
+  }
 
   const uploadedPaths: string[] = [];
   let committed = false;
@@ -404,9 +420,17 @@ export async function replaceOwnedPostImages(postId: string, files: File[]): Pro
       alt_ku: existing.title || `وێنەی پۆست ${index + 1}`,
     }));
 
+    const replacementPatch: { images: typeof nextImages; category_details?: CategoryDetails } = { images: nextImages };
+    if (electronicsColorValues.length) {
+      const pathMap = Object.fromEntries(electronicsColorValues.map((colorValue, index) => [colorValue, uploadedPaths[index]]));
+      replacementPatch.category_details = {
+        ...existingCategoryDetails as CategoryDetails,
+        color_image_paths: JSON.stringify(pathMap),
+      };
+    }
     const { data: updated, error: updateError } = await supabase
       .from('posts')
-      .update({ images: nextImages })
+      .update(replacementPatch)
       .eq('id', postId)
       .eq('author_id', userId)
       .neq('status', 'deleted')
