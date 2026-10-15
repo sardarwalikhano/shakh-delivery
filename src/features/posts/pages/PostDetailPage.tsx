@@ -513,7 +513,9 @@ ${share.title || post.title}
                 {imageSaveError ? <div role="alert" className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{imageSaveError}</div> : null}
                 {isEditing ? (
                   <div className="mt-3 space-y-3">
-                    <p className="text-xs leading-6 text-black/45">ئەگەر وێنەی نوێ هەڵبژێریت، ئەوانەی پێشوو جێگرتەوە دەبن. ئەگەر ناتەوێت وێنەکان بگۆڕیت، ئەم بەشە بەتاڵ بهێڵە.</p>
+                    <p className="text-xs leading-6 text-black/45">{isElectronics && typeof post.category_details?.color_image_paths === 'string' && post.category_details.color_image_paths.trim()
+                      ? `وێنەکان لە ڕیزی هەڵبژاردنتدا بە ڕەنگەکان دەبەسترێن: ${electronicsColorValues.map((value) => ELECTRONICS_COLOR_LABELS[value] ?? value).join('، ')}. لانیکەم ${electronicsColorValues.length} وێنە هەڵبژێرە و وێنەکان لە هەمان ڕیزدا دابنێ.`
+                      : 'ئەگەر وێنەی نوێ هەڵبژێریت، ئەوانەی پێشوو جێگرتەوە دەبن. ئەگەر ناتەوێت وێنەکان بگۆڕیت، ئەم بەشە بەتاڵ بهێڵە.'}</p>
                     <ImageUploadField
                       files={replacementFiles}
                       onChange={setReplacementFiles}
