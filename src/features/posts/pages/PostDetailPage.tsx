@@ -10,6 +10,8 @@ import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelVariant, 
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
+import { ElectronicsPurchasePanel } from '../components/ElectronicsPurchasePanel';
+import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { singleVehicleListing } from '../vehicleTypes';
 import { addFoodPostToCart } from '../foodPostCart';
@@ -138,7 +140,9 @@ export function PostDetailPage() {
   if (!post) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="text-2xl font-black">پۆست نەدۆزرایەوە</h1>{error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}<Link className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white" to="/posts">گەڕانەوە بۆ پۆستەکان</Link></div>;
 
   const isApparel = post.category === 'fashion';
+  const isElectronics = post.category === 'electronics';
   const isVehicle = post.category === 'cars';
+  const electronicsSpecs = isElectronics ? getVisibleCategoryDetails('electronics', post.category_details) : [];
   const vehicleListing = isVehicle ? singleVehicleListing(post.vehicle_listing) : null;
   const basePrice = vehicleListing
     ? Number(vehicleListing.price_amount)
@@ -355,7 +359,7 @@ ${share.title || post.title}
               <button type="button" onClick={() => void sharePost()} disabled={sharingPost} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-orange)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
                 <Share2 size={17}/>{sharingPost ? 'ئامادەکردنی لینک...' : 'شێرکردن و وەرگرتنی خەڵات'}
               </button>
-              {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+              {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion' || post.category === 'electronics') ? (
                 <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800"><Gift size={15}/> {configuredShareReward.toLocaleString('en-US')} د.ع بۆ هەر داواکارییەکی تەواوبوو</span>
               ) : null}
             </div>
@@ -496,7 +500,7 @@ ${share.title || post.title}
             </div>
             <h1 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">{post.title}</h1>
             {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
-            {isApparel && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
+            {(isApparel || isElectronics) && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
             {isApparel && post.item_condition ? <div className="mt-2 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">دۆخ: {post.item_condition === 'new' ? 'نوێ' : 'بەکارهاتوو'}</span>{post.apparel_audience ? <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">{APPAREL_AUDIENCE_LABELS[post.apparel_audience] ?? 'هەمووان'}</span> : null}</div> : null}
             <p className="mt-4 whitespace-pre-wrap leading-8 text-black/60">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
 
@@ -510,6 +514,24 @@ ${share.title || post.title}
 
             {isVehicle && vehicleListing ? <VehiclePostDetails listing={vehicleListing} location={post.location} /> : null}
             {isVehicle && !vehicleListing ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm leading-6 text-amber-800">وردەکاریی تەکنیکی ئەم پۆستە لە داتابەیسدا تۆمار نەکراوە. هیچ زانیارییەکی ئۆتۆمبێل بە خۆڕایی دانەنراوە؛ تکایە لە فرۆشیارەوە پشتڕاستی بکەرەوە.</div> : null}
+
+            {isElectronics ? (
+              <section className="mt-6 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-bg)] p-4">
+                <h2 className="text-lg font-black">تایبەتمەندییە تەکنیکییەکان</h2>
+                {electronicsSpecs.length ? (
+                  <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {electronicsSpecs.map((detail) => (
+                      <div key={detail.key} className="rounded-xl bg-white p-3">
+                        <dt className="text-xs font-bold text-black/45">{detail.label}</dt>
+                        <dd className="mt-1 break-words text-sm font-black">{detail.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-black/45">وردەکاریی تەکنیکی بۆ ئەم پۆستە بەردەست نییە.</p>
+                )}
+              </section>
+            ) : null}
 
             {isApparel ? <div className="mt-7 space-y-6">
               <div>
@@ -538,6 +560,7 @@ ${share.title || post.title}
 
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
+            {isElectronics && post.status === 'active' ? <ElectronicsPurchasePanel post={post} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
             {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 
