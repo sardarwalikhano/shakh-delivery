@@ -10,6 +10,7 @@ export type ElectronicsPostOrder = {
   post_id: string;
   post_title: string;
   brand: string;
+  selected_color: string | null;
   product_details: Record<string, string | boolean>;
   quantity: number;
   unit_price_iqd: number;
@@ -35,17 +36,19 @@ export async function createElectronicsPostOrder(input: {
   deliveryAddress: string;
   deliveryCity: string;
   buyerPhone: string;
+  selectedColor: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
   shareLinkId?: string | null;
 }): Promise<ElectronicsPostOrder> {
-  const { data, error } = await supabase.rpc('create_electronics_post_order_with_share', {
+  const { data, error } = await supabase.rpc('create_electronics_post_order_with_color_and_share', {
     p_request_id: input.requestId,
     p_post_id: input.postId,
     p_quantity: input.quantity,
     p_delivery_address: input.deliveryAddress,
     p_buyer_phone: input.buyerPhone,
     p_delivery_city: input.deliveryCity,
+    p_selected_color: input.selectedColor,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
     p_share_link_id: input.shareLinkId ?? null,
@@ -57,7 +60,7 @@ export async function createElectronicsPostOrder(input: {
 export async function listElectronicsPostOrders(): Promise<ElectronicsPostOrder[]> {
   const { data, error } = await supabase
     .from('electronics_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,post_title,brand,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_title,brand,selected_color,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;

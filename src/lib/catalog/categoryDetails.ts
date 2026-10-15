@@ -66,6 +66,8 @@ const electronicsFields: CategoryDetailField[] = [
     { value: 'other', label: 'ڕەنگی تر' },
   ] },
   { key: 'available_colors', label: 'ڕەنگە هەڵبژێردراوەکان', type: 'text', maxLength: 300 },
+  { key: 'color_image_indexes', label: 'پێوەندی وێنەی ڕەنگەکان', type: 'text', maxLength: 1200 },
+  { key: 'color_image_paths', label: 'شوێنی وێنەی ڕەنگەکان', type: 'text', maxLength: 3000 },
   { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', required: true, options: conditionOptions },
   { key: 'operating_system', label: 'سیستەمی کارپێکردن', type: 'text', placeholder: 'وەک Android، iOS، Windows' },
   { key: 'ram_capacity', label: 'RAM', type: 'text', placeholder: 'وەک 8GB، 16GB' },
@@ -319,6 +321,21 @@ export function sanitizeCategoryDetails(
     }
     values.color = selectedColors[0];
     values.available_colors = selectedColors.join(',');
+
+    const rawIndexes = values.color_image_indexes;
+    if (typeof rawIndexes === 'string' && rawIndexes.trim()) {
+      let parsedIndexes: unknown;
+      try { parsedIndexes = JSON.parse(rawIndexes); } catch { return { values: {}, error: 'پێوەندی وێنەکان دروست نییە.' }; }
+      if (!parsedIndexes || typeof parsedIndexes !== 'object' || Array.isArray(parsedIndexes)) {
+        return { values: {}, error: 'پێوەندی وێنەکان دروست نییە.' };
+      }
+      const indexMap = parsedIndexes as Record<string, unknown>;
+      if (Object.keys(indexMap).some((color) => !selectedColors.includes(color))
+        || selectedColors.some((color) => !Number.isInteger(indexMap[color]) || Number(indexMap[color]) < 0 || Number(indexMap[color]) >= 8)) {
+        return { values: {}, error: 'بۆ هەر ڕەنگێک وێنەیەکی دروست دیاری بکە.' };
+      }
+      values.color_image_indexes = JSON.stringify(indexMap);
+    }
   }
   return { values, error: null };
 }
@@ -330,7 +347,7 @@ export function getVisibleCategoryDetails(
 ): Array<{ key: string; label: string; value: string }> {
   const values = value ?? {};
   return getCategoryDetailFields(rootSlug, apparelType).flatMap((field) => {
-    if (field.key === 'expiry_date') return [];
+    if (field.key === 'expiry_date' || field.key === 'color_image_indexes' || field.key === 'color_image_paths') return [];
     if (field.key === 'color' && typeof values.available_colors === 'string' && values.available_colors.trim()) return [];
     const raw = field.key === 'available_colors' && typeof values.available_colors !== 'string' && typeof values.color === 'string'
       ? values.color

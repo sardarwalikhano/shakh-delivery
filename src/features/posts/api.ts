@@ -65,12 +65,37 @@ export async function createPost(input: {
   const electronicsDetailsResult = isElectronicsPost
     ? sanitizeCategoryDetails('electronics', input.categoryDetails ?? {})
     : { values: {} as CategoryDetails, error: null };
+  let electronicsColorImageIndexes: Record<string, number> | null = null;
   if (isElectronicsPost) {
     if (!input.brand?.trim()) throw new Error('بڕاندی ئامێر پێویستە.');
     if (electronicsDetailsResult.error) throw new Error(electronicsDetailsResult.error);
     const numericPrice = input.priceIqd ?? 0;
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new Error('نرخی ئەلیکترۆنیات دەبێت لە سفر زیاتر بێت.');
     if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) throw new Error('بۆ پۆستی ئەلیکترۆنیات لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+    const rawColorList = electronicsDetailsResult.values.available_colors;
+    if (typeof rawColorList === 'string' && rawColorList.trim()) {
+      const selectedColors = [...new Set(rawColorList.split(',').map((value) => value.trim()).filter(Boolean))];
+      const rawIndexMap = electronicsDetailsResult.values.color_image_indexes;
+      if (!selectedColors.length || typeof rawIndexMap !== 'string' || !rawIndexMap.trim()) {
+        throw new Error('بۆ هەر ڕەنگێک وێنەی تایبەت دیاری بکە.');
+      }
+      let parsed: unknown;
+      try { parsed = JSON.parse(rawIndexMap); } catch { throw new Error('پێوەندیی وێنەکانی ڕەنگەکان دروست نییە.'); }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('پێوەندیی وێنەکانی ڕەنگەکان دروست نییە.');
+      }
+      const indexMap = parsed as Record<string, unknown>;
+      if (Object.keys(indexMap).some((colorValue) => !selectedColors.includes(colorValue))) {
+        throw new Error('پێوەندیی وێنەکان ڕەنگێکی نەهەڵبژێردراوی تێدایە.');
+      }
+      for (const colorValue of selectedColors) {
+        const index = indexMap[colorValue];
+        if (!Number.isInteger(index) || Number(index) < 0 || Number(index) >= imageFiles.length) {
+          throw new Error('بۆ هەر ڕەنگێک وێنەیەکی بەردەست دیاری بکە.');
+        }
+      }
+      electronicsColorImageIndexes = Object.fromEntries(selectedColors.map((colorValue) => [colorValue, Number(indexMap[colorValue])]));
+    }
   }
   const needsStagedPublish = Boolean(input.apparel) || Boolean(input.vehicle) || imageFiles.length > 0;
 
@@ -197,9 +222,21 @@ export async function createPost(input: {
         alt_ku: input.vehicle && photoKind ? VEHICLE_PHOTO_KIND_LABELS[photoKind] : title,
       };
     });
+    const publishPatch: Record<string, unknown> = { images: postImages, status: 'active' };
+    if (isElectronicsPost && electronicsColorImageIndexes) {
+      const detailsForPublish: CategoryDetails = { ...electronicsDetailsResult.values };
+      const pathMap = Object.fromEntries(Object.entries(electronicsColorImageIndexes).map(([colorValue, index]) => {
+        const path = uploadedPaths[index];
+        if (!path) throw new Error('وێنەی تایبەتی ڕەنگ نەدۆزرایەوە.');
+        return [colorValue, path];
+      }));
+      delete detailsForPublish.color_image_indexes;
+      detailsForPublish.color_image_paths = JSON.stringify(pathMap);
+      publishPatch.category_details = detailsForPublish;
+    }
     const { data: published, error: publishError } = await supabase
       .from('posts')
-      .update({ images: postImages, status: 'active' })
+      .update(publishPatch)
       .eq('id', postId)
       .eq('author_id', user.id)
       .select('*')
@@ -334,7 +371,7 @@ export async function replaceOwnedPostImages(postId: string, files: File[]): Pro
 
   const { data: existing, error: readError } = await supabase
     .from('posts')
-    .select('id,author_id,title,images,status')
+    .select('id,author_id,title,images,status,category,category_details')
     .eq('id', postId)
     .neq('status', 'deleted')
     .maybeSingle();
@@ -353,6 +390,22 @@ export async function replaceOwnedPostImages(postId: string, files: File[]): Pro
   const oldPaths = oldImages
     .map((image) => image.storage_path)
     .filter((path) => path.startsWith(`posts/${userId}/${postId}/`));
+  const existingCategoryDetails = existing.category_details && typeof existing.category_details === 'object' && !Array.isArray(existing.category_details)
+    ? existing.category_details as Record<string, unknown>
+    : {};
+  let electronicsColorValues: string[] = [];
+  if (existing.category === 'electronics' && typeof existingCategoryDetails.color_image_paths === 'string' && existingCategoryDetails.color_image_paths.trim()) {
+    const configured = typeof existingCategoryDetails.available_colors === 'string'
+      ? existingCategoryDetails.available_colors.split(',').map((value) => value.trim()).filter(Boolean)
+      : [];
+    const fallback = typeof existingCategoryDetails.color === 'string' && existingCategoryDetails.color.trim()
+      ? [existingCategoryDetails.color.trim()]
+      : [];
+    electronicsColorValues = [...new Set(configured.length ? configured : fallback)];
+    if (files.length < electronicsColorValues.length) {
+      throw new Error(`ئەم پۆستە ${electronicsColorValues.length} ڕەنگی وێنەدار هەیە؛ بۆ نوێکردنەوەیان لانیکەم ${electronicsColorValues.length} وێنە هەڵبژێرە و ڕیزی وێنەکان بە ڕیزی ڕەنگەکان بگونجێنە.`);
+    }
+  }
 
   const uploadedPaths: string[] = [];
   let committed = false;
@@ -367,9 +420,17 @@ export async function replaceOwnedPostImages(postId: string, files: File[]): Pro
       alt_ku: existing.title || `وێنەی پۆست ${index + 1}`,
     }));
 
+    const replacementPatch: { images: typeof nextImages; category_details?: CategoryDetails } = { images: nextImages };
+    if (electronicsColorValues.length) {
+      const pathMap = Object.fromEntries(electronicsColorValues.map((colorValue, index) => [colorValue, uploadedPaths[index]]));
+      replacementPatch.category_details = {
+        ...existingCategoryDetails as CategoryDetails,
+        color_image_paths: JSON.stringify(pathMap),
+      };
+    }
     const { data: updated, error: updateError } = await supabase
       .from('posts')
-      .update({ images: nextImages })
+      .update(replacementPatch)
       .eq('id', postId)
       .eq('author_id', userId)
       .neq('status', 'deleted')
