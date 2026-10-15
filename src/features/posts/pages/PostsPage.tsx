@@ -9,6 +9,11 @@ import { supabase } from '@/lib/supabase/client';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { Post, PostCategory } from '../types';
 
+const electronicsColors: Record<string, string> = {
+  black: 'ڕەش', white: 'سپی', blue: 'شین', silver: 'زیوی', gray: 'خاکستەری',
+  gold: 'زێڕی', green: 'سەوز', red: 'سوور', purple: 'مۆر', pink: 'پەمەیی', other: 'ڕەنگی تر',
+};
+
 const electronicsTypes = [
   { value: 'all', label: 'هەموو ئەلیکترۆنیات' },
   { value: 'phone', label: 'مۆبایل' },
@@ -27,13 +32,19 @@ const electronicsTypes = [
 
 function searchablePostText(post: Post): string {
   const details = post.category_details ?? {};
+  const productType = String(details.product_type ?? '');
+  const productTypeLabel = electronicsTypes.find((item) => item.value === productType)?.label ?? '';
+  const color = String(details.color ?? '');
+  const colorLabel = electronicsColors[color] ?? color;
   return [
     post.title,
     post.content,
     post.brand ?? '',
-    String(details.product_type ?? ''),
+    productType,
+    productTypeLabel,
     String(details.model ?? ''),
-    String(details.color ?? ''),
+    color,
+    colorLabel,
     String(details.ram_capacity ?? ''),
     String(details.storage_capacity ?? ''),
   ].join(' ').toLocaleLowerCase();
@@ -153,14 +164,14 @@ export function PostsPage() {
                         return typeLabel ? <span className="rounded-full bg-[var(--shakh-blue)]/10 px-2.5 py-1 text-xs font-black text-[var(--shakh-blue)]">{typeLabel}</span> : null;
                       })()}
                       {post.category_details?.model ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">{String(post.category_details.model)}</span> : null}
-                      {post.category_details?.color ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">ڕەنگ: {String(post.category_details.color)}</span> : null}
+                      {post.category_details?.color ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">ڕەنگ: {electronicsColors[String(post.category_details.color)] ?? String(post.category_details.color)}</span> : null}
                     </div>
                     <div className="text-xs leading-5 text-black/50">
                       {post.category_details?.ram_capacity ? <span>RAM: {String(post.category_details.ram_capacity)}</span> : null}
                       {post.category_details?.ram_capacity && post.category_details?.storage_capacity ? <span> · </span> : null}
                       {post.category_details?.storage_capacity ? <span>Storage: {String(post.category_details.storage_capacity)}</span> : null}
                     </div>
-                    {Number(post.share_reward_iqd ?? post.referral_reward_iqd ?? 0) > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-800"><Gift size={13}/>{Number(post.share_reward_iqd ?? post.referral_reward_iqd ?? 0).toLocaleString('en-US')} د.ع خەڵات بۆ هەر فرۆشتنی تەواوبوو</span> : null}
+                    {Number(post.share_reward_iqd || post.referral_reward_iqd || 0) > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-800"><Gift size={13}/>{Number(post.share_reward_iqd ?? post.referral_reward_iqd ?? 0).toLocaleString('en-US')} د.ع خەڵات بۆ هەر فرۆشتنی تەواوبوو</span> : null}
                   </div>
                 ) : null}
                 <div className="mt-4 flex items-center justify-between border-t border-black/[0.06] pt-4">
