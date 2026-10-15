@@ -1,4 +1,4 @@
-export type CategoryDetails = Record<string, string | boolean>;
+export type CategoryDetails = Record<string, string | boolean | number>;
 
 export type CategoryDetailField = {
   key: string;
@@ -57,10 +57,19 @@ const electronicsFields: CategoryDetailField[] = [
     { value: 'accessory', label: 'ئەکسسوارات' }, { value: 'other', label: 'جۆری تر' },
   ] },
   { key: 'model', label: 'مۆدێل / Model', type: 'text', maxLength: 120 },
+  { key: 'color', label: 'ڕەنگ', type: 'select', required: true, options: [
+    { value: 'black', label: 'ڕەش' }, { value: 'white', label: 'سپی' },
+    { value: 'blue', label: 'شین' }, { value: 'silver', label: 'زیوی' },
+    { value: 'gray', label: 'خاکستەری' }, { value: 'gold', label: 'زێڕی' },
+    { value: 'green', label: 'سەوز' }, { value: 'red', label: 'سوور' },
+    { value: 'purple', label: 'مۆر' }, { value: 'pink', label: 'پەمەیی' },
+    { value: 'other', label: 'ڕەنگی تر' },
+  ] },
   { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', required: true, options: conditionOptions },
   { key: 'operating_system', label: 'سیستەمی کارپێکردن', type: 'text', placeholder: 'وەک Android، iOS، Windows' },
   { key: 'ram_capacity', label: 'RAM', type: 'text', placeholder: 'وەک 8GB، 16GB' },
   { key: 'storage_capacity', label: 'بیرگە / Storage', type: 'text', placeholder: 'وەک 128GB، 1TB' },
+  { key: 'stock_quantity', label: 'ژمارەی دانەی بەردەست', type: 'number', required: true, min: 1, max: 100000, unit: 'دانە' },
   { key: 'screen_size_inches', label: 'قەبارەی شاشە', type: 'number', min: 0, max: 300, unit: 'ئینچ' },
   { key: 'battery_capacity_mah', label: 'توانای باتری', type: 'number', min: 0, max: 1000000, unit: 'mAh' },
   { key: 'connectivity', label: 'پەیوەندی و تۆڕ', type: 'text', placeholder: 'وەک 4G/5G، Wi‑Fi، Bluetooth' },
@@ -253,21 +262,25 @@ export function sanitizeCategoryDetails(
   value: CategoryDetails,
   apparelType = '',
 ): { values: CategoryDetails; error: string | null } {
-  const fields = getCategoryDetailFields(rootSlug, apparelType);
+  const root = normalizeCategoryRootSlug(rootSlug);
+  const fields = getCategoryDetailFields(root, apparelType);
+  const electronicsType = typeof value.product_type === 'string' ? value.product_type : '';
+  const requiresMemorySpecs = root === 'electronics' && ['phone', 'tablet', 'laptop', 'desktop'].includes(electronicsType);
   const values: CategoryDetails = {};
   for (const field of fields) {
     const raw = value[field.key];
-    const empty = raw === undefined || raw === null || (typeof raw === 'string' && !raw.trim());
+    const normalizedRaw = typeof raw === 'number' && field.type === 'number' ? String(raw) : raw;
+    const empty = normalizedRaw === undefined || normalizedRaw === null || (typeof normalizedRaw === 'string' && !normalizedRaw.trim());
     if (empty) {
-      if (field.required) return { values: {}, error: `تکایە «${field.label}» پڕ بکەرەوە.` };
+      if (field.required || (requiresMemorySpecs && ['ram_capacity', 'storage_capacity'].includes(field.key))) return { values: {}, error: `تکایە «${field.label}» پڕ بکەرەوە.` };
       continue;
     }
     if (field.type === 'checkbox') {
-      if (raw === true) values[field.key] = true;
+      if (normalizedRaw === true) values[field.key] = true;
       continue;
     }
-    if (typeof raw !== 'string') return { values: {}, error: `بەهای «${field.label}» دروست نییە.` };
-    const normalized = raw.trim();
+    if (typeof normalizedRaw !== 'string') return { values: {}, error: `بەهای «${field.label}» دروست نییە.` };
+    const normalized = normalizedRaw.trim();
     if ((field.type === 'text' || field.type === 'textarea') && normalized.length > (field.maxLength ?? (field.type === 'textarea' ? 2000 : 120))) {
       return { values: {}, error: `زانیاریی «${field.label}» زۆر درێژە.` };
     }
@@ -306,12 +319,13 @@ export function getVisibleCategoryDetails(
     if (field.key === 'expiry_date') return [];
     const raw = values[field.key];
     if (typeof raw === 'boolean') return raw ? [{ key: field.key, label: field.label, value: 'بەڵێ' }] : [];
-    if (typeof raw !== 'string' || !raw.trim()) return [];
+    if ((typeof raw !== 'string' && typeof raw !== 'number') || String(raw).trim() === '') return [];
+    const normalized = String(raw);
     const display = field.type === 'select'
-      ? field.options?.find((option) => option.value === raw)?.label ?? raw
+      ? field.options?.find((option) => option.value === normalized)?.label ?? normalized
       : field.type === 'number' && field.unit
-        ? `${raw} ${field.unit}`
-        : raw;
+        ? `${normalized} ${field.unit}`
+        : normalized;
     return [{ key: field.key, label: field.label, value: display }];
   });
 }

@@ -210,7 +210,7 @@ export function ReferralWalletPage() {
           withdrawals: (summary.withdrawals ?? []).map(toWithdrawal),
           rewards: (summary.earnings ?? []).map((item) => ({
             id: item.id,
-            order_type: item.order_type === 'food_post' ? 'food' : 'apparel',
+            order_type: item.order_type === 'food_post' ? 'food' : item.order_type === 'electronics_post' ? 'electronics' : 'apparel',
             order_id: item.order_id,
             post_id: item.post_id ?? '',
             reward_iqd: item.amount_iqd,

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { sanitizeCategoryDetails, type CategoryDetails } from '@/lib/catalog/categoryDetails';
 import { deletePostImages, MAX_POST_IMAGES, uploadPostImage, validatePostImage } from '@/lib/storage/postMedia';
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, ApparelVariant, Post, PostCategory, PostTarget } from './types';
@@ -37,6 +38,8 @@ export async function createPost(input: {
   content: string;
   priceIqd?: number | null;
   referralRewardIqd?: number;
+  brand?: string | null;
+  categoryDetails?: CategoryDetails;
   location?: string | null;
   itemCondition?: ApparelCondition;
   apparelAudience?: ApparelAudience;
@@ -51,13 +54,24 @@ export async function createPost(input: {
   const title = input.title.trim();
   const isApparelPost = input.category === 'fashion';
   const isVehiclePost = input.category === 'cars';
-  const referralReward = input.category === 'food' || input.category === 'fashion'
+  const isElectronicsPost = input.category === 'electronics';
+  const referralReward = input.category === 'food' || input.category === 'fashion' || isElectronicsPost
     ? Number(input.referralRewardIqd ?? 0)
     : 0;
-  if (!Number.isFinite(referralReward) || referralReward < 0 || referralReward > 100000000) {
-    throw new Error('بڕی خەڵاتی شێرکردن دەبێت لە ٠ تا ١٠٠٬٠٠٠٬٠٠٠ دینار بێت.');
+  if (!Number.isInteger(referralReward) || !Number.isFinite(referralReward) || referralReward < 0 || referralReward > 100000000) {
+    throw new Error('بڕی خەڵاتی شێرکردن دەبێت ژمارەیەکی تەواو لە ٠ تا ١٠٠٬٠٠٠٬٠٠٠ دینار بێت.');
   }
   const imageFiles = input.apparel?.images ?? input.images ?? [];
+  const electronicsDetailsResult = isElectronicsPost
+    ? sanitizeCategoryDetails('electronics', input.categoryDetails ?? {})
+    : { values: {} as CategoryDetails, error: null };
+  if (isElectronicsPost) {
+    if (!input.brand?.trim()) throw new Error('بڕاندی ئامێر پێویستە.');
+    if (electronicsDetailsResult.error) throw new Error(electronicsDetailsResult.error);
+    const numericPrice = input.priceIqd ?? 0;
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new Error('نرخی ئەلیکترۆنیات دەبێت لە سفر زیاتر بێت.');
+    if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) throw new Error('بۆ پۆستی ئەلیکترۆنیات لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+  }
   const needsStagedPublish = Boolean(input.apparel) || Boolean(input.vehicle) || imageFiles.length > 0;
 
   if (isApparelPost && !input.apparel) {
@@ -124,6 +138,10 @@ export async function createPost(input: {
       price_iqd: input.vehicle ? Number(input.vehicle.details.price_amount) : (input.priceIqd ?? null),
       referral_reward_iqd: referralReward,
       share_reward_iqd: referralReward,
+      ...(isElectronicsPost ? {
+        brand: input.brand?.trim() || null,
+        category_details: electronicsDetailsResult.values,
+      } : {}),
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
       status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {

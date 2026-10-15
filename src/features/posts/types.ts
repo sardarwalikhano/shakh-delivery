@@ -1,5 +1,6 @@
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import type { VehicleListingRecord } from './vehicleTypes';
+import type { CategoryDetails } from '@/lib/catalog/categoryDetails';
 
 export type PostCategory =
   | 'general' | 'food' | 'fashion' | 'electronics' | 'home_living'
@@ -57,6 +58,7 @@ export type Post = {
   price_iqd: number | null;
   referral_reward_iqd: number;
   share_reward_iqd: number;
+  category_details: CategoryDetails;
   location: string | null;
   status: PostStatus;
   apparel_type: ApparelType | null;

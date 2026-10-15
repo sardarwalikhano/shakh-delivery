@@ -64,7 +64,7 @@ export async function createPostShareLink(postId: string): Promise<PostShareLink
   if (postError) throw new Error(postError.message);
 
   const reward = Number(post?.share_reward_iqd ?? 0);
-  const rewardEnabled = reward > 0 && (post?.category === 'food' || post?.category === 'fashion');
+  const rewardEnabled = reward > 0 && (post?.category === 'food' || post?.category === 'fashion' || post?.category === 'electronics');
   const url = new URL(`/posts/${encodeURIComponent(postId)}`, window.location.origin);
   url.searchParams.set('share', token);
 
