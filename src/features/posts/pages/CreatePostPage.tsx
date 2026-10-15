@@ -77,6 +77,7 @@ export function CreatePostPage() {
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
   const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
+  const [electronicsColorImageFiles, setElectronicsColorImageFiles] = useState<Record<string, File>>({});
   const [material, setMaterial] = useState('');
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
   const [season, setSeason] = useState<ApparelSeason>('all_seasons');
@@ -170,7 +171,12 @@ export function CreatePostPage() {
   };
 
   const toggleElectronicsColor = (colorValue: string) => {
-    const nextColors = selectedElectronicsColors.includes(colorValue)
+    const removing = selectedElectronicsColors.includes(colorValue);
+    if (!removing && selectedElectronicsColors.length >= MAX_POST_IMAGES) {
+      setError(`بۆ هەر ڕەنگێک وێنەیەک پێویستە؛ زۆرترین ${MAX_POST_IMAGES} ڕەنگ هەڵبژێرە.`);
+      return;
+    }
+    const nextColors = removing
       ? selectedElectronicsColors.filter((item) => item !== colorValue)
       : [...selectedElectronicsColors, colorValue];
     setElectronicsDetails((previous) => ({
@@ -178,6 +184,28 @@ export function CreatePostPage() {
       color: nextColors[0] ?? '',
       available_colors: nextColors.join(','),
     }));
+    if (removing) {
+      setElectronicsColorImageFiles((previous) => {
+        const next = { ...previous };
+        delete next[colorValue];
+        return next;
+      });
+    }
+    setError(null);
+  };
+
+  const handleElectronicsColorImageChange = (colorValue: string, file: File | undefined) => {
+    if (!file) return;
+    if (!selectedElectronicsColors.includes(colorValue)) {
+      setError('سەرەتا ئەم ڕەنگە هەڵبژێرە، پاشان وێنەی بۆ دابنێ.');
+      return;
+    }
+    if (!images.includes(file) && images.length >= MAX_POST_IMAGES) {
+      setError(`کۆی وێنەکانی ئەم پۆستە نابێت لە ${MAX_POST_IMAGES} وێنە زیاتر بێت.`);
+      return;
+    }
+    setImages((current) => current.includes(file) ? current : [...current, file]);
+    setElectronicsColorImageFiles((current) => ({ ...current, [colorValue]: file }));
     setError(null);
   };
 
@@ -231,6 +259,9 @@ export function CreatePostPage() {
       const nextIndex = oldFile ? nextImages.indexOf(oldFile) : -1;
       return [key, { ...value, imageIndex: nextIndex < 0 ? '' : String(nextIndex) }];
     })));
+    setElectronicsColorImageFiles((current) => Object.fromEntries(
+      Object.entries(current).filter(([, file]) => nextImages.includes(file)),
+    ));
     setImages(nextImages);
   };
 
@@ -291,7 +322,22 @@ export function CreatePostPage() {
       const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
       if (numericPrice === null || !Number.isFinite(numericPrice) || numericPrice <= 0) return setError('نرخی ئەلیکترۆنیات دەبێت لە سفر زیاتر بێت.');
       if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ پۆستی ئەلیکترۆنیات لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
-      const details = sanitizeCategoryDetails('electronics', electronicsDetails);
+      if (!selectedElectronicsColors.length) return setError('لانیکەم یەک ڕەنگی ئەلیکترۆنیات هەڵبژێرە.');
+      const missingColorPhoto = selectedElectronicsColors.find((colorValue) => {
+        const file = electronicsColorImageFiles[colorValue];
+        return !file || !images.includes(file);
+      });
+      if (missingColorPhoto) {
+        const label = getCategoryDetailFields('electronics').find((field) => field.key === 'color')?.options?.find((option) => option.value === missingColorPhoto)?.label ?? missingColorPhoto;
+        return setError(`تکایە وێنەی ڕەنگی «${label}» دابنێ.`);
+      }
+      const colorImageIndexes = Object.fromEntries(selectedElectronicsColors.map((colorValue) => [colorValue, images.indexOf(electronicsColorImageFiles[colorValue])]));
+      const details = sanitizeCategoryDetails('electronics', {
+        ...electronicsDetails,
+        color: selectedElectronicsColors[0],
+        available_colors: selectedElectronicsColors.join(','),
+        color_image_indexes: JSON.stringify(colorImageIndexes),
+      });
       if (details.error) return setError(details.error);
       if (!reviewing) { setReviewing(true); return; }
       setBusy(true);
@@ -667,7 +713,7 @@ export function CreatePostPage() {
                   const required = Boolean(field.required || memoryRequired);
                   const value = typeof current === 'string' ? current : '';
                   const changeValue = (nextValue: string) => setElectronicsDetails((previous) => ({ ...previous, [field.key]: nextValue }));
-                  if (field.key === 'available_colors') return null;
+                  if (['available_colors', 'color_image_indexes', 'color_image_paths'].includes(field.key)) return null;
                   if (field.key === 'color') {
                     return (
                       <div key={field.key} className="sm:col-span-2">
@@ -692,6 +738,34 @@ export function CreatePostPage() {
                           </div>
                           {selectedElectronicsColors.length ? (
                             <p className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{selectedElectronicsColors.length} ڕەنگ هەڵبژێردراوە</p>
+                          ) : null}
+                          {selectedElectronicsColors.length ? (
+                            <div className="mt-4 space-y-3">
+                              {selectedElectronicsColors.map((colorValue) => {
+                                const colorOption = (field.options ?? []).find((option) => option.value === colorValue);
+                                const selectedFile = electronicsColorImageFiles[colorValue];
+                                return (
+                                  <div key={colorValue} className="grid gap-3 rounded-2xl border border-black/10 bg-[var(--shakh-bg)] p-3 sm:grid-cols-[1fr_1.2fr] sm:items-center">
+                                    <div className="flex items-center gap-2 text-sm font-black">
+                                      <span className="size-6 shrink-0 rounded-full border border-black/15" style={{ backgroundColor: electronicsColorSwatches[colorValue] ?? '#9CA3AF' }} />
+                                      {colorOption?.label ?? colorValue}
+                                    </div>
+                                    <label className="block text-xs font-bold text-black/55">
+                                      وێنەی ئەم ڕەنگە *
+                                      <input
+                                        className="mt-2 block w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm font-normal"
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        required={!selectedFile}
+                                        disabled={busy}
+                                        onChange={(event) => handleElectronicsColorImageChange(colorValue, event.currentTarget.files?.[0])}
+                                      />
+                                      <span className="mt-1 block break-all text-[11px] leading-5 text-black/45">{selectedFile?.name ?? 'هیچ وێنەیەک هەڵنەبژێردراوە'}</span>
+                                    </label>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           ) : null}
                         </Field>
                       </div>
