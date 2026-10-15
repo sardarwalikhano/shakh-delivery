@@ -57,7 +57,7 @@ const electronicsFields: CategoryDetailField[] = [
     { value: 'accessory', label: 'ئەکسسوارات' }, { value: 'other', label: 'جۆری تر' },
   ] },
   { key: 'model', label: 'مۆدێل / Model', type: 'text', maxLength: 120 },
-  { key: 'color', label: 'ڕەنگ', type: 'select', required: true, options: [
+  { key: 'color', label: 'ڕەنگی سەرەکی', type: 'select', required: true, options: [
     { value: 'black', label: 'ڕەش' }, { value: 'white', label: 'سپی' },
     { value: 'blue', label: 'شین' }, { value: 'silver', label: 'زیوی' },
     { value: 'gray', label: 'خاکستەری' }, { value: 'gold', label: 'زێڕی' },
@@ -65,6 +65,7 @@ const electronicsFields: CategoryDetailField[] = [
     { value: 'purple', label: 'مۆر' }, { value: 'pink', label: 'پەمەیی' },
     { value: 'other', label: 'ڕەنگی تر' },
   ] },
+  { key: 'available_colors', label: 'ڕەنگە هەڵبژێردراوەکان', type: 'text', maxLength: 300 },
   { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', required: true, options: conditionOptions },
   { key: 'operating_system', label: 'سیستەمی کارپێکردن', type: 'text', placeholder: 'وەک Android، iOS، Windows' },
   { key: 'ram_capacity', label: 'RAM', type: 'text', placeholder: 'وەک 8GB، 16GB' },
@@ -306,6 +307,19 @@ export function sanitizeCategoryDetails(
     }
     values[field.key] = normalized;
   }
+  if (root === 'electronics') {
+    const colorOptions = electronicsFields.find((field) => field.key === 'color')?.options ?? [];
+    const rawColors = typeof values.available_colors === 'string'
+      ? values.available_colors.split(',').map((item) => item.trim()).filter(Boolean)
+      : [];
+    const selectedColors = [...new Set(rawColors.length ? rawColors : (typeof values.color === 'string' && values.color ? [values.color] : []))];
+    if (!selectedColors.length) return { values: {}, error: 'لانیکەم یەک ڕەنگی بەردەست دیاری بکە.' };
+    if (selectedColors.some((color) => !colorOptions.some((option) => option.value === color))) {
+      return { values: {}, error: 'یەکێک لە ڕەنگەکان دروست نییە؛ تەنها ڕەنگە هەڵبژێردراوەکان بەکاربهێنە.' };
+    }
+    values.color = selectedColors[0];
+    values.available_colors = selectedColors.join(',');
+  }
   return { values, error: null };
 }
 
@@ -317,10 +331,19 @@ export function getVisibleCategoryDetails(
   const values = value ?? {};
   return getCategoryDetailFields(rootSlug, apparelType).flatMap((field) => {
     if (field.key === 'expiry_date') return [];
-    const raw = values[field.key];
+    if (field.key === 'color' && typeof values.available_colors === 'string' && values.available_colors.trim()) return [];
+    const raw = field.key === 'available_colors' && typeof values.available_colors !== 'string' && typeof values.color === 'string'
+      ? values.color
+      : values[field.key];
     if (typeof raw === 'boolean') return raw ? [{ key: field.key, label: field.label, value: 'بەڵێ' }] : [];
     if ((typeof raw !== 'string' && typeof raw !== 'number') || String(raw).trim() === '') return [];
     const normalized = String(raw);
+    if (field.key === 'available_colors') {
+      const colorOptions = electronicsFields.find((item) => item.key === 'color')?.options ?? [];
+      const labels = normalized.split(',').map((value) => value.trim()).filter(Boolean)
+        .map((value) => colorOptions.find((option) => option.value === value)?.label ?? value);
+      return labels.length ? [{ key: field.key, label: 'ڕەنگەکان', value: labels.join('، ') }] : [];
+    }
     const display = field.type === 'select'
       ? field.options?.find((option) => option.value === normalized)?.label ?? normalized
       : field.type === 'number' && field.unit

@@ -45,6 +45,12 @@ const standardColors: ApparelColor[] = [
   { name: 'کرێم', hex: '#F5F5DC' },
 ];
 
+const electronicsColorSwatches: Record<string, string> = {
+  black: '#171717', white: '#FFFFFF', blue: '#2563EB', silver: '#C0C0C0',
+  gray: '#6B7280', gold: '#D4AF37', green: '#15803D', red: '#DC2626',
+  purple: '#9333EA', pink: '#EC4899', other: '#9CA3AF',
+};
+
 function sizeOptionsFor(type: ApparelType): string[] {
   if (type === 'mens_shoes' || type === 'womens_shoes') return Array.from({ length: 11 }, (_, index) => String(index + 36));
   if (type === 'kids_shoes') return Array.from({ length: 13 }, (_, index) => String(index + 24));
@@ -130,6 +136,15 @@ export function CreatePostPage() {
   }, [category, preferredRole, role, roles, targets]);
 
   const availableSizes = useMemo(() => sizeOptionsFor(apparelType), [apparelType]);
+  const selectedElectronicsColors = useMemo(() => {
+    const configured = typeof electronicsDetails.available_colors === 'string'
+      ? electronicsDetails.available_colors.split(',').map((item) => item.trim()).filter(Boolean)
+      : [];
+    const fallback = typeof electronicsDetails.color === 'string' && electronicsDetails.color.trim()
+      ? [electronicsDetails.color.trim()]
+      : [];
+    return [...new Set(configured.length ? configured : fallback)];
+  }, [electronicsDetails.available_colors, electronicsDetails.color]);
   const combinations = useMemo(
     () => colors.flatMap((color) => sizes.map((size) => ({ color, size, key: variantKey(color.hex, size) }))),
     [colors, sizes],
@@ -152,6 +167,18 @@ export function CreatePostPage() {
         Object.entries(current).filter(([key]) => !key.startsWith(color.hex.toLowerCase() + '::')),
       ));
     }
+  };
+
+  const toggleElectronicsColor = (colorValue: string) => {
+    const nextColors = selectedElectronicsColors.includes(colorValue)
+      ? selectedElectronicsColors.filter((item) => item !== colorValue)
+      : [...selectedElectronicsColors, colorValue];
+    setElectronicsDetails((previous) => ({
+      ...previous,
+      color: nextColors[0] ?? '',
+      available_colors: nextColors.join(','),
+    }));
+    setError(null);
   };
 
   const toggleSize = (size: string) => {
@@ -640,6 +667,36 @@ export function CreatePostPage() {
                   const required = Boolean(field.required || memoryRequired);
                   const value = typeof current === 'string' ? current : '';
                   const changeValue = (nextValue: string) => setElectronicsDetails((previous) => ({ ...previous, [field.key]: nextValue }));
+                  if (field.key === 'available_colors') return null;
+                  if (field.key === 'color') {
+                    return (
+                      <div key={field.key} className="sm:col-span-2">
+                        <Field label="ڕەنگەکانی بەردەست *" hint="دەتوانیت زیاتر لە یەک ڕەنگ هەڵبژێریت.">
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {(field.options ?? []).map((option) => {
+                              const selected = selectedElectronicsColors.includes(option.value);
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() => toggleElectronicsColor(option.value)}
+                                  className={`flex min-h-12 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${selected ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)]/8' : 'border-black/10 bg-white hover:border-black/20'}`}
+                                >
+                                  <span className="size-5 shrink-0 rounded-full border border-black/15" style={{ backgroundColor: electronicsColorSwatches[option.value] ?? '#9CA3AF' }} />
+                                  <span>{option.label}</span>
+                                  {selected ? <span className="ms-auto text-[var(--shakh-orange)]">✓</span> : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {selectedElectronicsColors.length ? (
+                            <p className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{selectedElectronicsColors.length} ڕەنگ هەڵبژێردراوە</p>
+                          ) : null}
+                        </Field>
+                      </div>
+                    );
+                  }
                   if (field.type === 'select') {
                     return (
                       <Field key={field.key} label={field.label + (required ? ' *' : '')}>
