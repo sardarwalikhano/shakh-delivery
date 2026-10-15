@@ -19,12 +19,12 @@ const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', w
 
 export function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const configuredShareReward = Number(post?.referral_reward_iqd || post?.share_reward_iqd || 0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { permissions } = useAuthorization();
   const [post, setPost] = useState<Post | null>(null);
+  const configuredShareReward = Number(post?.referral_reward_iqd || post?.share_reward_iqd || 0);
   const [variants, setVariants] = useState<ApparelVariant[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
