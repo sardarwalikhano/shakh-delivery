@@ -65,6 +65,8 @@ const emptyWallet: WalletSnapshot = {
 
 const payoutLabels: Record<string, string> = {
   zaincash: 'ZainCash',
+  zain_cash: 'ZainCash',
+  mobile_cash: 'Mobile Cash',
   fastpay: 'FastPay',
   bank_transfer: 'گواستنەوەی بانکی',
   qi_card: 'Qi Card',
@@ -72,6 +74,10 @@ const payoutLabels: Record<string, string> = {
 };
 
 const transactionLabels: Record<string, string> = {
+  earning: 'خەڵاتی شێرکردن زیادکرا',
+  platform_spend_refund: 'گەڕاندنەوەی باڵانس',
+  withdrawal_reserved: 'باڵانس بۆ ڕاکێشان گرترا',
+  withdrawal_refund: 'گەڕاندنەوەی پارەی ڕاکێشان',
   reward_pending: 'خەڵات لە چاوەڕوانی گەیاندن',
   reward_available: 'خەڵات چووەتە باڵانس',
   reward_reversed: 'خەڵاتی هەڵوەشاوە',
@@ -108,7 +114,7 @@ function statusTone(status: string): string {
 export function ReferralWalletPage() {
   const { user } = useAuth();
   const { permissions } = useAuthorization();
-  const canManageWithdrawals = permissions.has('payments.manage');
+  const canManageWithdrawals = permissions.has('share_rewards.manage');
   const [snapshot, setSnapshot] = useState<WalletSnapshot>(emptyWallet);
   const [adminRequests, setAdminRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +123,7 @@ export function ReferralWalletPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [holderName, setHolderName] = useState('');
-  const [payoutMethod, setPayoutMethod] = useState('zaincash');
+  const [payoutMethod, setPayoutMethod] = useState('zain_cash');
   const [payoutAccount, setPayoutAccount] = useState('');
   const [withdrawalNote, setWithdrawalNote] = useState('');
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
@@ -127,17 +133,102 @@ export function ReferralWalletPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: summaryError } = await supabase.rpc('get_referral_wallet_summary');
+      const { data, error: summaryError } = await supabase.rpc('get_share_rewards_summary');
       if (summaryError) throw summaryError;
-      setSnapshot((data as WalletSnapshot | null) ?? emptyWallet);
+
+      type LegacyWithdrawal = {
+        id: string;
+        user_id: string;
+        amount_iqd: number | string;
+        payment_method: string;
+        recipient_name: string;
+        recipient_account: string | null;
+        recipient_phone: string | null;
+        user_note: string | null;
+        status: string;
+        admin_note: string | null;
+        payout_reference?: string | null;
+        requested_at: string;
+        reviewed_at: string | null;
+      };
+      type LegacySummary = {
+        balance_iqd?: number | string;
+        lifetime_earned_iqd?: number | string;
+        lifetime_withdrawn_iqd?: number | string;
+        lifetime_spent_iqd?: number | string;
+        earnings?: Array<{
+          id: string; post_id: string | null; post_title: string; order_type: string;
+          order_id: string; order_number: string; amount_iqd: number | string; created_at: string;
+        }>;
+        transactions?: Array<{
+          id: string; transaction_type: string; amount_iqd: number | string;
+          balance_after_iqd: number | string; reference_type: string | null;
+          reference_id: string | null; description: string; created_at: string;
+        }>;
+        withdrawals?: LegacyWithdrawal[];
+      };
+      const summary = data as LegacySummary | null;
+      const toWithdrawal = (item: LegacyWithdrawal): WithdrawalRequest => ({
+        id: item.id,
+        user_id: item.user_id,
+        month_key: (item.requested_at ?? '').slice(0, 7) + '-01',
+        amount_iqd: item.amount_iqd,
+        payout_method: item.payment_method,
+        account_holder_name: item.recipient_name,
+        payout_account: item.recipient_phone || item.recipient_account || '',
+        note: item.user_note,
+        status: item.status === 'paid' ? 'paid' : item.status === 'rejected' ? 'rejected' : 'pending',
+        admin_note: item.admin_note,
+        requested_at: item.requested_at,
+        reviewed_at: item.reviewed_at,
+        paid_at: item.status === 'paid' ? item.reviewed_at : null,
+      });
+
+      if (!summary) {
+        setSnapshot(emptyWallet);
+      } else {
+        setSnapshot({
+          wallet: {
+            user_id: user.id,
+            // The deployed schema credits earnings only after completed orders.
+            pending_iqd: 0,
+            available_iqd: summary.balance_iqd ?? 0,
+            total_earned_iqd: summary.lifetime_earned_iqd ?? 0,
+            total_withdrawn_iqd: summary.lifetime_withdrawn_iqd ?? 0,
+            total_spent_iqd: summary.lifetime_spent_iqd ?? 0,
+          },
+          transactions: (summary.transactions ?? []).map((item) => ({
+            id: item.id,
+            transaction_type: item.transaction_type,
+            amount_iqd: item.amount_iqd,
+            balance_bucket: 'available',
+            reference_type: item.reference_type ?? '',
+            reference_id: item.reference_id ?? '',
+            description_ku: item.description,
+            created_at: item.created_at,
+          })),
+          withdrawals: (summary.withdrawals ?? []).map(toWithdrawal),
+          rewards: (summary.earnings ?? []).map((item) => ({
+            id: item.id,
+            order_type: item.order_type === 'food_post' ? 'food' : 'apparel',
+            order_id: item.order_id,
+            post_id: item.post_id ?? '',
+            reward_iqd: item.amount_iqd,
+            status: 'available' as const,
+            created_at: item.created_at,
+            settled_at: item.created_at,
+          })),
+        });
+      }
+
       if (canManageWithdrawals) {
         const { data: requests, error: requestsError } = await supabase
-          .from('referral_withdrawal_requests')
-          .select('id,user_id,month_key,amount_iqd,payout_method,account_holder_name,payout_account,note,status,admin_note,requested_at,reviewed_at,paid_at')
+          .from('share_withdrawal_requests')
+          .select('id,user_id,amount_iqd,payment_method,recipient_name,recipient_account,recipient_phone,user_note,status,admin_note,payout_reference,requested_at,reviewed_at')
           .order('requested_at', { ascending: false })
           .limit(100);
         if (requestsError) throw requestsError;
-        setAdminRequests((requests ?? []) as WithdrawalRequest[]);
+        setAdminRequests(((requests ?? []) as LegacyWithdrawal[]).map(toWithdrawal));
       } else {
         setAdminRequests([]);
       }
@@ -169,15 +260,19 @@ export function ReferralWalletPage() {
 
     setBusy(true);
     try {
-      const { data, error: requestError } = await supabase.rpc('request_referral_withdrawal', {
-        p_payout_method: payoutMethod,
-        p_account_holder_name: holderName.trim(),
-        p_payout_account: payoutAccount.trim(),
-        p_note: withdrawalNote.trim() || null,
+      const phoneMethods = ['mobile_cash', 'zain_cash', 'fastpay', 'qi_card'];
+      const amountToWithdraw = Math.floor(available);
+      const { data, error: requestError } = await supabase.rpc('request_share_withdrawal', {
+        p_amount_iqd: amountToWithdraw,
+        p_payment_method: payoutMethod,
+        p_recipient_name: holderName.trim(),
+        p_recipient_account: phoneMethods.includes(payoutMethod) ? null : payoutAccount.trim(),
+        p_recipient_phone: phoneMethods.includes(payoutMethod) ? payoutAccount.trim() : null,
+        p_user_note: withdrawalNote.trim() || null,
       });
       if (requestError) throw requestError;
-      const result = data as { amount_iqd?: number | string } | null;
-      setMessage('داوای ڕاکێشان تۆمارکرا. باڵانسی بەردەست ' + formatIQD(result?.amount_iqd ?? available) + ' لە چاوەڕوانی پشکنینی ئەدمینە.');
+      const result = data as { amount_iqd?: number | string; balance_iqd?: number | string } | null;
+      setMessage('داوای ڕاکێشان تۆمارکرا بۆ ' + formatIQD(result?.amount_iqd ?? amountToWithdraw) + '. باڵانسی ماوە: ' + formatIQD(result?.balance_iqd ?? Math.max(0, available - amountToWithdraw)) + '.');
       setHolderName('');
       setPayoutAccount('');
       setWithdrawalNote('');
@@ -189,18 +284,19 @@ export function ReferralWalletPage() {
     }
   };
 
-  const processRequest = async (request: WithdrawalRequest, action: 'approve' | 'reject' | 'mark_paid') => {
+  const processRequest = async (request: WithdrawalRequest, action: 'reject' | 'mark_paid') => {
     setBusyRequestId(request.id);
     setError(null);
     setMessage(null);
     try {
-      const { error: actionError } = await supabase.rpc('process_referral_withdrawal', {
+      const { error: actionError } = await supabase.rpc('review_share_withdrawal', {
         p_request_id: request.id,
-        p_action: action,
+        p_action: action === 'mark_paid' ? 'paid' : 'rejected',
         p_admin_note: adminNote[request.id]?.trim() || null,
+        p_payout_reference: null,
       });
       if (actionError) throw actionError;
-      setMessage(action === 'approve' ? 'داواکاری ڕاکێشان پەسەندکرا.' : action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکەی گەڕێندرایەوە.' : 'پارەدان بە دەستی ئەدمین وەک تەواوبوو تۆمارکرا.');
+      setMessage(action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکە گەڕێندرایەوە.' : 'پارەدان بە دەستی تیمی دارایی تۆمارکرا.');
       await refresh();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'جێبەجێکردنی داواکاری سەرنەکەوت.');
@@ -234,8 +330,8 @@ export function ReferralWalletPage() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(330px,.8fr)]">
         <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex items-center gap-2"><ArrowDownToLine size={20} className="text-[var(--shakh-orange)]"/><h2 className="text-lg font-black">داوای ڕاکێشانی مانگانە</h2></div>
-          <p className="mt-2 text-sm leading-6 text-black/50">داواکردن هەموو باڵانسی بەردەستت قفڵ دەکات تا ئەدمین پشکنینی بکات. ئەگەر داواکاری ڕەت بکرێتەوە، باڵانسەکە دەگەڕێتەوە؛ ئەگەر پارە بدرێت، باڵانسی بەردەست بۆ ئەو بڕە سفر دەبێت. بۆ هەر مانگێک یەک داوای ڕاکێشانی چالاک یان تەواوکراو ڕێگەپێدراوە.</p>
+          <div className="flex items-center gap-2"><ArrowDownToLine size={20} className="text-[var(--shakh-orange)]"/><h2 className="text-lg font-black">داوای ڕاکێشانی باڵانس</h2></div>
+          <p className="mt-2 text-sm leading-6 text-black/50">داواکردن هەموو باڵانسی بەردەستت قفڵ دەکات تا ئەدمین پشکنینی بکات. ئەگەر داواکاری ڕەت بکرێتەوە، باڵانسەکە دەگەڕێتەوە؛ ئەگەر پارە بدرێت، باڵانسی بەردەست بۆ ئەو بڕە سفر دەبێت. بڕی داواکراو لە باڵانس دەردەچێت تا تیمی دارایی پشکنینی بکات؛ ئەگەر ڕەت بکرێتەوە، پارەکە دەگەڕێتەوە.</p>
           <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/45">بڕی ئێستا بۆ داواکردن</div><div className="mt-1 text-2xl font-black tabular-nums">{formatIQD(available)}</div></div>
 
           <form className="mt-5 space-y-4" onSubmit={requestWithdrawal}>
@@ -244,7 +340,7 @@ export function ReferralWalletPage() {
             </label>
             <label className="block text-sm font-black">ڕێگای وەرگرتنی پارە
               <select value={payoutMethod} onChange={(event) => setPayoutMethod(event.target.value)} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal">
-                <option value="zaincash">ZainCash</option><option value="fastpay">FastPay</option><option value="bank_transfer">گواستنەوەی بانکی</option><option value="qi_card">Qi Card</option><option value="other">ڕێگای تر</option>
+                <option value="mobile_cash">Mobile Cash</option><option value="zain_cash">ZainCash</option><option value="fastpay">FastPay</option><option value="bank_transfer">گواستنەوەی بانکی</option><option value="qi_card">Qi Card</option><option value="other">ڕێگای تر</option>
               </select>
             </label>
             <label className="block text-sm font-black">ژمارە یان زانیاریی هەژماری پارەدان
@@ -305,9 +401,8 @@ export function ReferralWalletPage() {
               <div className="mt-3 rounded-xl bg-[var(--shakh-bg)] p-3 text-sm"><div><strong>خاوەنی هەژمار: </strong>{request.account_holder_name}</div><div className="mt-1 break-words"><strong>هەژمار: </strong>{request.payout_account}</div>{request.note ? <div className="mt-1"><strong>تێبینی: </strong>{request.note}</div> : null}</div>
               <textarea value={adminNote[request.id] ?? ''} onChange={(event) => setAdminNote((current) => ({ ...current, [request.id]: event.target.value }))} maxLength={2000} className="mt-3 min-h-16 w-full rounded-xl border border-black/10 p-3 text-sm" placeholder="تێبینی بۆ بەکارهێنەر (ئارەزوومەندانە)"/>
               <div className="mt-3 flex flex-wrap gap-2">
-                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'approve')} className="min-h-10 rounded-xl bg-emerald-700 px-4 text-xs font-black text-white disabled:opacity-40">پەسەندکردن</button> : null}
-                {request.status === 'approved' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'mark_paid')} className="min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">پارە درا · تۆمارکردن</button> : null}
-                {request.status === 'pending' || request.status === 'approved' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'reject')} className="min-h-10 rounded-xl border border-red-500/20 px-4 text-xs font-black text-red-700 disabled:opacity-40">ڕەتکردنەوە و گەڕاندنەوەی باڵانس</button> : null}
+                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'mark_paid')} className="min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">پارە درا · تۆمارکردن</button> : null}
+                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'reject')} className="min-h-10 rounded-xl border border-red-500/20 px-4 text-xs font-black text-red-700 disabled:opacity-40">ڕەتکردنەوە و گەڕاندنەوەی باڵانس</button> : null}
               </div>
             </article>)}
             {!loading && adminRequests.length === 0 ? <Empty text="هیچ داوای ڕاکێشانێک نییە."/> : null}
