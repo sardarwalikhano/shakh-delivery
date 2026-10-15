@@ -185,6 +185,12 @@ export function CreatePostPage() {
       available_colors: nextColors.join(','),
     }));
     if (removing) {
+      const removedFile = electronicsColorImageFiles[colorValue];
+      const fileUsedByAnotherColor = Boolean(removedFile && Object.entries(electronicsColorImageFiles)
+        .some(([otherColor, otherFile]) => otherColor !== colorValue && otherFile === removedFile));
+      if (removedFile && !fileUsedByAnotherColor) {
+        setImages((current) => current.filter((image) => image !== removedFile));
+      }
       setElectronicsColorImageFiles((previous) => {
         const next = { ...previous };
         delete next[colorValue];
