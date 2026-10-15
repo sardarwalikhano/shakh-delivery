@@ -1,4 +1,4 @@
-export type CategoryDetails = Record<string, string | boolean>;
+export type CategoryDetails = Record<string, string | boolean | number>;
 
 export type CategoryDetailField = {
   key: string;
@@ -269,17 +269,18 @@ export function sanitizeCategoryDetails(
   const values: CategoryDetails = {};
   for (const field of fields) {
     const raw = value[field.key];
-    const empty = raw === undefined || raw === null || (typeof raw === 'string' && !raw.trim());
+    const normalizedRaw = typeof raw === 'number' && field.type === 'number' ? String(raw) : raw;
+    const empty = normalizedRaw === undefined || normalizedRaw === null || (typeof normalizedRaw === 'string' && !normalizedRaw.trim());
     if (empty) {
       if (field.required || (requiresMemorySpecs && ['ram_capacity', 'storage_capacity'].includes(field.key))) return { values: {}, error: `تکایە «${field.label}» پڕ بکەرەوە.` };
       continue;
     }
     if (field.type === 'checkbox') {
-      if (raw === true) values[field.key] = true;
+      if (normalizedRaw === true) values[field.key] = true;
       continue;
     }
-    if (typeof raw !== 'string') return { values: {}, error: `بەهای «${field.label}» دروست نییە.` };
-    const normalized = raw.trim();
+    if (typeof normalizedRaw !== 'string') return { values: {}, error: `بەهای «${field.label}» دروست نییە.` };
+    const normalized = normalizedRaw.trim();
     if ((field.type === 'text' || field.type === 'textarea') && normalized.length > (field.maxLength ?? (field.type === 'textarea' ? 2000 : 120))) {
       return { values: {}, error: `زانیاریی «${field.label}» زۆر درێژە.` };
     }
@@ -318,12 +319,13 @@ export function getVisibleCategoryDetails(
     if (field.key === 'expiry_date') return [];
     const raw = values[field.key];
     if (typeof raw === 'boolean') return raw ? [{ key: field.key, label: field.label, value: 'بەڵێ' }] : [];
-    if (typeof raw !== 'string' || !raw.trim()) return [];
+    if ((typeof raw !== 'string' && typeof raw !== 'number') || String(raw).trim() === '') return [];
+    const normalized = String(raw);
     const display = field.type === 'select'
-      ? field.options?.find((option) => option.value === raw)?.label ?? raw
+      ? field.options?.find((option) => option.value === normalized)?.label ?? normalized
       : field.type === 'number' && field.unit
-        ? `${raw} ${field.unit}`
-        : raw;
+        ? `${normalized} ${field.unit}`
+        : normalized;
     return [{ key: field.key, label: field.label, value: display }];
   });
 }
