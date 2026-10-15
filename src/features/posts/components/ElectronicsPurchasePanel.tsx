@@ -7,7 +7,7 @@ import type { Post } from '../types';
 import { createElectronicsPostOrder } from '../apparelOrders';
 import { getPostShareToken } from '../shareRewards';
 
-type Props = { post: Post };
+type Props = { post: Post; selectedColor: string };
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -15,7 +15,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function ElectronicsPurchasePanel({ post }: Props) {
+const electronicsColorLabels: Record<string, string> = {
+  black: 'ڕەش', white: 'سپی', blue: 'شین', silver: 'زیوی', gray: 'خاکستەری',
+  gold: 'زێڕی', green: 'سەوز', red: 'سوور', purple: 'مۆر', pink: 'پەمەیی', other: 'ڕەنگی تر',
+};
+
+export function ElectronicsPurchasePanel({ post, selectedColor }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
@@ -50,6 +55,7 @@ export function ElectronicsPurchasePanel({ post }: Props) {
       return;
     }
     if (ownPost) { setError('ناتوانیت لە پۆستی خۆت بکڕیت.'); return; }
+    if (!selectedColor.trim()) { setError('تکایە ڕەنگی ئەلیکترۆنیات هەڵبژێرە.'); return; }
     if (stock < 1) { setError('ئەم ئامێرە لە کۆگا بەردەست نییە.'); return; }
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > stock) { setError('ژمارەی داواکراو لە کۆگای بەردەست زیاترە.'); return; }
     if (address.trim().length < 5) { setError('ناونیشانی گەیاندن پێویستە.'); return; }
@@ -64,6 +70,7 @@ export function ElectronicsPurchasePanel({ post }: Props) {
       await createElectronicsPostOrder({
         requestId: requestId.current,
         postId: post.id,
+        selectedColor,
         quantity,
         deliveryAddress: address.trim(),
         deliveryCity: city.trim(),
@@ -87,6 +94,7 @@ export function ElectronicsPurchasePanel({ post }: Props) {
         <div>
           <h2 className="text-lg font-black">کڕینی ئەلیکترۆنیات</h2>
           <p className="mt-1 text-xs leading-5 text-black/45">براند: {post.brand || '—'} · بەردەست: {stock} دانە</p>
+          <p className="mt-1 text-xs font-black text-[var(--shakh-blue)]">ڕەنگی هەڵبژێردراو: {electronicsColorLabels[selectedColor] ?? selectedColor}</p>
         </div>
         <div className="text-end">
           <div className="text-xs font-bold text-black/40">نرخی یەک دانە</div>
