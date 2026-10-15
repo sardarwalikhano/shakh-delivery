@@ -19,6 +19,7 @@ const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', w
 
 export function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const configuredShareReward = Number(post?.referral_reward_iqd || post?.share_reward_iqd || 0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -343,12 +344,12 @@ export function PostDetailPage() {
               <button type="button" onClick={() => void sharePost()} disabled={sharingPost} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-orange)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
                 <Share2 size={17}/>{sharingPost ? 'ئامادەکردنی لینک...' : 'شێرکردن و وەرگرتنی خەڵات'}
               </button>
-              {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800"><Gift size={15}/> {Number(post.referral_reward_iqd).toLocaleString('en-US')} د.ع بۆ هەر داواکارییەکی تەواوبوو</span>
+              {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800"><Gift size={15}/> {configuredShareReward.toLocaleString('en-US')} د.ع بۆ هەر داواکارییەکی تەواوبوو</span>
               ) : null}
             </div>
             {shareMessage ? <p role="status" className="mt-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{shareMessage}</p> : null}
-            {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+            {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
               <p className="mt-2 text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی تۆ. لینکەکە بۆ ئەم کڕیارە تا ٣٠ ڕۆژ attribution هەڵدەگرێت؛ خۆت ناتوانیت لە پۆستی خۆت خەڵات وەربگریت.</p>
             ) : null}
           </div>
