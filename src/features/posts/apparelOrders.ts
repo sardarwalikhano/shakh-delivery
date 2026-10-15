@@ -36,8 +36,9 @@ export async function createApparelPostOrder(input: {
   buyerPhone: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  shareLinkId?: string | null;
 }): Promise<{ id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number }> {
-  const { data, error } = await supabase.rpc('create_apparel_post_order', {
+  const { data, error } = await supabase.rpc('create_apparel_post_order_with_share', {
     p_request_id: input.requestId,
     p_variant_id: input.variantId,
     p_quantity: input.quantity,
@@ -46,6 +47,8 @@ export async function createApparelPostOrder(input: {
     p_delivery_city: input.deliveryCity,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
+    p_share_link_id: input.shareLinkId ?? null,
+    p_use_share_balance: false,
   });
   if (error) throw new Error(error.message);
   return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number };
