@@ -1,4 +1,4 @@
-import { Plus, Search, Tag } from 'lucide-react';
+import { Gift, Plus, Search, Tag } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthFeedback } from '@/features/auth/components/AuthFeedback';
@@ -9,11 +9,53 @@ import { supabase } from '@/lib/supabase/client';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { Post, PostCategory } from '../types';
 
+const electronicsColors: Record<string, string> = {
+  black: 'ڕەش', white: 'سپی', blue: 'شین', silver: 'زیوی', gray: 'خاکستەری',
+  gold: 'زێڕی', green: 'سەوز', red: 'سوور', purple: 'مۆر', pink: 'پەمەیی', other: 'ڕەنگی تر',
+};
+
+const electronicsTypes = [
+  { value: 'all', label: 'هەموو ئەلیکترۆنیات' },
+  { value: 'phone', label: 'مۆبایل' },
+  { value: 'tablet', label: 'تابلێت' },
+  { value: 'laptop', label: 'لاپتۆپ' },
+  { value: 'desktop', label: 'دیسکۆپ' },
+  { value: 'monitor', label: 'مۆنیتەر' },
+  { value: 'tv', label: 'تەلەڤیزیۆن' },
+  { value: 'audio', label: 'دەنگ و هێدفۆن' },
+  { value: 'camera', label: 'کامێرا' },
+  { value: 'gaming', label: 'گێمینگ' },
+  { value: 'appliance', label: 'ئامێری کارەبایی' },
+  { value: 'accessory', label: 'ئەکسسوارات' },
+  { value: 'other', label: 'جۆری تر' },
+] as const;
+
+function searchablePostText(post: Post): string {
+  const details = post.category_details ?? {};
+  const productType = String(details.product_type ?? '');
+  const productTypeLabel = electronicsTypes.find((item) => item.value === productType)?.label ?? '';
+  const color = String(details.color ?? '');
+  const colorLabel = electronicsColors[color] ?? color;
+  return [
+    post.title,
+    post.content,
+    post.brand ?? '',
+    productType,
+    productTypeLabel,
+    String(details.model ?? ''),
+    color,
+    colorLabel,
+    String(details.ram_capacity ?? ''),
+    String(details.storage_capacity ?? ''),
+  ].join(' ').toLocaleLowerCase();
+}
+
 export function PostsPage() {
   const { permissions } = useAuthorization();
   const canCreate = permissions.has('posts.create');
   const [posts, setPosts] = useState<Post[]>([]);
   const [category, setCategory] = useState<PostCategory | 'all'>('all');
+  const [electronicsType, setElectronicsType] = useState<(typeof electronicsTypes)[number]['value']>('all');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +83,13 @@ export function PostsPage() {
   }, [load]);
 
   const visible = useMemo(() => posts.filter((post) => {
-    const textMatch = !query.trim() || (post.title + ' ' + post.content).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    return (category === 'all' || post.category === category) && textMatch;
-  }), [category, posts, query]);
+    const textMatch = !query.trim() || searchablePostText(post).includes(query.trim().toLocaleLowerCase());
+    const categoryMatch = category === 'all' || post.category === category;
+    const electronicsTypeMatch = category !== 'electronics'
+      || electronicsType === 'all'
+      || String(post.category_details?.product_type ?? '') === electronicsType;
+    return categoryMatch && electronicsTypeMatch && textMatch;
+  }), [category, electronicsType, posts, query]);
 
   // Keep every supported category available even when its first query returns
   // no rows; category buttons should not disappear because the feed is still loading.
@@ -71,10 +117,27 @@ export function PostsPage() {
             <input className="h-12 w-full rounded-2xl border border-black/10 bg-white ps-11 pe-4 text-sm outline-none focus:border-[var(--shakh-blue)]" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="گەڕان لە پۆستەکان..." />
           </label>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            <button className={`min-h-12 shrink-0 rounded-2xl px-4 text-sm font-black ${category === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/55'}`} onClick={() => setCategory('all')}>هەموو</button>
-            {categories.map((item) => <button key={item} className={`min-h-12 shrink-0 rounded-2xl px-4 text-sm font-black ${category === item ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/55'}`} onClick={() => setCategory(item)}><Tag className="me-1 inline" size={14} />{postCategoryLabels[item]}</button>)}
+            <button className={`min-h-12 shrink-0 rounded-2xl px-4 text-sm font-black ${category === 'all' ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/55'}`} onClick={() => { setCategory('all'); setElectronicsType('all'); }}>هەموو</button>
+            {categories.map((item) => <button key={item} className={`min-h-12 shrink-0 rounded-2xl px-4 text-sm font-black ${category === item ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/55'}`} onClick={() => { setCategory(item); if (item !== 'electronics') setElectronicsType('all'); }}><Tag className="me-1 inline" size={14} />{postCategoryLabels[item]}</button>)}
           </div>
         </div>
+
+        {category === 'electronics' ? (
+          <section aria-label="کاتەگۆرییەکانی ئەلیکترۆنیات" className="rounded-2xl border border-[var(--shakh-blue)]/10 bg-white p-3 sm:p-4">
+            <div className="mb-3 text-xs font-black text-black/40">جۆری ئەلیکترۆنیات</div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {electronicsTypes.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={electronicsType === item.value}
+                  onClick={() => setElectronicsType(item.value)}
+                  className={`min-h-10 shrink-0 rounded-xl px-3 py-2 text-xs font-black transition ${electronicsType === item.value ? 'bg-[var(--shakh-blue)] text-white' : 'bg-[var(--shakh-bg)] text-black/60 hover:bg-[var(--shakh-blue)]/10'}`}
+                >{item.label}</button>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {loading ? <div className="rounded-[28px] bg-white p-12 text-center text-sm font-bold text-black/45">بارکردن...</div> : null}
         {!loading && visible.length === 0 ? <div className="rounded-[28px] border border-dashed border-black/10 bg-white p-12 text-center text-sm font-bold text-black/45">هیچ پۆستێک نەدۆزرایەوە.</div> : null}
@@ -92,6 +155,25 @@ export function PostsPage() {
                 <h2 className="mt-4 line-clamp-2 text-lg font-black group-hover:text-[var(--shakh-blue)]">{post.title}</h2>
                 <p className="mt-2 line-clamp-4 text-sm leading-7 text-black/50">{post.content || '—'}</p>
                 {post.category === 'fashion' && post.discount_percent > 0 ? <span className="mt-3 inline-flex rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-black text-red-600">{post.discount_percent}٪ داشکاندن</span> : null}
+                {post.category === 'electronics' ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(() => {
+                        const productType = String(post.category_details?.product_type ?? '');
+                        const typeLabel = electronicsTypes.find((item) => item.value === productType)?.label;
+                        return typeLabel ? <span className="rounded-full bg-[var(--shakh-blue)]/10 px-2.5 py-1 text-xs font-black text-[var(--shakh-blue)]">{typeLabel}</span> : null;
+                      })()}
+                      {post.category_details?.model ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">{String(post.category_details.model)}</span> : null}
+                      {post.category_details?.color ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">ڕەنگ: {electronicsColors[String(post.category_details.color)] ?? String(post.category_details.color)}</span> : null}
+                    </div>
+                    <div className="text-xs leading-5 text-black/50">
+                      {post.category_details?.ram_capacity ? <span>RAM: {String(post.category_details.ram_capacity)}</span> : null}
+                      {post.category_details?.ram_capacity && post.category_details?.storage_capacity ? <span> · </span> : null}
+                      {post.category_details?.storage_capacity ? <span>Storage: {String(post.category_details.storage_capacity)}</span> : null}
+                    </div>
+                    {Number(post.share_reward_iqd || post.referral_reward_iqd || 0) > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-800"><Gift size={13}/>{Number(post.share_reward_iqd ?? post.referral_reward_iqd ?? 0).toLocaleString('en-US')} د.ع خەڵات بۆ هەر فرۆشتنی تەواوبوو</span> : null}
+                  </div>
+                ) : null}
                 <div className="mt-4 flex items-center justify-between border-t border-black/[0.06] pt-4">
                   <span className="text-xs font-bold text-black/35">{post.location || '—'}</span>
                   <span className="font-black text-[var(--shakh-navy)]">{post.price_iqd !== null ? Number(post.price_iqd).toLocaleString('en-US') + ' IQD' : '—'}</span>

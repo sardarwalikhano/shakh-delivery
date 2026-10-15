@@ -364,7 +364,7 @@ ${share.title || post.title}
               ) : null}
             </div>
             {shareMessage ? <p role="status" className="mt-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{shareMessage}</p> : null}
-            {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+            {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion' || post.category === 'electronics') ? (
               <div className="mt-2 space-y-1">
                 <p className="text-sm font-bold leading-7 text-[var(--shakh-navy)]">📈 هەرچەندە ژمارەی فرۆشتنە تەواوبووەکان لە ڕێگەی لینکە تایبەتەکەتەوە زیاتر بێت، کۆی قازانجی تۆش زیاتر دەبێت؛ بۆ هەر داواکارییەکی شایستە {configuredShareReward.toLocaleString('en-US')} د.ع خەڵات وەردەگریت.</p>
                 <p className="text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی شێرکەر. خاوەنی پۆست خەڵاتی شێرکردنی پۆستی خۆی وەرناگرێت؛ خەڵات تەنها بۆ کەسی شێرکەرە کە لینکی تایبەتی دروستکراوی هەیە.</p>
