@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { getPostShareToken } from './shareRewards';
 
 export type FoodPostCartPost = {
   id: string;
@@ -80,12 +81,24 @@ export async function checkoutFoodPostCart(input: {
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
 }): Promise<FoodPostOrderResult[]> {
-  const { data, error } = await supabase.rpc('checkout_food_post_cart', {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw new Error('پێویستە سەرەتا بچیتە ژوورەوە.');
+
+  const cartItems = await getFoodPostCart(userData.user.id);
+  const shareLinks: Record<string, string> = {};
+  for (const item of cartItems) {
+    const shareLinkId = getPostShareToken(item.post_id);
+    if (shareLinkId) shareLinks[item.post_id] = shareLinkId;
+  }
+
+  const { data, error } = await supabase.rpc('checkout_food_post_cart_with_share', {
     p_delivery_address: input.deliveryAddress,
     p_buyer_phone: input.buyerPhone,
     p_delivery_city: input.deliveryCity,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
+    p_share_links: shareLinks,
+    p_use_share_balance: false,
   });
   if (error) throw new Error(error.message);
   const result = data as { orders?: FoodPostOrderResult[] } | null;
