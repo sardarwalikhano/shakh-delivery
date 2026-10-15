@@ -51,7 +51,7 @@ const supermarketFields: CategoryDetailField[] = [
 const electronicsFields: CategoryDetailField[] = [
   { key: 'product_type', label: 'جۆری ئامێر', type: 'select', required: true, options: [
     { value: 'phone', label: 'مۆبایل' }, { value: 'tablet', label: 'تابلێت' }, { value: 'laptop', label: 'لابتۆپ' },
-    { value: 'desktop', label: 'کۆمپیوتەر' }, { value: 'monitor', label: 'مۆنیتەر' }, { value: 'tv', label: 'تەلەڤیزیۆن' },
+    { value: 'desktop', label: 'دیسکۆپ / کۆمپیوتەر' }, { value: 'monitor', label: 'مۆنیتەر' }, { value: 'tv', label: 'تەلەڤیزیۆن' },
     { value: 'audio', label: 'دەنگ و هێدفۆن' }, { value: 'camera', label: 'کامێرا' },
     { value: 'gaming', label: 'گێمینگ' }, { value: 'appliance', label: 'ئامێری کارەبایی' },
     { value: 'accessory', label: 'ئەکسسوارات' }, { value: 'other', label: 'جۆری تر' },
