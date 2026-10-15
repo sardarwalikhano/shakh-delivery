@@ -102,7 +102,7 @@ export function PostDetailPage() {
     // then bind it to this authenticated buyer once their session is available.
     const token = tokenFromUrl || getPostShareToken(id);
     if (!token) return;
-    void recordPostShareAttribution(id).catch((nextError) => {
+    void recordPostShareAttribution(id).catch((nextError: unknown) => {
       setShareMessage(nextError instanceof Error ? nextError.message : 'نەتوانرا لینکی شێرکردن تۆمار بکرێت.');
     });
   }, [id, location.search, user]);
