@@ -28,6 +28,8 @@ The remote production project is `shakh-delivery-prod` (`jjtmtxrkbewmdxdmgtrf`).
 - 20261007195935 — role_based_post_publishing_v1
 - 20261009183157 — apparel_posting_variants_v1
 - 20261013110000 — store_order_workflow_notifications_v1
+- 20261014151500 — role_scoped_post_categories_v2 (production migration version `20261014121736`)
+- 20261014162000 — post_share_rewards_referral_wallet_v1 (production migration version `20261014172551`, registered as `share_rewards_referrals_wallet_v1`)
 
 ## Notes
 
