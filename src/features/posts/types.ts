@@ -56,6 +56,7 @@ export type Post = {
   images: PostImage[];
   price_iqd: number | null;
   referral_reward_iqd: number;
+  share_reward_iqd: number;
   location: string | null;
   status: PostStatus;
   apparel_type: ApparelType | null;

@@ -5,6 +5,7 @@ import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { ApparelVariant, Post } from '../types';
 import { createApparelPostOrder } from '../apparelOrders';
+import { getPostShareToken } from '../shareRewards';
 
 type Props = { post: Post; variant: ApparelVariant };
 
@@ -70,6 +71,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
         buyerPhone: phone,
         customerNote: note,
         paymentMethod,
+        shareLinkId: getPostShareToken(post.id),
       });
       requestId.current = null;
       navigate('/post-orders', { replace: true, state: { orderCreated: true } });

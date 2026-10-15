@@ -13,6 +13,11 @@ export type PostShareLink = {
   expires_days: number;
 };
 
+/**
+ * Keep the shared post link ID in this browser session.
+ * Checkout forwards it to the database RPC, which checks that it belongs
+ * to the post and that buyer and sharer are different before recording rewards.
+ */
 export function rememberPostShareToken(postId: string, token: string): void {
   if (!UUID_PATTERN.test(token)) return;
   const key = SHARE_TOKEN_PREFIX + postId;
@@ -28,25 +33,14 @@ export function getPostShareToken(postId: string): string | null {
 }
 
 /**
- * Persist attribution only for an authenticated buyer. The database enforces
- * self-referral rules and the 30-day attribution window. Local state merely
- * avoids repeating the same RPC on every render.
+ * The production schema uses share-link IDs and validates attribution during
+ * checkout. No client-side insert or non-existent attribution RPC is needed.
  */
 export async function recordPostShareAttribution(postId: string): Promise<boolean> {
   const token = getPostShareToken(postId);
   if (!token) return false;
-
-  const attributedKey = ATTRIBUTED_TOKEN_PREFIX + postId;
-  if (window.sessionStorage.getItem(attributedKey) === token) return true;
-
-  const { data, error } = await supabase.rpc('register_post_share_attribution', {
-    p_share_token: token,
-  });
-  if (error) throw new Error(error.message);
-
-  const result = data as { attributed?: boolean; reason?: string } | null;
-  window.sessionStorage.setItem(attributedKey, token);
-  return result?.attributed === true;
+  window.sessionStorage.setItem(ATTRIBUTED_TOKEN_PREFIX + postId, token);
+  return true;
 }
 
 export async function createPostShareLink(postId: string): Promise<PostShareLink> {
@@ -55,25 +49,31 @@ export async function createPostShareLink(postId: string): Promise<PostShareLink
   });
   if (error) throw new Error(error.message);
 
-  const result = data as {
-    token?: string;
-    title?: string;
-    reward_iqd?: number;
-    reward_enabled?: boolean;
-    expires_days?: number;
-  } | null;
-  if (!result?.token || !UUID_PATTERN.test(result.token)) {
+  // The deployed RPC returns the UUID of post_share_links, not a JSON object.
+  const token = typeof data === 'string' ? data : '';
+  if (!UUID_PATTERN.test(token)) {
     throw new Error('نەتوانرا لینکی شێرکردن دروست بکرێت.');
   }
 
+  const { data: post, error: postError } = await supabase
+    .from('posts')
+    .select('title,category,share_reward_iqd')
+    .eq('id', postId)
+    .eq('status', 'active')
+    .single();
+  if (postError) throw new Error(postError.message);
+
+  const reward = Number(post?.share_reward_iqd ?? 0);
+  const rewardEnabled = reward > 0 && (post?.category === 'food' || post?.category === 'fashion');
   const url = new URL(`/posts/${encodeURIComponent(postId)}`, window.location.origin);
-  url.searchParams.set('share', result.token);
+  url.searchParams.set('share', token);
+
   return {
     url: url.toString(),
-    token: result.token,
-    title: result.title ?? '',
-    reward_iqd: Number(result.reward_iqd ?? 0),
-    reward_enabled: result.reward_enabled === true,
-    expires_days: Number(result.expires_days ?? 30),
+    token,
+    title: post?.title ?? '',
+    reward_iqd: reward,
+    reward_enabled: rewardEnabled,
+    expires_days: 30,
   };
 }

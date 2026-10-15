@@ -24,6 +24,7 @@ export function PostDetailPage() {
   const { user } = useAuth();
   const { permissions } = useAuthorization();
   const [post, setPost] = useState<Post | null>(null);
+  const configuredShareReward = Number(post?.referral_reward_iqd || post?.share_reward_iqd || 0);
   const [variants, setVariants] = useState<ApparelVariant[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
@@ -172,22 +173,33 @@ export function PostDetailPage() {
     setSharingPost(true);
     try {
       const share = await createPostShareLink(post.id);
+      const rewardAmount = Number(share.reward_iqd).toLocaleString('en-US');
+      const shareCopy = share.reward_enabled
+        ? `🌟 هاوبەشی باش بکە، قازانجی زیاتر بەدەستبهێنە!
+
+🛍️ ${share.title || post.title} لە Shakh ببینە.
+💰 بۆ هەر داواکارییەکی ڕاستەقینە و تەواوبوو لە ڕێگەی لینکە تایبەتەکەتەوە، ${rewardAmount} د.ع خەڵات وەردەگریت.
+📈 هەرچەندە ژمارەی فرۆشتنە تەواوبووەکان زیاتر بێت، کۆی قازانجی تۆش زیاتر دەبێت.
+✅ خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی تۆ.
+🔗 ئەم لینکە تایبەتە شێر بکە و با کەسانی تر کڕین بکەن.`
+        : `🛍️ ئەم پۆستەی جوانە لە Shakh ببینە!
+
+${share.title || post.title}
+✨ لینکەکە بۆ هاوڕێکانت شێر بکە بۆ ئەوەی ئەوانیش بتوانن ئەم بەرهەمە ببینن و بیکڕن.`;
       if (typeof navigator.share === 'function') {
         await navigator.share({
           title: share.title || post.title,
-          text: share.reward_enabled
-            ? `ئەم پۆستە ببینە؛ لە کڕینی ڕێگەپێدراوەوە خەڵاتی شێرکردن بەردەستە.`
-            : (post.content || post.title),
+          text: shareCopy,
           url: share.url,
         });
         setShareMessage(share.reward_enabled
-          ? `لینکی تایبەتت شێر کرا. بۆ هەر داواکارییەکی تەواوبوو ${Number(share.reward_iqd).toLocaleString('en-US')} د.ع خەڵات وەردەگریت.`
-          : 'لینکی تایبەتت شێر کرا. ئەم پۆستە خەڵاتی پارەیی بۆ کڕین دانەنراوە.');
+          ? `لینکی تایبەتت شێر کرا. بۆ هەر فرۆشتنێکی تەواوبوو لە ڕێگەی لینکەکەتەوە ${rewardAmount} د.ع خەڵات وەردەگریت؛ فرۆشتنی زیاتر واتە قازانجی زیاتر.`
+          : 'لینکی تایبەتت شێر کرا. بۆ ئەم پۆستە خەڵاتی پارەیی دانەنراوە.');
       } else {
-        await navigator.clipboard.writeText(share.url);
+        await navigator.clipboard.writeText(`${shareCopy}\n\n🔗 ${share.url}`);
         setShareMessage(share.reward_enabled
-          ? `لینکی تایبەت کۆپی کرا. بۆ هەر داواکارییەکی تەواوبوو ${Number(share.reward_iqd).toLocaleString('en-US')} د.ع خەڵات وەردەگریت.`
-          : 'لینکی تایبەت کۆپی کرا. ئەم پۆستە خەڵاتی پارەیی بۆ کڕین دانەنراوە.');
+          ? `دەقی جوان و لینکی تایبەت کۆپی کران. هەر فرۆشتنێکی تەواوبوو لە ڕێگەی لینکەکەتەوە ${rewardAmount} د.ع خەڵاتت بۆ زیاد دەکات.`
+          : 'دەقی شێرکردن و لینکەکە کۆپی کران.');
       }
     } catch (nextError) {
       if (nextError instanceof Error && nextError.name === 'AbortError') return;
@@ -343,13 +355,16 @@ export function PostDetailPage() {
               <button type="button" onClick={() => void sharePost()} disabled={sharingPost} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-orange)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
                 <Share2 size={17}/>{sharingPost ? 'ئامادەکردنی لینک...' : 'شێرکردن و وەرگرتنی خەڵات'}
               </button>
-              {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800"><Gift size={15}/> {Number(post.referral_reward_iqd).toLocaleString('en-US')} د.ع بۆ هەر داواکارییەکی تەواوبوو</span>
+              {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-black text-emerald-800"><Gift size={15}/> {configuredShareReward.toLocaleString('en-US')} د.ع بۆ هەر داواکارییەکی تەواوبوو</span>
               ) : null}
             </div>
             {shareMessage ? <p role="status" className="mt-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{shareMessage}</p> : null}
-            {post.referral_reward_iqd > 0 && (post.category === 'food' || post.category === 'fashion') ? (
-              <p className="mt-2 text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی تۆ. لینکەکە بۆ ئەم کڕیارە تا ٣٠ ڕۆژ attribution هەڵدەگرێت؛ خۆت ناتوانیت لە پۆستی خۆت خەڵات وەربگریت.</p>
+            {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
+              <div className="mt-2 space-y-1">
+                <p className="text-sm font-bold leading-7 text-[var(--shakh-navy)]">📈 هەرچەندە ژمارەی فرۆشتنە تەواوبووەکان لە ڕێگەی لینکە تایبەتەکەتەوە زیاتر بێت، کۆی قازانجی تۆش زیاتر دەبێت؛ بۆ هەر داواکارییەکی شایستە {configuredShareReward.toLocaleString('en-US')} د.ع خەڵات وەردەگریت.</p>
+                <p className="text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی شێرکەر. خاوەنی پۆست خەڵاتی شێرکردنی پۆستی خۆی وەرناگرێت؛ خەڵات تەنها بۆ کەسی شێرکەرە کە لینکی تایبەتی دروستکراوی هەیە.</p>
+              </div>
             ) : null}
           </div>
         ) : null}
