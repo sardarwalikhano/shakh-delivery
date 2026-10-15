@@ -151,7 +151,6 @@ export function ReferralWalletPage() {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const available = amount(snapshot.wallet.available_iqd);
-  const pending = amount(snapshot.wallet.pending_iqd);
   const recentTransactions = useMemo(() => snapshot.transactions ?? [], [snapshot.transactions]);
   const myWithdrawals = snapshot.withdrawals ?? [];
 
