@@ -123,6 +123,7 @@ export async function createPost(input: {
       content: input.content.trim(),
       price_iqd: input.vehicle ? Number(input.vehicle.details.price_amount) : (input.priceIqd ?? null),
       referral_reward_iqd: referralReward,
+      share_reward_iqd: referralReward,
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
       status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {
