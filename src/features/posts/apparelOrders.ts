@@ -1,5 +1,78 @@
 import { supabase } from '@/lib/supabase/client';
 
+// Electronics direct-post orders are separate from apparel inventory orders.
+export type ElectronicsPostOrderStatus = 'pending' | 'confirmed' | 'rejected' | 'delivered' | 'cancelled';
+export type ElectronicsPostOrder = {
+  id: string;
+  order_number: string;
+  buyer_id: string;
+  seller_id: string;
+  post_id: string;
+  post_title: string;
+  brand: string;
+  product_details: Record<string, string | boolean>;
+  quantity: number;
+  unit_price_iqd: number;
+  line_total_iqd: number;
+  delivery_address: string;
+  buyer_phone: string;
+  customer_note: string | null;
+  payment_method: 'cash_on_delivery' | 'mobile_cash';
+  payment_status: 'pending' | 'collected' | 'failed' | 'refunded';
+  status: ElectronicsPostOrderStatus;
+  delivery_city: string;
+  delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  total_iqd: number;
+  share_reward_iqd: number;
+  created_at: string;
+};
+
+export async function createElectronicsPostOrder(input: {
+  requestId: string;
+  postId: string;
+  quantity: number;
+  deliveryAddress: string;
+  deliveryCity: string;
+  buyerPhone: string;
+  customerNote?: string | null;
+  paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  shareLinkId?: string | null;
+}): Promise<ElectronicsPostOrder> {
+  const { data, error } = await supabase.rpc('create_electronics_post_order_with_share', {
+    p_request_id: input.requestId,
+    p_post_id: input.postId,
+    p_quantity: input.quantity,
+    p_delivery_address: input.deliveryAddress,
+    p_buyer_phone: input.buyerPhone,
+    p_delivery_city: input.deliveryCity,
+    p_customer_note: input.customerNote ?? null,
+    p_payment_method: input.paymentMethod,
+    p_share_link_id: input.shareLinkId ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return data as ElectronicsPostOrder;
+}
+
+export async function listElectronicsPostOrders(): Promise<ElectronicsPostOrder[]> {
+  const { data, error } = await supabase
+    .from('electronics_post_orders')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_title,brand,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []) as ElectronicsPostOrder[];
+}
+
+export async function updateElectronicsPostOrderStatus(orderId: string, status: ElectronicsPostOrderStatus): Promise<void> {
+  const { error } = await supabase.rpc('update_electronics_post_order_status', {
+    p_order_id: orderId,
+    p_status: status,
+  });
+  if (error) throw new Error(error.message);
+}
+
+
 export type ApparelPostOrderStatus = 'pending' | 'confirmed' | 'rejected' | 'delivered' | 'cancelled';
 export type ApparelPostOrder = {
   id: string;
