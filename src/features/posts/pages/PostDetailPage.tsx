@@ -18,6 +18,14 @@ import { addFoodPostToCart } from '../foodPostCart';
 import { createPostShareLink, getPostShareToken, recordPostShareAttribution, rememberPostShareToken } from '../shareRewards';
 
 const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', women: 'ئافرەتان', kids: 'منداڵان', all: 'هەمووان' };
+const ELECTRONICS_COLOR_LABELS: Record<string, string> = {
+  black: 'ڕەش', white: 'سپی', blue: 'شین', silver: 'زیوی', gray: 'خاکستەری',
+  gold: 'زێڕی', green: 'سەوز', red: 'سوور', purple: 'مۆر', pink: 'پەمەیی', other: 'ڕەنگی تر',
+};
+const ELECTRONICS_COLOR_HEXES: Record<string, string> = {
+  black: '#171717', white: '#FFFFFF', blue: '#2563EB', silver: '#C0C0C0', gray: '#6B7280',
+  gold: '#D4AF37', green: '#15803D', red: '#DC2626', purple: '#9333EA', pink: '#EC4899', other: '#9CA3AF',
+};
 
 export function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +37,7 @@ export function PostDetailPage() {
   const configuredShareReward = Number(post?.referral_reward_iqd || post?.share_reward_iqd || 0);
   const [variants, setVariants] = useState<ApparelVariant[]>([]);
   const [selectedColor, setSelectedColor] = useState('');
+  const [selectedElectronicsColor, setSelectedElectronicsColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(-1);
   const [loading, setLoading] = useState(true);
@@ -111,6 +120,32 @@ export function PostDetailPage() {
   }, [id, location.search, user]);
 
   const images = useMemo(() => (Array.isArray(post?.images) ? post.images.filter((image) => Boolean(image?.storage_path)) : []), [post]);
+  const electronicsColorValues = useMemo(() => {
+    if (post?.category !== 'electronics') return [];
+    const details = post.category_details ?? {};
+    const configured = typeof details.available_colors === 'string'
+      ? details.available_colors.split(',').map((value) => value.trim()).filter(Boolean)
+      : [];
+    const fallback = typeof details.color === 'string' && details.color.trim() ? [details.color.trim()] : [];
+    return [...new Set(configured.length ? configured : fallback)];
+  }, [post]);
+  const electronicsColorImagePaths = useMemo<Record<string, string>>(() => {
+    const raw = post?.category_details?.color_image_paths;
+    if (typeof raw !== 'string' || !raw.trim()) return {};
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      return Object.fromEntries(Object.entries(parsed as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0));
+    } catch { return {}; }
+  }, [post]);
+  const chosenElectronicsColor = electronicsColorValues.includes(selectedElectronicsColor)
+    ? selectedElectronicsColor
+    : electronicsColorValues[0] ?? '';
+  const selectedElectronicsImagePath = electronicsColorImagePaths[chosenElectronicsColor] ?? '';
+  const selectedElectronicsImageIndex = selectedElectronicsImagePath
+    ? images.findIndex((image) => image.storage_path === selectedElectronicsImagePath)
+    : -1;
   const colors = useMemo(() => {
     const byHex = new Map<string, { name: string; hex: string }>();
     variants.forEach((variant) => {
@@ -133,7 +168,15 @@ export function PostDetailPage() {
     }
   }, [selectedSize, sizesForColor]);
 
-  const currentImage = activeImageIndex >= 0 ? images[activeImageIndex]?.storage_path : (selectedVariant?.image_path || images[0]?.storage_path);
+  useEffect(() => {
+    if (electronicsColorValues.length && !electronicsColorValues.includes(selectedElectronicsColor)) {
+      setSelectedElectronicsColor(electronicsColorValues[0]);
+    }
+  }, [electronicsColorValues, selectedElectronicsColor]);
+
+  const currentImage = activeImageIndex >= 0
+    ? images[activeImageIndex]?.storage_path
+    : (selectedElectronicsImagePath || selectedVariant?.image_path || images[0]?.storage_path);
   useEffect(() => { setImageLoadError(false); }, [currentImage]);
 
   if (loading) return <div className="grid min-h-[65dvh] place-items-center"><div className="text-sm font-bold text-black/45">بارکردنی وردەکاریی پۆست...</div></div>;
@@ -489,7 +532,7 @@ ${share.title || post.title}
               </section>
             ) : null}
 
-            {images.length > 1 || isVehicle ? <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={image.storage_path} className="min-w-0"><button type="button" onClick={() => setActiveImageIndex(index)} className={`block w-full overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && selectedVariant?.image_path === image.storage_path)) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>{isVehicle && image.alt_ku ? <div className="mt-1 text-center text-xs font-bold text-black/45">{image.alt_ku}</div> : null}</div>)}</div> : null}
+            {images.length > 1 || isVehicle ? <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={image.storage_path} className="min-w-0"><button type="button" onClick={() => setActiveImageIndex(index)} className={`block w-full overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && (selectedElectronicsImageIndex === index || selectedVariant?.image_path === image.storage_path))) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>{isVehicle && image.alt_ku ? <div className="mt-1 text-center text-xs font-bold text-black/45">{image.alt_ku}</div> : null}</div>)}</div> : null}
           </div>
 
           <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-8">
@@ -518,6 +561,27 @@ ${share.title || post.title}
             {isElectronics ? (
               <section className="mt-6 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-bg)] p-4">
                 <h2 className="text-lg font-black">تایبەتمەندییە تەکنیکییەکان</h2>
+                {electronicsColorValues.length ? (
+                  <div className="mt-4 rounded-2xl bg-white p-3 sm:p-4">
+                    <div className="text-sm font-black">ڕەنگی بەرهەم هەڵبژێرە</div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {electronicsColorValues.map((colorValue) => {
+                        const active = chosenElectronicsColor === colorValue;
+                        const colorImage = electronicsColorImagePaths[colorValue];
+                        return (
+                          <button key={colorValue} type="button" aria-pressed={active}
+                            onClick={() => { setSelectedElectronicsColor(colorValue); setActiveImageIndex(-1); }}
+                            className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-black transition ${active ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10 bg-white text-black/65'}`}>
+                            {colorImage ? <img src={getPostImageUrl(colorImage)} alt="" className="size-8 rounded-lg border border-black/10 object-cover" loading="lazy" /> : <span className="size-5 rounded-full border border-black/15" style={{ backgroundColor: ELECTRONICS_COLOR_HEXES[colorValue] ?? '#9CA3AF' }} />}
+                            {ELECTRONICS_COLOR_LABELS[colorValue] ?? colorValue}
+                            {active ? <Check size={14} /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-black/45">وێنەی سەرەکی بەپێی ڕەنگی هەڵبژێردراو دەگۆڕێت؛ ڕەنگەکە لە داواکاریی کڕینیشدا تۆمار دەکرێت.</p>
+                  </div>
+                ) : null}
                 {electronicsSpecs.length ? (
                   <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                     {electronicsSpecs.map((detail) => (
@@ -560,7 +624,7 @@ ${share.title || post.title}
 
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
-            {isElectronics && post.status === 'active' ? <ElectronicsPurchasePanel post={post} /> : null}
+            {isElectronics && post.status === 'active' ? <ElectronicsPurchasePanel post={post} selectedColor={chosenElectronicsColor} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
             {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 
