@@ -33,6 +33,7 @@ The remote production project is `shakh-delivery-prod` (`jjtmtxrkbewmdxdmgtrf`).
 - 20261015160300 — share_reward_owner_exclusion_v1 (production migration applied through Supabase management tooling)
 - 20261015170000 — electronics_posts_checkout_share_rewards_v1 (production migration version `20261015165338`)
 - 20261015182812 — electronics_post_required_specs_v1 (applied to production and enforced by the posts trigger)
+- 20261015193000 — electronics_color_photos_purchase_v1 (per-color images and selected-color order tracking)
 
 ## Notes
 
