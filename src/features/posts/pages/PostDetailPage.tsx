@@ -173,22 +173,33 @@ export function PostDetailPage() {
     setSharingPost(true);
     try {
       const share = await createPostShareLink(post.id);
+      const rewardAmount = Number(share.reward_iqd).toLocaleString('en-US');
+      const shareCopy = share.reward_enabled
+        ? `🌟 هاوبەشی باش بکە، قازانجی زیاتر بەدەستبهێنە!
+
+🛍️ ${share.title || post.title} لە Shakh ببینە.
+💰 بۆ هەر داواکارییەکی ڕاستەقینە و تەواوبوو لە ڕێگەی لینکە تایبەتەکەتەوە، ${rewardAmount} د.ع خەڵات وەردەگریت.
+📈 هەرچەندە ژمارەی فرۆشتنە تەواوبووەکان زیاتر بێت، کۆی قازانجی تۆش زیاتر دەبێت.
+✅ خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی تۆ.
+🔗 ئەم لینکە تایبەتە شێر بکە و با کەسانی تر کڕین بکەن.`
+        : `🛍️ ئەم پۆستەی جوانە لە Shakh ببینە!
+
+${share.title || post.title}
+✨ لینکەکە بۆ هاوڕێکانت شێر بکە بۆ ئەوەی ئەوانیش بتوانن ئەم بەرهەمە ببینن و بیکڕن.`;
       if (typeof navigator.share === 'function') {
         await navigator.share({
           title: share.title || post.title,
-          text: share.reward_enabled
-            ? `ئەم پۆستە ببینە؛ لە کڕینی ڕێگەپێدراوەوە خەڵاتی شێرکردن بەردەستە.`
-            : (post.content || post.title),
+          text: shareCopy,
           url: share.url,
         });
         setShareMessage(share.reward_enabled
-          ? `لینکی تایبەتت شێر کرا. بۆ هەر داواکارییەکی تەواوبوو ${Number(share.reward_iqd).toLocaleString('en-US')} د.ع خەڵات وەردەگریت.`
-          : 'لینکی تایبەتت شێر کرا. ئەم پۆستە خەڵاتی پارەیی بۆ کڕین دانەنراوە.');
+          ? `لینکی تایبەتت شێر کرا. بۆ هەر فرۆشتنێکی تەواوبوو لە ڕێگەی لینکەکەتەوە ${rewardAmount} د.ع خەڵات وەردەگریت؛ فرۆشتنی زیاتر واتە قازانجی زیاتر.`
+          : 'لینکی تایبەتت شێر کرا. بۆ ئەم پۆستە خەڵاتی پارەیی دانەنراوە.');
       } else {
-        await navigator.clipboard.writeText(share.url);
+        await navigator.clipboard.writeText(`${shareCopy}\n\n🔗 ${share.url}`);
         setShareMessage(share.reward_enabled
-          ? `لینکی تایبەت کۆپی کرا. بۆ هەر داواکارییەکی تەواوبوو ${Number(share.reward_iqd).toLocaleString('en-US')} د.ع خەڵات وەردەگریت.`
-          : 'لینکی تایبەت کۆپی کرا. ئەم پۆستە خەڵاتی پارەیی بۆ کڕین دانەنراوە.');
+          ? `دەقی جوان و لینکی تایبەت کۆپی کران. هەر فرۆشتنێکی تەواوبوو لە ڕێگەی لینکەکەتەوە ${rewardAmount} د.ع خەڵاتت بۆ زیاد دەکات.`
+          : 'دەقی شێرکردن و لینکەکە کۆپی کران.');
       }
     } catch (nextError) {
       if (nextError instanceof Error && nextError.name === 'AbortError') return;
@@ -350,7 +361,8 @@ export function PostDetailPage() {
             </div>
             {shareMessage ? <p role="status" className="mt-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{shareMessage}</p> : null}
             {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion') ? (
-              <p className="mt-2 text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی تۆ. لینکەکە بۆ ئەم کڕیارە تا ٣٠ ڕۆژ attribution هەڵدەگرێت؛ خۆت ناتوانیت لە پۆستی خۆت خەڵات وەربگریت.</p>
+              <p className="mt-2 text-sm font-bold leading-7 text-[var(--shakh-navy)]">📈 هەرچەندە ژمارەی فرۆشتنە تەواوبووەکان لە ڕێگەی لینکە تایبەتەکەتەوە زیاتر بێت، کۆی قازانجی تۆش زیاتر دەبێت؛ بۆ هەر داواکارییەکی شایستە ${configuredShareReward.toLocaleString('en-US')} د.ع خەڵات وەردەگریت.</p>
+              <p className="mt-1 text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی شێرکەر. خاوەنی پۆست خەڵاتی شێرکردنی پۆستی خۆی وەرناگرێت؛ خەڵات تەنها بۆ کەسی شێرکەرە کە لینکی تایبەتی دروستکراوی هەیە.</p>
             ) : null}
           </div>
         ) : null}
