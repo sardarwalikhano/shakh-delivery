@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase/client';
 
 const labels: Record<ApparelPostOrderStatus,string> = { pending:'لە چاوەڕوانیدایە', confirmed:'پەسەندکرا', rejected:'ڕەتکرایەوە', delivered:'گەیەنراوە', cancelled:'هەڵوەشێنراوەتەوە' };
 const foodDeliveryLabels: Record<string,string> = { pending:'چاوەڕوانی کاپتن', accepted:'وەرگیراوە لەلایەن کاپتن', picked_up:'لە چێشتخانە وەرگیراوە', on_the_way:'لە ڕێگایە', arrived:'گەیشتووە', delivered:'گەیەنراوە', failed:'سەرنەکەوتووە', cancelled:'هەڵوەشێنراوەتەوە' };
+const electronicsColorLabels: Record<string, string> = { black: 'ڕەش', white: 'سپی', blue: 'شین', silver: 'زیوی', gray: 'خاکستەری', gold: 'زێڕی', green: 'سەوز', red: 'سوور', purple: 'مۆر', pink: 'پەمەیی', other: 'ڕەنگی تر' };
 
 export function ApparelPostOrdersPage() {
   const { user } = useAuth();
@@ -114,6 +115,7 @@ export function ApparelPostOrdersPage() {
                     <div className="text-xs font-black text-[var(--shakh-blue)]" dir="ltr">{order.order_number}</div>
                     <h3 className="mt-1 text-lg font-black">{order.post_title}</h3>
                     <p className="mt-1 text-xs font-bold text-black/45">{order.brand} · {order.quantity} دانە</p>
+                    {order.selected_color ? <p className="mt-1 text-xs font-black text-[var(--shakh-blue)]">ڕەنگی داواکراو: {electronicsColorLabels[order.selected_color] ?? order.selected_color}</p> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-xs font-black">{labels[order.status]}</span>
