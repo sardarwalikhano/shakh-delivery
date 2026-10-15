@@ -200,11 +200,18 @@ export function CreatePostPage() {
       setError('سەرەتا ئەم ڕەنگە هەڵبژێرە، پاشان وێنەی بۆ دابنێ.');
       return;
     }
-    if (!images.includes(file) && images.length >= MAX_POST_IMAGES) {
+    const previousFile = electronicsColorImageFiles[colorValue];
+    const previousFileUsedByAnotherColor = Boolean(previousFile && Object.entries(electronicsColorImageFiles)
+      .some(([otherColor, otherFile]) => otherColor !== colorValue && otherFile === previousFile));
+    const canReplacePreviousFile = Boolean(previousFile && !previousFileUsedByAnotherColor);
+    if (!images.includes(file) && images.length - (canReplacePreviousFile ? 1 : 0) >= MAX_POST_IMAGES) {
       setError(`کۆی وێنەکانی ئەم پۆستە نابێت لە ${MAX_POST_IMAGES} وێنە زیاتر بێت.`);
       return;
     }
-    setImages((current) => current.includes(file) ? current : [...current, file]);
+    setImages((current) => {
+      const withoutPrevious = canReplacePreviousFile ? current.filter((image) => image !== previousFile) : current;
+      return withoutPrevious.includes(file) ? withoutPrevious : [...withoutPrevious, file];
+    });
     setElectronicsColorImageFiles((current) => ({ ...current, [colorValue]: file }));
     setError(null);
   };
