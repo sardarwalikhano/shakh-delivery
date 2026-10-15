@@ -14,6 +14,20 @@ const electronicsColors: Record<string, string> = {
   gold: 'زێڕی', green: 'سەوز', red: 'سوور', purple: 'مۆر', pink: 'پەمەیی', other: 'ڕەنگی تر',
 };
 
+const electronicsColorHexes: Record<string, string> = {
+  black: '#171717', white: '#FFFFFF', blue: '#2563EB', silver: '#C0C0C0', gray: '#6B7280',
+  gold: '#D4AF37', green: '#15803D', red: '#DC2626', purple: '#9333EA', pink: '#EC4899', other: '#9CA3AF',
+};
+
+function getElectronicsColorValues(post: Post): string[] {
+  const details = post.category_details ?? {};
+  const multiple = typeof details.available_colors === 'string'
+    ? details.available_colors.split(',').map((item) => item.trim()).filter(Boolean)
+    : [];
+  const fallback = typeof details.color === 'string' && details.color.trim() ? [details.color.trim()] : [];
+  return [...new Set(multiple.length ? multiple : fallback)];
+}
+
 const electronicsTypes = [
   { value: 'all', label: 'هەموو ئەلیکترۆنیات' },
   { value: 'phone', label: 'مۆبایل' },
@@ -45,6 +59,7 @@ function searchablePostText(post: Post): string {
     String(details.model ?? ''),
     color,
     colorLabel,
+    getElectronicsColorValues(post).map((value) => electronicsColors[value] ?? value).join(' '),
     String(details.ram_capacity ?? ''),
     String(details.storage_capacity ?? ''),
   ].join(' ').toLocaleLowerCase();
@@ -164,7 +179,17 @@ export function PostsPage() {
                         return typeLabel ? <span className="rounded-full bg-[var(--shakh-blue)]/10 px-2.5 py-1 text-xs font-black text-[var(--shakh-blue)]">{typeLabel}</span> : null;
                       })()}
                       {post.category_details?.model ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">{String(post.category_details.model)}</span> : null}
-                      {post.category_details?.color ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">ڕەنگ: {electronicsColors[String(post.category_details.color)] ?? String(post.category_details.color)}</span> : null}
+                      {(() => {
+                        const colorValues = getElectronicsColorValues(post);
+                        return colorValues.length ? (
+                          <span className="inline-flex flex-wrap items-center gap-2 rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-bold text-black/60">
+                            <span className="flex -space-x-1.5" aria-hidden="true">
+                              {colorValues.map((value) => <span key={value} title={electronicsColors[value] ?? value} className="size-4 rounded-full border border-black/15" style={{ backgroundColor: electronicsColorHexes[value] ?? '#9CA3AF' }} />)}
+                            </span>
+                            <span>ڕەنگ: {colorValues.map((value) => electronicsColors[value] ?? value).join('، ')}</span>
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="text-xs leading-5 text-black/50">
                       {post.category_details?.ram_capacity ? <span>RAM: {String(post.category_details.ram_capacity)}</span> : null}
