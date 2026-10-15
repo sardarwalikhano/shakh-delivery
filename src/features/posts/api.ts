@@ -36,6 +36,7 @@ export async function createPost(input: {
   title: string;
   content: string;
   priceIqd?: number | null;
+  referralRewardIqd?: number;
   location?: string | null;
   itemCondition?: ApparelCondition;
   apparelAudience?: ApparelAudience;
@@ -50,6 +51,12 @@ export async function createPost(input: {
   const title = input.title.trim();
   const isApparelPost = input.category === 'fashion';
   const isVehiclePost = input.category === 'cars';
+  const referralReward = input.category === 'food' || input.category === 'fashion'
+    ? Number(input.referralRewardIqd ?? 0)
+    : 0;
+  if (!Number.isFinite(referralReward) || referralReward < 0 || referralReward > 100000000) {
+    throw new Error('بڕی خەڵاتی شێرکردن دەبێت لە ٠ تا ١٠٠٬٠٠٠٬٠٠٠ دینار بێت.');
+  }
   const imageFiles = input.apparel?.images ?? input.images ?? [];
   const needsStagedPublish = Boolean(input.apparel) || Boolean(input.vehicle) || imageFiles.length > 0;
 
@@ -115,6 +122,7 @@ export async function createPost(input: {
       title,
       content: input.content.trim(),
       price_iqd: input.vehicle ? Number(input.vehicle.details.price_amount) : (input.priceIqd ?? null),
+      referral_reward_iqd: referralReward,
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
       status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {
