@@ -569,6 +569,20 @@ ${share.title || post.title}
             </div>
 
             {isVehicle && vehicleListing ? <VehiclePostDetails listing={vehicleListing} location={post.location} /> : null}
+            {post.category === 'home_living' ? (
+              <section className="mt-5 rounded-2xl border border-[var(--shakh-blue)]/10 bg-[var(--shakh-bg)] p-3 sm:rounded-[24px] sm:p-5">
+                <h2 className="text-lg font-black">وردەکاریی ماڵ و ژیان</h2>
+                <dl className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
+                  {getVisibleCategoryDetails('home-living', post.category_details).filter((item) => item.key !== 'posting_fee_iqd').map((item) => (
+                    <div key={item.key} className="min-w-0 rounded-xl bg-white p-3">
+                      <dt className="text-[11px] leading-5 text-black/45 sm:text-xs">{item.label}</dt>
+                      <dd className="mt-1 break-words text-sm font-black leading-6">{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ) : null}
+
             {isVehicle && !vehicleListing ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm leading-6 text-amber-800">وردەکاریی تەکنیکی ئەم پۆستە لە داتابەیسدا تۆمار نەکراوە. هیچ زانیارییەکی ئۆتۆمبێل بە خۆڕایی دانەنراوە؛ تکایە لە فرۆشیارەوە پشتڕاستی بکەرەوە.</div> : null}
 
             {isElectronics ? (
