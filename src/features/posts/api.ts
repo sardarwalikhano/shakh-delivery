@@ -256,17 +256,6 @@ export async function createPost(input: {
         alt_ku: input.vehicle && photoKind ? VEHICLE_PHOTO_KIND_LABELS[photoKind] : title,
       };
     });
-    if (input.manualPayment) {
-      const submission = await submitManualPayment({
-        purpose: 'home_living_post_fee',
-        targetId: postId,
-        paymentMethodId: input.manualPayment.paymentMethodId,
-        amountIqd: input.manualPayment.amountIqd,
-        receiptFile: input.manualPayment.receiptFile,
-      });
-      uploadedPaymentProofPath = submission.receipt_storage_path;
-    }
-
     const publishPatch: Record<string, unknown> = {
       images: postImages,
       status: input.manualReviewRequired ? 'archived' : 'active',
@@ -291,6 +280,18 @@ export async function createPost(input: {
       .single();
 
     if (publishError) throw publishError;
+
+    if (input.manualPayment) {
+      const submission = await submitManualPayment({
+        purpose: 'home_living_post_fee',
+        targetId: postId,
+        paymentMethodId: input.manualPayment.paymentMethodId,
+        amountIqd: input.manualPayment.amountIqd,
+        receiptFile: input.manualPayment.receiptFile,
+      });
+      uploadedPaymentProofPath = submission.receipt_storage_path;
+    }
+
     return published as Post;
   } catch (error) {
     // Roll back this in-progress publish only; never touch existing posts.
