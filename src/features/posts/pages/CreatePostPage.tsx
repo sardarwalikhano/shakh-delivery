@@ -578,8 +578,8 @@ export function CreatePostPage() {
             onChange={updateImages}
             maxFiles={MAX_POST_IMAGES}
             disabled={busy}
-            required={category === 'fashion' || category === 'electronics'}
-            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : category === 'electronics' ? 'وێنەکانی ئەلیکترۆنیات' : 'وێنەکانی پۆست / بەرهەم'}
+            required={category === 'fashion' || category === 'electronics' || category === 'home_living'}
+            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : category === 'electronics' ? 'وێنەکانی ئەلیکترۆنیات' : category === 'home_living' ? 'وێنەکانی موڵک یان کەلوپەل' : 'وێنەکانی پۆست / بەرهەم'}
             hint="کامێرا یان گەلەری بەکاربهێنە؛ ڕیزی وێنەکان دەتوانیت بگۆڕیت، وێنەی یەکەم وێنەی سەرەکییە."
           />
 
