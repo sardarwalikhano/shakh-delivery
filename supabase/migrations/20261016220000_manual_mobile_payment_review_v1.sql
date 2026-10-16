@@ -2,6 +2,24 @@
 -- No bank gateway is used. A submission stays pending until a privileged reviewer acts.
 begin;
 
+-- Receipt administration and publication approval are Super Admin-only.
+create or replace function private.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $
+  select exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = (select auth.uid())
+      and ur.role = 'super_admin'::public.app_role
+  );
+$;
+
+revoke all on function private.is_super_admin() from public, anon;
+grant execute on function private.is_super_admin() to authenticated;
+
 create table if not exists public.umrah_booking_requests (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null references auth.users(id) on delete restrict,
@@ -31,7 +49,14 @@ grant select on public.umrah_booking_requests to authenticated;
 drop policy if exists umrah_booking_select_owner_or_post_manager on public.umrah_booking_requests;
 create policy umrah_booking_select_owner_or_post_manager
   on public.umrah_booking_requests for select to authenticated
-  using (customer_id = (select auth.uid()) or (select private.has_permission('posts.manage')));
+  using (
+    customer_id = (select auth.uid())
+    or exists (
+      select 1 from public.posts p
+      where p.id = package_post_id and p.author_id = (select auth.uid())
+    )
+    or (select private.is_super_admin())
+  );
 
 create table if not exists public.manual_payment_methods (
   id uuid primary key default gen_random_uuid(),
@@ -61,13 +86,16 @@ grant select, insert, update, delete on public.manual_payment_methods to authent
 drop policy if exists manual_payment_methods_read_active_or_manager on public.manual_payment_methods;
 create policy manual_payment_methods_read_active_or_manager
   on public.manual_payment_methods for select to authenticated
-  using (is_active or (select private.has_permission('posts.manage')));
+  using (
+    (is_active and nullif(btrim(account_identifier), '') is not null)
+    or (select private.is_super_admin())
+  );
 
 drop policy if exists manual_payment_methods_manage on public.manual_payment_methods;
 create policy manual_payment_methods_manage
   on public.manual_payment_methods for all to authenticated
-  using ((select private.has_permission('posts.manage')))
-  with check ((select private.has_permission('posts.manage')));
+  using ((select private.is_super_admin()))
+  with check ((select private.is_super_admin()));
 
 create table if not exists public.manual_payment_submissions (
   id uuid primary key default gen_random_uuid(),
@@ -105,7 +133,7 @@ grant select, insert on public.manual_payment_submissions to authenticated;
 drop policy if exists manual_payment_submissions_read_owner_or_manager on public.manual_payment_submissions;
 create policy manual_payment_submissions_read_owner_or_manager
   on public.manual_payment_submissions for select to authenticated
-  using (payer_id = (select auth.uid()) or (select private.has_permission('posts.manage')));
+  using (payer_id = (select auth.uid()) or (select private.is_super_admin()));
 
 drop policy if exists manual_payment_submissions_insert_valid_target on public.manual_payment_submissions;
 create policy manual_payment_submissions_insert_valid_target
@@ -116,6 +144,7 @@ create policy manual_payment_submissions_insert_valid_target
     and reviewed_by is null
     and reviewed_at is null
     and split_part(receipt_storage_path, '/', 1) = (select auth.uid())::text
+    and split_part(receipt_storage_path, '/', 2) = coalesce(post_id::text, booking_request_id::text)
     and exists (
       select 1 from storage.objects so
       where so.bucket_id = 'manual-payment-proofs'
@@ -186,6 +215,21 @@ create policy manual_payment_proofs_upload_own
   with check (
     bucket_id = 'manual-payment-proofs'
     and (storage.foldername(name))[1] = (select auth.uid())::text
+    and (
+      exists (
+        select 1 from public.posts p
+        where p.id::text = (storage.foldername(name))[2]
+          and p.author_id = (select auth.uid())
+          and p.category = 'home_living'::public.post_category
+          and p.status = 'archived'::public.post_status
+      )
+      or exists (
+        select 1 from public.umrah_booking_requests b
+        where b.id::text = (storage.foldername(name))[2]
+          and b.customer_id = (select auth.uid())
+          and b.status in ('awaiting_payment','payment_rejected')
+      )
+    )
   );
 
 drop policy if exists manual_payment_proofs_read_owner_or_manager on storage.objects;
@@ -195,7 +239,7 @@ create policy manual_payment_proofs_read_owner_or_manager
     bucket_id = 'manual-payment-proofs'
     and (
       (storage.foldername(name))[1] = (select auth.uid())::text
-      or (select private.has_permission('posts.manage'))
+      or (select private.is_super_admin())
     )
   );
 
@@ -216,19 +260,31 @@ security definer
 set search_path to 'pg_catalog', 'public', 'private'
 as $function$
 begin
+  if new.category <> 'home_living'::public.post_category or new.status <> 'active'::public.post_status then
+    return new;
+  end if;
+
   if tg_op = 'INSERT' then
-    if new.category = 'home_living'::public.post_category
-      and new.status = 'active'::public.post_status
-      and not coalesce((select private.has_permission('posts.manage')), false) then
-      raise exception using errcode='42501', message='Home & Living posts require manual payment review before publishing';
-    end if;
-  elsif tg_op = 'UPDATE' then
-    if new.category = 'home_living'::public.post_category
-      and new.status = 'active'::public.post_status
-      and (old.status is distinct from new.status or old.category is distinct from new.category)
-      and not coalesce((select private.has_permission('posts.manage')), false) then
-      raise exception using errcode='42501', message='Home & Living posts require manual payment review before publishing';
-    end if;
+    -- Never make a newly inserted paid listing public directly.
+    new.status := 'archived'::public.post_status;
+    return new;
+  end if;
+
+  if (old.status is distinct from new.status or old.category is distinct from new.category)
+    and not exists (
+      select 1
+      from public.manual_payment_submissions m
+      where m.purpose = 'home_living_post_fee'
+        and m.post_id = new.id
+        and m.payer_id = new.author_id
+        and m.status = 'approved'
+        and m.amount_iqd = case new.category_details->>'listing_kind'
+          when 'property' then 5000
+          when 'furniture' then 2000
+          else 0
+        end
+    ) then
+    raise exception using errcode='42501', message='Home & Living posts remain unpublished until a Super Admin approves the manual payment';
   end if;
   return new;
 end;
@@ -329,9 +385,11 @@ set search_path to 'pg_catalog', 'public', 'private'
 as $function$
 declare
   v_submission public.manual_payment_submissions%rowtype;
+  v_post public.posts%rowtype;
+  v_booking public.umrah_booking_requests%rowtype;
 begin
-  if (select auth.uid()) is null or not (select private.has_permission('posts.manage')) then
-    raise exception using errcode='42501', message='Post management permission is required';
+  if (select auth.uid()) is null or not (select private.is_super_admin()) then
+    raise exception using errcode='42501', message='Only Super Admin can review manual payment receipts';
   end if;
   if p_decision not in ('approved','rejected') then
     raise exception using errcode='22023', message='Decision must be approved or rejected';
@@ -344,7 +402,6 @@ begin
   from public.manual_payment_submissions
   where id = p_submission_id
   for update;
-
   if not found then
     raise exception using errcode='P0002', message='Payment submission was not found';
   end if;
@@ -352,59 +409,108 @@ begin
     raise exception using errcode='22023', message='This payment submission has already been reviewed';
   end if;
 
-  if v_submission.purpose = 'home_living_post_fee' and p_decision = 'approved' then
-    update public.posts
-    set status = 'active'::public.post_status
-    where id = v_submission.post_id
-      and author_id = v_submission.payer_id
-      and category = 'home_living'::public.post_category
-      and status = 'archived'::public.post_status
-      and price_iqd > 0
-      and jsonb_array_length(images) > 0
+  if v_submission.purpose = 'home_living_post_fee' then
+    select * into v_post
+    from public.posts p
+    where p.id = v_submission.post_id
+      and p.author_id = v_submission.payer_id
+      and p.category = 'home_living'::public.post_category
+      and p.status = 'archived'::public.post_status
+      and p.price_iqd > 0
+      and jsonb_typeof(p.images) = 'array'
+      and jsonb_array_length(p.images) > 0
       and (
-        (category_details->>'listing_kind' = 'property'
-          and category_details->>'posting_fee_iqd' = '5000'
-          and category_details->>'property_type' in ('house','apartment','land','commercial','villa','other')
-          and category_details->>'deal_type' in ('sale','rent'))
-        or (category_details->>'listing_kind' = 'furniture' and category_details->>'posting_fee_iqd' = '2000')
+        (p.category_details->>'listing_kind' = 'property'
+          and p.category_details->>'posting_fee_iqd' = '5000'
+          and p.category_details->>'property_type' in ('house','apartment','land','commercial','villa','other')
+          and p.category_details->>'deal_type' in ('sale','rent')
+          and v_submission.amount_iqd = 5000)
+        or (p.category_details->>'listing_kind' = 'furniture'
+          and p.category_details->>'posting_fee_iqd' = '2000'
+          and v_submission.amount_iqd = 2000)
       )
-      and exists (
-        select 1 from public.manual_payment_submissions m
-        where m.id = p_submission_id
-          and m.post_id = public.posts.id
-          and m.status = 'pending_review'
-          and m.amount_iqd = case public.posts.category_details->>'listing_kind'
-            when 'property' then 5000
-            when 'furniture' then 2000
-            else 0
-          end
-      );
+    for update;
     if not found then
-      raise exception using errcode='22023', message='The Home & Living post cannot be published';
+      raise exception using errcode='22023', message='The Home & Living post cannot be approved for publication';
     end if;
-  elsif v_submission.purpose = 'umrah_booking' then
+
+    if p_decision = 'approved' then
+      -- Mark receipt approved first; the publication trigger requires this row.
+      update public.manual_payment_submissions
+      set status = 'approved', admin_note = nullif(btrim(p_admin_note),''),
+          reviewed_by = (select auth.uid()), reviewed_at = now(), updated_at = now()
+      where id = v_submission.id;
+      update public.posts set status = 'active'::public.post_status, updated_at = now()
+      where id = v_submission.post_id and status = 'archived'::public.post_status;
+      if not found then
+        raise exception using errcode='22023', message='The Home & Living post could not be published';
+      end if;
+    else
+      update public.manual_payment_submissions
+      set status = 'rejected', admin_note = nullif(btrim(p_admin_note),''),
+          reviewed_by = (select auth.uid()), reviewed_at = now(), updated_at = now()
+      where id = v_submission.id;
+    end if;
+  else
+    select * into v_booking
+    from public.umrah_booking_requests b
+    where b.id = v_submission.booking_request_id
+      and b.customer_id = v_submission.payer_id
+      and b.status = 'pending_payment_review'
+      and b.total_amount_iqd = v_submission.amount_iqd
+    for update;
+    if not found then
+      raise exception using errcode='22023', message='The Umrah booking is not awaiting payment review';
+    end if;
+
+    update public.manual_payment_submissions
+    set status = p_decision,
+        admin_note = nullif(btrim(p_admin_note),''),
+        reviewed_by = (select auth.uid()),
+        reviewed_at = now(),
+        updated_at = now()
+    where id = v_submission.id;
     update public.umrah_booking_requests
     set status = case when p_decision = 'approved' then 'confirmed' else 'payment_rejected' end,
         updated_at = now()
-    where id = v_submission.booking_request_id
-      and customer_id = v_submission.payer_id
-      and status = 'pending_payment_review';
-    if not found then
-      raise exception using errcode='22023', message='The Umrah booking request is not awaiting review';
-    end if;
+    where id = v_submission.booking_request_id;
   end if;
 
-  update public.manual_payment_submissions
-  set status = p_decision,
-      admin_note = nullif(btrim(p_admin_note),''),
-      reviewed_by = (select auth.uid()),
-      reviewed_at = now(),
-      updated_at = now()
-  where id = p_submission_id;
+  insert into public.notifications(
+    user_id, type, title_ku, body_ku, title_ar, body_ar, title_en, body_en,
+    route, entity_type, entity_id, data
+  ) values (
+    v_submission.payer_id, 'payment_status',
+    case when p_decision = 'approved' then 'پارەدان پەسەند کرا' else 'پارەدان ڕەتکرایەوە' end,
+    case when p_decision = 'approved' and v_submission.purpose = 'home_living_post_fee'
+      then 'وەسڵەکە پەسەند کرا و پۆستەکەت بڵاوکرایەوە.'
+      when p_decision = 'approved' then 'پارەدان و داواکاریی حیجزی عومرە پشتڕاست کرایەوە.'
+      when v_submission.purpose = 'home_living_post_fee' then 'وەسڵی پۆستەکەت ڕەتکرایەوە؛ تکایە تێبینیی سوپەر ئەدمین بخوێنەوە.'
+      else 'وەسڵی حیجزی عومرە ڕەتکرایەوە؛ تکایە تێبینیی سوپەر ئەدمین بخوێنەوە.' end,
+    case when p_decision = 'approved' then 'تمت الموافقة على الدفع' else 'تم رفض إثبات الدفع' end,
+    case when p_decision = 'approved' then 'تمت مراجعة إثبات الدفع والموافقة عليه.' else 'تم رفض إثبات الدفع؛ يرجى مراجعة ملاحظة المسؤول.' end,
+    case when p_decision = 'approved' then 'Payment approved' else 'Payment rejected' end,
+    case when p_decision = 'approved' then 'Your manual payment was approved.' else 'Your manual payment proof was rejected.' end,
+    case when v_submission.purpose = 'home_living_post_fee'
+      then '/posts/' || v_submission.post_id::text
+      else '/posts/' || v_booking.package_post_id::text end,
+    case when v_submission.purpose = 'home_living_post_fee' then 'post' else 'umrah_booking' end,
+    case when v_submission.purpose = 'home_living_post_fee' then v_submission.post_id else v_submission.booking_request_id end,
+    jsonb_build_object('submission_id',v_submission.id,'purpose',v_submission.purpose,'status',p_decision,'amount_iqd',v_submission.amount_iqd)
+  );
+
+  insert into public.audit_logs(actor_user_id, action, resource_type, resource_id, metadata)
+  values (
+    (select auth.uid()),
+    'manual_payment_' || p_decision,
+    'manual_payment_submission',
+    v_submission.id::text,
+    jsonb_build_object('purpose',v_submission.purpose,'amount_iqd',v_submission.amount_iqd,'payer_id',v_submission.payer_id)
+  );
 
   return jsonb_build_object(
-    'id',v_submission.id,'purpose',v_submission.purpose,'status',p_decision,
-    'post_id',v_submission.post_id,'booking_request_id',v_submission.booking_request_id
+    'id', v_submission.id, 'purpose', v_submission.purpose, 'status', p_decision,
+    'post_id', v_submission.post_id, 'booking_request_id', v_submission.booking_request_id
   );
 end;
 $function$;
