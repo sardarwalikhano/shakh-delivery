@@ -13,6 +13,7 @@ import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { ElectronicsPurchasePanel } from '../components/ElectronicsPurchasePanel';
 import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
+import { UmrahBookingPanel } from '../components/UmrahBookingPanel';
 import { singleVehicleListing } from '../vehicleTypes';
 import { addFoodPostToCart } from '../foodPostCart';
 import { createPostShareLink, getPostShareToken, recordPostShareAttribution, rememberPostShareToken } from '../shareRewards';
@@ -554,6 +555,12 @@ ${share.title || post.title}
               <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-black/45">{postRoleLabels[post.publisher_role]}</span>
               {discount > 0 ? <span className="rounded-full bg-red-500/10 px-3 py-1.5 text-red-600">{discount}٪ داشکاندن</span> : null}
             </div>
+            {ownsPost && new URLSearchParams(location.search).get('submission') === 'pending-review' ? (
+              <div role="status" className="mt-4 rounded-xl border border-amber-500/20 bg-amber-50 p-4 text-sm leading-7 text-amber-900 sm:rounded-2xl">
+                <div className="font-black">پۆستەکەت نێردرا بۆ پشکنینی سوپەر ئەدمین</div>
+                وەسڵەکە بە سەرکەوتوویی تۆمار کرا. پۆستەکە تەنها دوای پەسەندکردنی پارەدان لە داشبۆرد بڵاو دەکرێتەوە.
+              </div>
+            ) : null}
             <h1 className="mt-3 break-words text-2xl font-black leading-tight sm:mt-4 sm:text-4xl">{post.title}</h1>
             {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
             {(isApparel || isElectronics) && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
@@ -652,6 +659,7 @@ ${share.title || post.title}
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
             {isElectronics && post.status === 'active' ? <ElectronicsPurchasePanel post={post} selectedColor={chosenElectronicsColor} /> : null}
+            {post.category === 'umrah' && post.status === 'active' ? <UmrahBookingPanel post={post} currentUserId={user?.id ?? null} ownsPost={ownsPost} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
             {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 
