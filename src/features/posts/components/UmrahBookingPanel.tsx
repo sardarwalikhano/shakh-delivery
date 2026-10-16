@@ -20,6 +20,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
   const [customerNote, setCustomerNote] = useState('');
   const [booking, setBooking] = useState<UmrahBookingRequest | null>(null);
   const [latestPayment, setLatestPayment] = useState<ManualPaymentSubmission | null>(null);
+  const [startNewBooking, setStartNewBooking] = useState(false);
   const [stage, setStage] = useState<'details' | 'payment' | 'submitted'>('details');
   const [methods, setMethods] = useState<ManualPaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
@@ -34,7 +35,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
   const estimatedTotal = useMemo(() => Math.round(packagePrice * parsedTravelerCount), [packagePrice, parsedTravelerCount]);
 
   useEffect(() => {
-    if (!currentUserId || ownsPost) return;
+    if (!currentUserId || ownsPost || startNewBooking) return;
     let cancelled = false;
     async function resumeLatestBooking() {
       try {
@@ -59,7 +60,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
     }
     void resumeLatestBooking();
     return () => { cancelled = true; };
-  }, [post.id, currentUserId, ownsPost]);
+  }, [post.id, currentUserId, ownsPost, startNewBooking]);
 
   useEffect(() => {
     if (stage !== 'payment') return;
@@ -99,6 +100,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
         customerNote,
       });
       setBooking(result);
+      setStartNewBooking(true);
       setLatestPayment(null);
       setCustomerNote('');
       setStage('payment');
@@ -168,6 +170,20 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
           <strong className="ms-1">{Number(booking?.total_amount_iqd ?? estimatedTotal).toLocaleString('en-US')} د.ع</strong>
           {booking ? <div className="mt-1 text-xs text-black/45">{booking.traveler_count} گەشتیار · {booking.customer_name}</div> : null}
         </div>
+        {confirmed ? <button type="button" onClick={() => {
+          setStartNewBooking(true);
+          setBooking(null);
+          setLatestPayment(null);
+          setReceipt(null);
+          setCustomerName('');
+          setCustomerPhone('');
+          setTravelerCount('1');
+          setDepartureDate('');
+          setCustomerNote('');
+          setStage('details');
+          setSelectedMethodId('');
+          setError(null);
+        }} className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black text-black/70">داوای حیجزێکی نوێ</button> : null}
         {rejected ? (
           <button type="button" onClick={() => { setStage('payment'); setReceipt(null); setError(null); }} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-2.5 text-sm font-black text-white">
             <Upload size={16}/> ناردنی وەسڵی نوێ
@@ -236,6 +252,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
             <div className="mt-1 text-2xl font-black text-[var(--shakh-orange)]">{Number(booking?.total_amount_iqd ?? estimatedTotal).toLocaleString('en-US')} د.ع</div>
             <div className="mt-1 text-xs leading-5 text-black/45">{booking?.traveler_count ?? parsedTravelerCount} گەشتیار × {Number(booking?.package_price_iqd ?? packagePrice).toLocaleString('en-US')} د.ع</div>
           </div>
+          {latestPayment?.status === 'rejected' && latestPayment.admin_note ? <div role="alert" className="rounded-xl border border-red-500/20 bg-red-50 p-3 text-sm leading-6 text-red-800"><strong>تێبینیی سوپەر ئەدمین:</strong> {latestPayment.admin_note}</div> : null}
           {methodsLoading ? <div className="rounded-xl bg-white p-4 text-sm font-bold text-black/45">بارکردنی ژمارەکانی پارەدان...</div> : null}
           {methodsError ? <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{methodsError}</div> : null}
           {!methodsLoading && !methods.length && !methodsError ? <div role="alert" className="rounded-xl border border-amber-500/20 bg-amber-50 p-4 text-sm leading-6 text-amber-900">ژمارەکانی فاستپەی، FIB و ئاسیا حوالە لەلایەن سوپەر ئەدمینەوە ڕێک نەخراون.</div> : null}
