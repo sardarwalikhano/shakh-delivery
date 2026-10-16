@@ -1,4 +1,4 @@
-import { BadgeDollarSign, FileText, MapPin, Send, Tag, X } from 'lucide-react';
+import { BadgeDollarSign, FileText, MapPin, Send, Tag, Upload, WalletCards, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
@@ -12,6 +12,7 @@ import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, PostTarget } from '../types';
 import { getCategoryDetailFields, getVisibleCategoryDetails, sanitizeCategoryDetails, type CategoryDetails } from '@/lib/catalog/categoryDetails';
+import { getActiveManualPaymentMethods, type ManualPaymentMethod } from '../manualPayments';
 
 type ApparelColor = { name: string; hex: string };
 type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
@@ -78,6 +79,12 @@ export function CreatePostPage() {
   const [brand, setBrand] = useState('');
   const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
   const [homeLivingDetails, setHomeLivingDetails] = useState<CategoryDetails>({});
+  const [homeLivingPaymentStep, setHomeLivingPaymentStep] = useState(false);
+  const [manualPaymentMethods, setManualPaymentMethods] = useState<ManualPaymentMethod[]>([]);
+  const [manualPaymentMethodsLoading, setManualPaymentMethodsLoading] = useState(false);
+  const [manualPaymentMethodsError, setManualPaymentMethodsError] = useState<string | null>(null);
+  const [selectedManualPaymentMethodId, setSelectedManualPaymentMethodId] = useState('');
+  const [manualPaymentReceipt, setManualPaymentReceipt] = useState<File | null>(null);
   const [electronicsColorImageFiles, setElectronicsColorImageFiles] = useState<Record<string, File>>({});
   const [material, setMaterial] = useState('');
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
@@ -113,6 +120,24 @@ export function CreatePostPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!homeLivingPaymentStep) return;
+    let cancelled = false;
+    setManualPaymentMethodsLoading(true);
+    setManualPaymentMethodsError(null);
+    void getActiveManualPaymentMethods()
+      .then((methods) => {
+        if (cancelled) return;
+        setManualPaymentMethods(methods);
+        setSelectedManualPaymentMethodId((current) => current || methods[0]?.id || '');
+      })
+      .catch((nextError) => {
+        if (!cancelled) setManualPaymentMethodsError(nextError instanceof Error ? nextError.message : 'نەتوانرا ژمارەکانی پارەدان بخوێندرێنەوە.');
+      })
+      .finally(() => { if (!cancelled) setManualPaymentMethodsLoading(false); });
+    return () => { cancelled = true; };
+  }, [homeLivingPaymentStep]);
 
   const roles = useMemo(() => [...new Set(targets.map((item) => item.publisher_role))], [targets]);
   const preferredRole = useMemo(
@@ -387,6 +412,14 @@ export function CreatePostPage() {
       }
       if (listingKind === 'property' && (!details.values.property_type || !details.values.deal_type)) return setError('جۆری موڵک و جۆری مامەڵە (فرۆشتن/کرێ) دیاری بکە.');
       if (!reviewing) { setReviewing(true); return; }
+      if (!homeLivingPaymentStep) { setHomeLivingPaymentStep(true); return; }
+      if (manualPaymentMethodsLoading) return setError('تکایە چاوەڕێ بکە تا شێوازەکانی پارەدان بار دەبن.');
+      if (!manualPaymentMethods.some((method) => method.id === selectedManualPaymentMethodId)) {
+        return setError(manualPaymentMethods.length
+          ? 'شێوازی پارەدان هەڵبژێرە.'
+          : 'سوپەر ئەدمین هێشتا ژمارەی فاستپەی، FIB یان ئاسیا حوالە ڕێک نەخستووە.');
+      }
+      if (!manualPaymentReceipt) return setError('تکایە وەسڵی ناردنی پارە هەڵبژێرە.');
       setBusy(true);
       try {
         const created = await createPost({
@@ -400,11 +433,17 @@ export function CreatePostPage() {
           categoryDetails: { ...details.values, posting_fee_iqd: String(postingFee) },
           location,
           images,
+          manualReviewRequired: true,
+          manualPayment: {
+            paymentMethodId: selectedManualPaymentMethodId,
+            receiptFile: manualPaymentReceipt,
+            amountIqd: postingFee,
+          },
         });
         setSuccess(true);
-        navigate(`/posts/${created.id}`, { replace: true });
+        navigate(`/posts/${created.id}?submission=pending-review`, { replace: true });
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : 'پۆستکردنی ماڵ و ژیان سەرکەوتوو نەبوو.');
+        setError(nextError instanceof Error ? nextError.message : 'ناردنی پۆست بۆ پشکنین سەرکەوتوو نەبوو.');
       } finally {
         setBusy(false);
       }
@@ -549,7 +588,7 @@ export function CreatePostPage() {
           <Field label="جۆری پۆست">
             <div className="relative">
               <Tag className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-black/35" size={17} />
-              <select className={inputClass + ' ps-11'} value={category} onChange={(event) => setCategory(event.target.value as PostTarget['category'])}>
+              <select className={inputClass + ' ps-11'} value={category} onChange={(event) => { setCategory(event.target.value as PostTarget['category']); setReviewing(false); setHomeLivingPaymentStep(false); setSelectedManualPaymentMethodId(''); setManualPaymentReceipt(null); }}>
                 {categories.map((item) => <option key={item} value={item}>{postCategoryLabels[item]}</option>)}
               </select>
             </div>
@@ -957,11 +996,60 @@ export function CreatePostPage() {
                 <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">وێنەکان بە ڕیز:</span><div className="mt-2 space-y-1">{images.map((image, index) => <div key={image.name + image.size + image.lastModified + index} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="font-bold">وێنەی {index + 1}: {image.name}</span><span className="text-black/40">{(image.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی سەرەکی' : ''}</span></div>)}</div></div>
               </div>
               <p className="text-xs leading-6 text-black/50">بڵاوکردنەوە داتاکە لە Supabase پاشەکەوت دەکات؛ کڕین و کۆگا لە database پشتڕاست دەکرێنەوە.</p>
-              <button type="button" onClick={() => setReviewing(false)} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
+              <button type="button" onClick={() => { setReviewing(false); setHomeLivingPaymentStep(false); }} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
+            </section>
+          ) : null}
+
+          {category === 'home_living' && reviewing && homeLivingPaymentStep ? (
+            <section className="space-y-4 rounded-2xl border border-[var(--shakh-orange)]/20 bg-white p-4 shadow-sm sm:p-6">
+              <div className="flex items-start gap-3">
+                <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><WalletCards size={21} /></div>
+                <div>
+                  <h2 className="text-lg font-black">پارەدان بە مۆبایل و ناردنی وەسڵ</h2>
+                  <p className="mt-1 text-sm leading-6 text-black/55">پارە لە ڕێگەی بانکی ئۆنلاینەوە نەنێرە. بە ئەپی فاستپەی، FIB یان ئاسیا حوالە بۆ هەژماری نیشاندراو پارە بنێرە، وەسڵەکە باربکە و داواکارییەکە بۆ سوپەر ئەدمین بنێرە.</p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-[var(--shakh-orange)]/[0.07] p-4">
+                <div className="text-xs font-bold text-black/50">بڕی پێویستی ناردن</div>
+                <div className="mt-1 text-2xl font-black text-[var(--shakh-orange)]">{(homeLivingDetails.listing_kind === 'property' ? 5000 : 2000).toLocaleString('en-US')} د.ع</div>
+                <p className="mt-1 text-xs leading-5 text-black/45">پۆستەکە دوای پشکنینی وەسڵ و پەسەندکردنی سوپەر ئەدمین بڵاو دەکرێتەوە.</p>
+              </div>
+              {manualPaymentMethodsLoading ? <div className="rounded-xl bg-[var(--shakh-bg)] p-4 text-sm font-bold text-black/50">بارکردنی ژمارەکانی پارەدان...</div> : null}
+              {manualPaymentMethodsError ? <div role="alert" className="rounded-xl border border-red-500/20 bg-red-50 p-3 text-sm font-bold text-red-700">{manualPaymentMethodsError}</div> : null}
+              {!manualPaymentMethodsLoading && !manualPaymentMethods.length && !manualPaymentMethodsError ? <div role="alert" className="rounded-xl border border-amber-500/20 bg-amber-50 p-4 text-sm leading-6 text-amber-900">ژمارەکانی پارەدان ئامادە نین. سوپەر ئەدمین دەبێت لە داشبۆرد ژمارەی فاستپەی، FIB یان ئاسیا حوالە زیاد بکات.</div> : null}
+              {manualPaymentMethods.length ? (
+                <div className="space-y-3">
+                  <div className="text-sm font-black">شێوازی پارەدان هەڵبژێرە</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {manualPaymentMethods.map((method) => (
+                      <button key={method.id} type="button" aria-pressed={selectedManualPaymentMethodId === method.id} onClick={() => setSelectedManualPaymentMethodId(method.id)} className={`min-w-0 rounded-xl border p-4 text-start transition ${selectedManualPaymentMethodId === method.id ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)]/[0.06] ring-1 ring-[var(--shakh-orange)]/20' : 'border-black/10 bg-white hover:border-black/20'}`}>
+                        <div className="flex items-center justify-between gap-2"><span className="font-black">{method.label_ku}</span><span className={`grid size-5 place-items-center rounded-full border text-xs ${selectedManualPaymentMethodId === method.id ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)] text-white' : 'border-black/20'}`}>{selectedManualPaymentMethodId === method.id ? '✓' : ''}</span></div>
+                        <div className="mt-3 break-all rounded-lg bg-[var(--shakh-bg)] px-3 py-2.5 text-base font-black tracking-wide" dir="ltr">{method.account_identifier}</div>
+                        {method.account_holder ? <div className="mt-2 text-xs leading-5 text-black/55">ناوی خاوەن هەژمار: <span className="font-black text-black/75">{method.account_holder}</span></div> : null}
+                        {method.instructions_ku ? <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-black/50">{method.instructions_ku}</p> : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <label htmlFor="home-living-payment-receipt" className="block text-sm font-black">وەسڵ یان سکرین‌شۆتی پارەدان *</label>
+                <div className="rounded-xl border border-dashed border-black/20 bg-[var(--shakh-bg)] p-4">
+                  <label htmlFor="home-living-payment-receipt" className="flex cursor-pointer items-center gap-3">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-[var(--shakh-blue)]"><Upload size={19} /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="break-words text-sm font-black">{manualPaymentReceipt?.name ?? 'هەڵبژاردنی وەسڵ'}</div>
+                      <div className="mt-1 text-xs leading-5 text-black/45">JPG، PNG، WebP یان PDF تا ٥ مێگابایت</div>
+                    </div>
+                    <input id="home-living-payment-receipt" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => { const file = event.currentTarget.files?.[0] ?? null; if (file && (!['image/jpeg','image/png','image/webp','application/pdf'].includes(file.type) || file.size > 5 * 1024 * 1024 || file.size === 0)) { setError('وەسڵ دەبێت JPG، PNG، WebP یان PDF بێت و لە ٥ مێگابایت زیاتر نەبێت.'); setManualPaymentReceipt(null); event.currentTarget.value = ''; return; } setManualPaymentReceipt(file); setError(null); }} />
+                  </label>
+                </div>
+              </div>
+              <p className="text-xs leading-6 text-black/50">سوپەر ئەدمین وەسڵەکە دەبینێت و بڕی پارە پشتڕاست دەکاتەوە. تا پەسەندکردن، پۆستەکە لە بازاڕدا نیشان نادرێت.</p>
             </section>
           ) : null}
           <button className={primaryButtonClass} type="submit" disabled={busy}>
-            {busy ? 'پاشەکەوت و بڵاوکردنەوە...' : <><Send size={17} /> <span className="ms-2">{reviewing ? 'پشتڕاستکردنەوە و بڵاوکردنەوە' : 'پێداچوونەوە پێش بڵاوکردنەوە'}</span></>}
+            {busy ? 'ناردن بۆ سوپەر ئەدمین...' : <><Send size={17} /> <span className="ms-2">{category === 'home_living' ? (!reviewing ? 'پێداچوونەوە' : homeLivingPaymentStep ? 'ناردن بۆ پشکنینی سوپەر ئەدمین' : 'چوون بۆ پارەدان') : reviewing ? 'پشتڕاستکردنەوە و بڵاوکردنەوە' : 'پێداچوونەوە پێش بڵاوکردنەوە'}</span></>}
           </button>
         </form>
       </AuthCard>
