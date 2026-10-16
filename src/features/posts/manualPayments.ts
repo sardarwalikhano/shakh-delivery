@@ -112,7 +112,7 @@ export async function submitManualPayment(input: {
   receiptFile: File;
 }): Promise<ManualPaymentSubmission> {
   validateReceipt(input.receiptFile);
-  if (!Number.isSafeInteger(input.amountIqd) || input.amountIqd <= 0) {
+  if (!Number.isFinite(input.amountIqd) || input.amountIqd <= 0) {
     throw new Error('بڕی پارەی نێردراو دروست نییە.');
   }
 
