@@ -2,6 +2,14 @@
 -- No bank gateway is used. A submission stays pending until a privileged reviewer acts.
 begin;
 
+insert into public.permissions(code, description)
+values ('manual_payments.review', 'Review manual payment receipts and configure mobile-money accounts')
+on conflict (code) do update set description = excluded.description;
+
+insert into public.role_permissions(role, permission_code)
+values ('super_admin'::public.app_role, 'manual_payments.review')
+on conflict (role, permission_code) do nothing;
+
 -- Receipt administration and publication approval are Super Admin-only.
 create or replace function private.is_super_admin()
 returns boolean
