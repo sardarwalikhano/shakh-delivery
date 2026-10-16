@@ -1,7 +1,7 @@
-import { CalendarDays, CheckCircle2, LoaderCircle, Send, ShieldCheck, Upload } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, LoaderCircle, Send, ShieldCheck, Upload, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { getActiveManualPaymentMethods, createUmrahBookingRequest, submitManualPayment, type ManualPaymentMethod, type UmrahBookingRequest } from '../manualPayments';
+import { getActiveManualPaymentMethods, createUmrahBookingRequest, getLatestManualPaymentForBooking, getLatestUmrahBookingForPost, submitManualPayment, type ManualPaymentMethod, type ManualPaymentSubmission, type UmrahBookingRequest } from '../manualPayments';
 import type { Post } from '../types';
 
 type Props = {
@@ -19,6 +19,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
   const [departureDate, setDepartureDate] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [booking, setBooking] = useState<UmrahBookingRequest | null>(null);
+  const [latestPayment, setLatestPayment] = useState<ManualPaymentSubmission | null>(null);
   const [stage, setStage] = useState<'details' | 'payment' | 'submitted'>('details');
   const [methods, setMethods] = useState<ManualPaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(false);
@@ -31,6 +32,34 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
   const packagePrice = Number(post.price_iqd ?? 0);
   const parsedTravelerCount = Math.max(1, Math.min(30, Math.floor(Number(travelerCount) || 1)));
   const estimatedTotal = useMemo(() => Math.round(packagePrice * parsedTravelerCount), [packagePrice, parsedTravelerCount]);
+
+  useEffect(() => {
+    if (!currentUserId || ownsPost) return;
+    let cancelled = false;
+    async function resumeLatestBooking() {
+      try {
+        const existing = await getLatestUmrahBookingForPost(post.id);
+        if (!existing || cancelled) return;
+        const payment = await getLatestManualPaymentForBooking(existing.id);
+        if (cancelled) return;
+        setBooking(existing);
+        setLatestPayment(payment);
+        setCustomerName(existing.customer_name);
+        setCustomerPhone(existing.customer_phone);
+        setTravelerCount(String(existing.traveler_count));
+        setDepartureDate(existing.preferred_departure_date ?? '');
+        if (existing.status === 'pending_payment_review' || existing.status === 'confirmed') {
+          setStage('submitted');
+        } else if (existing.status === 'awaiting_payment' || existing.status === 'payment_rejected') {
+          setStage('payment');
+        }
+      } catch (nextError) {
+        if (!cancelled) setError(nextError instanceof Error ? nextError.message : 'نەتوانرا دۆخی حیجز بخوێندرێتەوە.');
+      }
+    }
+    void resumeLatestBooking();
+    return () => { cancelled = true; };
+  }, [post.id, currentUserId, ownsPost]);
 
   useEffect(() => {
     if (stage !== 'payment') return;
@@ -70,6 +99,8 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
         customerNote,
       });
       setBooking(result);
+      setLatestPayment(null);
+      setCustomerNote('');
       setStage('payment');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'تۆمارکردنی داواکاریی حیجز سەرکەوتوو نەبوو.');
@@ -95,13 +126,15 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await submitManualPayment({
+      const paymentSubmission = await submitManualPayment({
         purpose: 'umrah_booking',
         targetId: booking.id,
         paymentMethodId: selectedMethodId,
         amountIqd: Number(booking.total_amount_iqd),
         receiptFile: receipt,
       });
+      setLatestPayment(paymentSubmission);
+      setBooking({ ...booking, status: 'pending_payment_review' });
       setStage('submitted');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'ناردنی وەسڵ سەرکەوتوو نەبوو.');
@@ -114,12 +147,32 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
     return <div className="mt-6 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm font-bold leading-6 text-black/50">ناتوانیت پەکێجی خۆت حیجز بکەیت.</div>;
   }
   if (stage === 'submitted') {
+    const confirmed = booking?.status === 'confirmed';
+    const rejected = booking?.status === 'payment_rejected' || latestPayment?.status === 'rejected';
     return (
-      <section className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-50 p-4 sm:p-5">
-        <CheckCircle2 size={26} className="text-emerald-700"/>
-        <h2 className="mt-2 text-lg font-black text-emerald-900">داواکاریی حیجز نێردرا</h2>
-        <p className="mt-2 text-sm leading-7 text-emerald-900/75">وەسڵەکە بۆ سوپەر ئەدمین نێردرا. تا پارەدان و پشتڕاستکردنەوەی وەسڵ، داواکارییەکە لە چاوەڕوانی پشکنین دەمێنێتەوە. پەسەندکردن بە واتای پشتڕاستبوونەوەی حیجزەکەیە.</p>
-        <div className="mt-3 rounded-xl bg-white/70 p-3 text-sm"><span className="text-emerald-900/60">کۆی پارە:</span> <strong className="ms-1">{Number(booking?.total_amount_iqd ?? estimatedTotal).toLocaleString('en-US')} د.ع</strong></div>
+      <section className={`mt-6 rounded-2xl border p-4 sm:p-5 ${confirmed ? 'border-emerald-500/20 bg-emerald-50' : rejected ? 'border-red-500/20 bg-red-50' : 'border-amber-500/20 bg-amber-50'}`}>
+        {confirmed ? <CheckCircle2 size={26} className="text-emerald-700"/> : rejected ? <XCircle size={26} className="text-red-700"/> : <Clock3 size={26} className="text-amber-800"/>}
+        <h2 className={`mt-2 text-lg font-black ${confirmed ? 'text-emerald-900' : rejected ? 'text-red-900' : 'text-amber-900'}`}>
+          {confirmed ? 'حیجزی عومرە پشتڕاست کرایەوە' : rejected ? 'وەسڵی پارەدان ڕەتکرایەوە' : 'داواکاریی حیجز نێردرا'}
+        </h2>
+        <p className={`mt-2 text-sm leading-7 ${confirmed ? 'text-emerald-900/75' : rejected ? 'text-red-900/75' : 'text-amber-900/75'}`}>
+          {confirmed
+            ? 'سوپەر ئەدمین پارەدان و داواکاریی حیجزەکەی پشتڕاست کردووەتەوە. بۆ وردەکاریی گەشت لەگەڵ ئەژانسەکە پەیوەندی بکە.'
+            : rejected
+              ? 'تکایە تێبینیی ڕەتکردنەوە بخوێنەوە و دوای ڕاستکردنەوەی کێشەکە وەسڵی نوێ بنێرەوە.'
+              : 'وەسڵەکە بۆ سوپەر ئەدمین نێردرا. حیجزەکە تا پشکنینی وەسڵ و پەسەندکردن پشتڕاست ناکرێتەوە.'}
+        </p>
+        {latestPayment?.admin_note ? <div className={`mt-3 rounded-xl p-3 text-sm leading-6 ${rejected ? 'bg-white text-red-900' : 'bg-white/70 text-black/65'}`}>تێبینیی سوپەر ئەدمین: {latestPayment.admin_note}</div> : null}
+        <div className="mt-3 rounded-xl bg-white/70 p-3 text-sm">
+          <span className="text-black/45">کۆی پارە:</span>
+          <strong className="ms-1">{Number(booking?.total_amount_iqd ?? estimatedTotal).toLocaleString('en-US')} د.ع</strong>
+          {booking ? <div className="mt-1 text-xs text-black/45">{booking.traveler_count} گەشتیار · {booking.customer_name}</div> : null}
+        </div>
+        {rejected ? (
+          <button type="button" onClick={() => { setStage('payment'); setReceipt(null); setError(null); }} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-2.5 text-sm font-black text-white">
+            <Upload size={16}/> ناردنی وەسڵی نوێ
+          </button>
+        ) : null}
       </section>
     );
   }
