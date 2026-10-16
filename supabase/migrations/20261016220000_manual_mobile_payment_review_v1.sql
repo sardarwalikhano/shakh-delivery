@@ -115,6 +115,12 @@ create policy manual_payment_submissions_insert_valid_target
     and status = 'pending_review'
     and reviewed_by is null
     and reviewed_at is null
+    and split_part(receipt_storage_path, '/', 1) = (select auth.uid())::text
+    and exists (
+      select 1 from storage.objects so
+      where so.bucket_id = 'manual-payment-proofs'
+        and so.name = receipt_storage_path
+    )
     and exists (
       select 1 from public.manual_payment_methods m
       where m.id = payment_method_id
