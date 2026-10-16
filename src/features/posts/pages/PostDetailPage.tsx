@@ -13,9 +13,22 @@ import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { ElectronicsPurchasePanel } from '../components/ElectronicsPurchasePanel';
 import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
+import { UmrahBookingPanel } from '../components/UmrahBookingPanel';
+import { HomeLivingPaymentStatusPanel } from '../components/HomeLivingPaymentStatusPanel';
 import { singleVehicleListing } from '../vehicleTypes';
 import { addFoodPostToCart } from '../foodPostCart';
 import { createPostShareLink, getPostShareToken, recordPostShareAttribution, rememberPostShareToken } from '../shareRewards';
+
+function getHomeLivingKind(post: Post): string {
+  return String(post.category_details?.listing_kind ?? '');
+}
+
+function getHomeLivingPostingFee(post: Post): number {
+  const kind = getHomeLivingKind(post);
+  if (kind === 'property') return 5000;
+  if (kind === 'furniture') return 2000;
+  return Number(post.category_details?.posting_fee_iqd ?? 0);
+}
 
 const APPAREL_AUDIENCE_LABELS: Record<string, string> = { men: 'پیاوان', women: 'ئافرەتان', kids: 'منداڵان', all: 'هەمووان' };
 const ELECTRONICS_COLOR_LABELS: Record<string, string> = {
@@ -386,7 +399,7 @@ ${share.title || post.title}
 
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-1 sm:px-6">
         <Link to="/posts" className="inline-flex items-center gap-2 text-sm font-black text-black/45 hover:text-black"><ArrowRight size={17} /> گەڕانەوە بۆ پۆستەکان</Link>
 
         {canEditPost || canDeletePost ? (
@@ -484,8 +497,8 @@ ${share.title || post.title}
           </div>
         ) : null}
 
-        <div className="mt-5 grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
-          <div className="rounded-[30px] border border-black/[0.06] bg-white p-3 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-5">
+        <div className="mt-3 grid gap-3 sm:mt-5 sm:gap-6 lg:grid-cols-[1.05fr_.95fr]">
+          <div className="min-w-0 rounded-2xl border border-black/[0.06] bg-white p-2 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:rounded-[30px] sm:p-5">
             <div className="overflow-hidden rounded-[24px] bg-[var(--shakh-bg)]">
               {currentImage && !imageLoadError ? (
                 <img
@@ -537,19 +550,20 @@ ${share.title || post.title}
             {images.length > 1 || isVehicle ? <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={image.storage_path} className="min-w-0"><button type="button" onClick={() => setActiveImageIndex(index)} className={`block w-full overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && (selectedElectronicsImageIndex === index || selectedVariant?.image_path === image.storage_path))) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>{isVehicle && image.alt_ku ? <div className="mt-1 text-center text-xs font-bold text-black/45">{image.alt_ku}</div> : null}</div>)}</div> : null}
           </div>
 
-          <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-8">
+          <div className="min-w-0 rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:rounded-[30px] sm:p-8">
             <div className="flex flex-wrap items-center gap-2 text-xs font-black">
               <span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1.5 text-[var(--shakh-orange)]">{postCategoryLabels[post.category]}</span>
               <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-black/45">{postRoleLabels[post.publisher_role]}</span>
               {discount > 0 ? <span className="rounded-full bg-red-500/10 px-3 py-1.5 text-red-600">{discount}٪ داشکاندن</span> : null}
             </div>
-            <h1 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">{post.title}</h1>
+
+            <h1 className="mt-3 break-words text-2xl font-black leading-tight sm:mt-4 sm:text-4xl">{post.title}</h1>
             {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
             {(isApparel || isElectronics) && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
             {isApparel && post.item_condition ? <div className="mt-2 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">دۆخ: {post.item_condition === 'new' ? 'نوێ' : 'بەکارهاتوو'}</span>{post.apparel_audience ? <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">{APPAREL_AUDIENCE_LABELS[post.apparel_audience] ?? 'هەمووان'}</span> : null}</div> : null}
-            <p className="mt-4 whitespace-pre-wrap leading-8 text-black/60">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
+            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-black/60 sm:mt-4 sm:text-base sm:leading-8">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
 
-            <div className="mt-6 flex flex-wrap items-end gap-3">
+            <div className="mt-4 flex flex-wrap items-end gap-3 sm:mt-6">{post.category === 'home_living' && getHomeLivingPostingFee(post) > 0 ? <div className="mb-1 w-full rounded-xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.07] p-3 sm:rounded-2xl sm:p-4"><div className="text-xs font-bold text-black/50">کرێی پۆستکردن</div><div className="mt-1 text-xl font-black text-[var(--shakh-orange)]">{getHomeLivingPostingFee(post).toLocaleString('en-US')} د.ع</div><div className="mt-1 text-xs leading-5 text-black/45">{getHomeLivingKind(post) === 'property' ? 'پۆستی خانوو، زەوی یان موڵک' : 'پۆستی مۆبیلیات و کەلوپەل'}</div></div> : null}
               <div className="text-3xl font-black tabular-nums">{finalPrice.toLocaleString('en-US')} <span className="text-sm text-black/40">{currencyLabel}</span></div>
               {discount > 0 ? <div className="pb-1 text-sm text-black/35 line-through">{basePrice.toLocaleString('en-US')} {currencyLabel}</div> : null}
               {vehicleListing?.price_negotiable === true ? <span className="pb-1 text-xs font-bold text-emerald-700">نرخ جێگۆڕکێی تێدایە</span> : null}
@@ -558,6 +572,21 @@ ${share.title || post.title}
             </div>
 
             {isVehicle && vehicleListing ? <VehiclePostDetails listing={vehicleListing} location={post.location} /> : null}
+            {post.category === 'home_living' ? (
+              <section className="mt-5 rounded-2xl border border-[var(--shakh-blue)]/10 bg-[var(--shakh-bg)] p-3 sm:rounded-[24px] sm:p-5">
+                <h2 className="text-lg font-black">وردەکاریی ماڵ و ژیان</h2>
+                <dl className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
+                  {getVisibleCategoryDetails('home-living', post.category_details).filter((item) => item.key !== 'posting_fee_iqd').map((item) => (
+                    <div key={item.key} className="min-w-0 rounded-xl bg-white p-3">
+                      <dt className="text-[11px] leading-5 text-black/45 sm:text-xs">{item.label}</dt>
+                      <dd className="mt-1 break-words text-sm font-black leading-6">{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ) : null}
+            {ownsPost && post.category === 'home_living' ? <HomeLivingPaymentStatusPanel post={post} /> : null}
+
             {isVehicle && !vehicleListing ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm leading-6 text-amber-800">وردەکاریی تەکنیکی ئەم پۆستە لە داتابەیسدا تۆمار نەکراوە. هیچ زانیارییەکی ئۆتۆمبێل بە خۆڕایی دانەنراوە؛ تکایە لە فرۆشیارەوە پشتڕاستی بکەرەوە.</div> : null}
 
             {isElectronics ? (
@@ -627,6 +656,7 @@ ${share.title || post.title}
             {post.status !== 'active' ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm font-bold leading-7 text-amber-800">ئەم پۆستە لە ئێستادا ئەرشیفکراوە و بۆ کڕیاران بەردەست نییە. دەتوانیت لە بەشی دەستکارییەوە زانیارییەکانی نوێ بکەیتەوە.</div> : null}
             {isApparel && selectedVariant && post.status === 'active' ? <ApparelPurchasePanel post={post} variant={selectedVariant} /> : null}
             {isElectronics && post.status === 'active' ? <ElectronicsPurchasePanel post={post} selectedColor={chosenElectronicsColor} /> : null}
+            {post.category === 'umrah' && post.status === 'active' ? <UmrahBookingPanel post={post} currentUserId={user?.id ?? null} ownsPost={ownsPost} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
             {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 

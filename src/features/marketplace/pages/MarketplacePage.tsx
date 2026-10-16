@@ -222,22 +222,22 @@ export function MarketplacePage() {
             {postError ? <div role="alert" className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-50 p-4 text-sm font-bold text-amber-800">{postError}</div> : null}
             {postsLoading ? <div className="mt-4 rounded-2xl bg-white p-8 text-center text-sm font-bold text-black/45">بارکردنی پۆستەکان...</div> : null}
             {!postsLoading && !postError && visiblePosts.length ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {visiblePosts.map((post) => (
-                  <Link key={post.id} to={`/posts/${post.id}`} className="group overflow-hidden rounded-[26px] border border-black/[0.06] bg-white shadow-[0_12px_35px_rgba(16,22,35,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(16,22,35,.09)]">
-                    {post.images?.[0]?.storage_path ? <img src={getPostImageUrl(post.images[0].storage_path)} alt={post.title} className="aspect-[4/3] w-full bg-[var(--shakh-bg)] object-cover" loading="lazy" /> : null}
-                    <div className="p-5">
-                      <div className="flex items-center justify-between gap-2 text-[11px] font-black">
-                        <span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[var(--shakh-orange)]">{postCategoryLabels[post.category]}</span>
+                  <Link key={post.id} to={`/posts/${post.id}`} className="group min-w-0 overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_6px_20px_rgba(16,22,35,.035)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(16,22,35,.08)]">
+                    {post.images?.[0]?.storage_path ? <img src={getPostImageUrl(post.images[0].storage_path)} alt={post.title} className="aspect-[3/2] w-full bg-[var(--shakh-bg)] object-cover" loading="lazy" /> : null}
+                    <div className="p-3 sm:p-4">
+                      <div className="flex items-center justify-between gap-1.5 text-[10px] font-black sm:text-[11px]">
+                        <span className="rounded-full bg-[var(--shakh-orange)]/10 px-2 py-1 text-[var(--shakh-orange)]">{postCategoryLabels[post.category]}</span>
                         <span className="text-black/30">{postRoleLabels[post.publisher_role]}</span>
                       </div>
-                      <h3 className="mt-4 line-clamp-2 text-lg font-black group-hover:text-[var(--shakh-blue)]">{post.title}</h3>
-                      <p className="mt-2 line-clamp-3 text-sm leading-7 text-black/50">{post.content || '—'}</p>
-                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
+                      <h3 className="mt-2 line-clamp-2 min-h-10 break-words text-sm font-black leading-5 group-hover:text-[var(--shakh-blue)] sm:mt-3 sm:text-base sm:leading-6">{post.title}</h3>
+                      <p className="mt-1 line-clamp-2 min-h-10 break-words text-xs leading-5 text-black/50 sm:text-sm sm:leading-6">{post.content || '—'}</p>
+                      <div className="mt-2 flex items-center justify-between gap-2 border-t border-black/[0.06] pt-2 sm:mt-3 sm:pt-3">
                         <span className="text-xs font-bold text-black/35">{post.location || '—'}</span>
-                        <span className="shrink-0 font-black text-[var(--shakh-navy)]">{post.price_iqd !== null ? Number(post.price_iqd).toLocaleString('en-US') + ' د.ع' : '—'}</span>
+                        <span className="shrink-0 text-xs font-black text-[var(--shakh-navy)] sm:text-sm">{post.price_iqd !== null ? Number(post.price_iqd).toLocaleString('en-US') + ' د.ع' : '—'}</span>
                       </div>
-                      <div className="mt-3 flex items-center gap-1 text-xs font-black text-[var(--shakh-blue)]"><Tag size={13} /> بینینی پۆست ←</div>
+                      <div className="mt-2 flex items-center gap-1 text-[11px] font-black text-[var(--shakh-blue)] sm:text-xs"><Tag size={12} /> بینینی پۆست ←</div>
                     </div>
                   </Link>
                 ))}

@@ -1,3 +1,4 @@
+import { homeLivingFields } from './homeLivingFields';
 export type CategoryDetails = Record<string, string | boolean | number>;
 
 export type CategoryDetailField = {
@@ -84,32 +85,6 @@ const electronicsFields: CategoryDetailField[] = [
   ] },
   { key: 'included_accessories', label: 'شتە هاوپێچەکان لەگەڵ پاکێت', type: 'textarea', maxLength: 2000 },
   { key: 'compatibility', label: 'گونجان لەگەڵ ئامێرەکان', type: 'text', maxLength: 500 },
-];
-
-const homeLivingFields: CategoryDetailField[] = [
-  { key: 'product_type', label: 'جۆری کاڵای ماڵ', type: 'select', required: true, options: [
-    { value: 'furniture', label: 'کەلوپەلی ماڵ' }, { value: 'decor', label: 'دیکۆر و جوانکاری' },
-    { value: 'bedding', label: 'نووستن و پۆشاکی جێگا' }, { value: 'kitchenware', label: 'کەلوپەلی چێشتخانە' },
-    { value: 'lighting', label: 'ڕووناکی' }, { value: 'storage', label: 'هەڵگرتن و ڕێکخستن' },
-    { value: 'bathroom', label: 'کەلوپەلی حەمام' }, { value: 'outdoor', label: 'دەرەوە و باخچە' }, { value: 'other', label: 'جۆری تر' },
-  ] },
-  { key: 'condition', label: 'دۆخی بەرهەم', type: 'select', options: conditionOptions },
-  { key: 'color', label: 'ڕەنگ', type: 'text', maxLength: 100 },
-  { key: 'style', label: 'ستایل / شێواز', type: 'text', maxLength: 120, placeholder: 'وەک مۆدێرن، کلاسیک، مینیمال' },
-  { key: 'room_or_location', label: 'شوێنی بەکارهێنان', type: 'text', maxLength: 120, placeholder: 'وەک ژووری میوان، چێشتخانە، باخچە' },
-  { key: 'dimension_length', label: 'درێژی', type: 'number', min: 0, max: 100000, unit: 'یەکەی هەڵبژێردراو' },
-  { key: 'dimension_width', label: 'پانی', type: 'number', min: 0, max: 100000, unit: 'یەکەی هەڵبژێردراو' },
-  { key: 'dimension_height', label: 'بەرزی', type: 'number', min: 0, max: 100000, unit: 'یەکەی هەڵبژێردراو' },
-  { key: 'dimension_unit', label: 'یەکەی پێوانە', type: 'select', options: [
-    { value: 'cm', label: 'سانتیمەتر' }, { value: 'm', label: 'مەتر' }, { value: 'inch', label: 'ئینچ' },
-  ] },
-  { key: 'weight_value', label: 'کێش', type: 'number', min: 0, max: 1000000, unit: 'یەکەی هەڵبژێردراو' },
-  { key: 'weight_unit', label: 'یەکەی کێش', type: 'select', options: [
-    { value: 'g', label: 'گرام' }, { value: 'kg', label: 'کیلۆگرام' },
-  ] },
-  { key: 'assembly_required', label: 'پێویستی بە کۆکردنەوە هەیە', type: 'checkbox' },
-  { key: 'warranty_months', label: 'ماوەی گەرەنتی', type: 'number', min: 0, max: 120, unit: 'مانگ' },
-  { key: 'care_instructions', label: 'ڕێنمایی چاودێری و پاککردنەوە', type: 'textarea', maxLength: 2000 },
 ];
 
 const beautyFields: CategoryDetailField[] = [
