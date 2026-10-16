@@ -1,4 +1,4 @@
-import { Gift, Home, Plus, Search, Tag } from 'lucide-react';
+import { Gift, Plus, Search, Tag } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthFeedback } from '@/features/auth/components/AuthFeedback';
@@ -214,7 +214,7 @@ export function PostsPage() {
                   <span className="text-xs font-bold text-black/35">{post.location || '—'}</span>
                   <span className="break-words text-sm font-black leading-5 text-[var(--shakh-navy)] sm:text-base">{post.price_iqd !== null ? Number(post.price_iqd).toLocaleString('en-US') + ' د.ع' : '—'}</span>
                 </div>
-                <div className="mt-3 text-xs font-black text-[var(--shakh-blue)]">بینینی وردەکاری ←</div>{post.category === 'home_living' && homeLivingFee(post) > 0 ? <div className="mt-2 rounded-lg bg-[var(--shakh-orange)]/[0.08] px-2.5 py-2 text-[11px] font-black leading-5 text-[var(--shakh-orange)] sm:rounded-xl sm:text-xs">کرێی پۆستکردن: {homeLivingFee(post).toLocaleString('en-US')} د.ع</div> : null}
+                <div className="mt-2 flex items-center gap-1 text-[11px] font-black text-[var(--shakh-blue)] sm:mt-3 sm:text-xs">{post.category === 'home_living' ? 'وردەکاریی موڵک/کەلوپەل' : 'وردەکاری و بەرهەم'} ←</div>{post.category === 'home_living' && homeLivingFee(post) > 0 ? <div className="mt-2 rounded-lg bg-[var(--shakh-orange)]/[0.08] px-2.5 py-2 text-[11px] font-black leading-5 text-[var(--shakh-orange)] sm:rounded-xl sm:text-xs">کرێی پۆستکردن: {homeLivingFee(post).toLocaleString('en-US')} د.ع</div> : null}
               </div>
             </Link>
           ))}
