@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, LoaderCircle, Send, ShieldCheck, Upload, WalletCards } from 'lucide-react';
+import { CalendarDays, CheckCircle2, LoaderCircle, Send, ShieldCheck, Upload } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { getActiveManualPaymentMethods, createUmrahBookingRequest, submitManualPayment, type ManualPaymentMethod, type UmrahBookingRequest } from '../manualPayments';
