@@ -378,6 +378,7 @@ export function CreatePostPage() {
     if (category === 'home_living') {
       const details = sanitizeCategoryDetails('home-living', homeLivingDetails);
       if (details.error) return setError(details.error);
+      if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ ئەم پۆستە لانیکەم یەک و زۆرترین ٨ وێنە هەڵبژێرە.');
       const listingKind = String(details.values.listing_kind ?? '');
       const postingFee = listingKind === 'property' ? 5000 : listingKind === 'furniture' ? 2000 : 0;
       if (!listingKind) return setError('تکایە جۆری پۆست دیاری بکە.');
