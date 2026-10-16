@@ -22,6 +22,8 @@ export type ManualPaymentSubmission = {
   booking_request_id: string | null;
   payment_method_id: string;
   provider_snapshot: ManualPaymentProvider;
+  account_identifier_snapshot: string;
+  account_holder_snapshot: string | null;
   amount_iqd: number;
   receipt_storage_path: string;
   status: ManualPaymentStatus;
@@ -122,7 +124,7 @@ export async function submitManualPayment(input: {
 
   const { data: method, error: methodError } = await supabase
     .from('manual_payment_methods')
-    .select('id,provider,is_active,account_identifier')
+    .select('id,provider,is_active,account_identifier,account_holder')
     .eq('id', input.paymentMethodId)
     .eq('is_active', true)
     .maybeSingle();
@@ -151,6 +153,8 @@ export async function submitManualPayment(input: {
     booking_request_id: input.purpose === 'umrah_booking' ? input.targetId : null,
     payment_method_id: method.id,
     provider_snapshot: method.provider,
+    account_identifier_snapshot: method.account_identifier,
+    account_holder_snapshot: method.account_holder ?? null,
     amount_iqd: input.amountIqd,
     receipt_storage_path: proofPath,
     status: 'pending_review',
@@ -159,7 +163,7 @@ export async function submitManualPayment(input: {
   const { data, error } = await supabase
     .from('manual_payment_submissions')
     .insert(row)
-    .select('id,purpose,payer_id,post_id,booking_request_id,payment_method_id,provider_snapshot,amount_iqd,receipt_storage_path,status,admin_note,reviewed_by,reviewed_at,created_at')
+    .select('id,purpose,payer_id,post_id,booking_request_id,payment_method_id,provider_snapshot,account_identifier_snapshot,account_holder_snapshot,amount_iqd,receipt_storage_path,status,admin_note,reviewed_by,reviewed_at,created_at')
     .single();
 
   if (error) {
@@ -192,7 +196,7 @@ export async function createUmrahBookingRequest(input: {
 export async function listManualPaymentSubmissions(): Promise<ManualPaymentSubmission[]> {
   const { data, error } = await supabase
     .from('manual_payment_submissions')
-    .select('id,purpose,payer_id,post_id,booking_request_id,payment_method_id,provider_snapshot,amount_iqd,receipt_storage_path,status,admin_note,reviewed_by,reviewed_at,created_at')
+    .select('id,purpose,payer_id,post_id,booking_request_id,payment_method_id,provider_snapshot,account_identifier_snapshot,account_holder_snapshot,amount_iqd,receipt_storage_path,status,admin_note,reviewed_by,reviewed_at,created_at')
     .order('created_at', { ascending: false })
     .limit(300);
   if (error) throw error;
