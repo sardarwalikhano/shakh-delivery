@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, LoaderCircle, RefreshCw, Upload, WalletCards, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, LoaderCircle, RefreshCw, Upload, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getActiveManualPaymentMethods, getLatestManualPaymentForPost, submitManualPayment, type ManualPaymentMethod, type ManualPaymentSubmission } from '../manualPayments';
 import type { Post } from '../types';
