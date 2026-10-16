@@ -176,9 +176,10 @@ export function ManualPaymentReviewPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-xl bg-[var(--shakh-bg)] p-3"><div className="text-[11px] font-bold text-black/45">شێوازی پارەدان</div><div className="mt-1 text-sm font-black">{method?.label_ku ?? providerLabels[submission.provider_snapshot] ?? submission.provider_snapshot}</div></div>
                 <div className="rounded-xl bg-[var(--shakh-bg)] p-3"><div className="text-[11px] font-bold text-black/45">کاتی ناردن</div><div className="mt-1 text-sm font-black">{new Date(submission.created_at).toLocaleString('ku-IQ')}</div></div>
+                <div className="rounded-xl bg-[var(--shakh-bg)] p-3"><div className="text-[11px] font-bold text-black/45">ژمارەی هەژماری نێردراو بۆی</div><div className="mt-1 break-all text-sm font-black" dir="ltr">{submission.account_identifier_snapshot}</div>{submission.account_holder_snapshot ? <div className="mt-1 text-xs text-black/45">خاوەنی هەژمار: {submission.account_holder_snapshot}</div> : null}</div>
                 <div className="rounded-xl bg-[var(--shakh-bg)] p-3"><div className="text-[11px] font-bold text-black/45">بەکارهێنەر ID</div><div className="mt-1 break-all text-xs font-bold" dir="ltr">{submission.payer_id}</div></div>
               </div>
 
