@@ -385,7 +385,6 @@ export function CreatePostPage() {
       if (!price.trim() || numericPrice === null || numericPrice <= 0) {
         return setError(listingKind === 'property' ? 'نرخی خانوو، زەوی یان موڵک بنووسە.' : 'نرخی مۆبیلیات یان کەلوپەل بنووسە.');
       }
-      if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ ئەم پۆستە لانیکەم یەک و زۆرترین ٨ وێنە هەڵبژێرە.');
       if (listingKind === 'property' && !details.values.property_type) return setError('جۆری موڵک دیاری بکە.');
       if (!reviewing) { setReviewing(true); return; }
       setBusy(true);
