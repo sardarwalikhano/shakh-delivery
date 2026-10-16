@@ -126,6 +126,16 @@ create index if not exists manual_payment_status_created_idx
   on public.manual_payment_submissions(status, created_at desc);
 create index if not exists manual_payment_payer_created_idx
   on public.manual_payment_submissions(payer_id, created_at desc);
+
+-- Prevent multiple unresolved/approved proofs for the same target.
+create unique index if not exists manual_payment_one_active_submission_per_post
+  on public.manual_payment_submissions(post_id)
+  where purpose = 'home_living_post_fee' and post_id is not null
+    and status in ('pending_review','approved');
+create unique index if not exists manual_payment_one_active_submission_per_booking
+  on public.manual_payment_submissions(booking_request_id)
+  where purpose = 'umrah_booking' and booking_request_id is not null
+    and status in ('pending_review','approved');
 alter table public.manual_payment_submissions enable row level security;
 revoke all on public.manual_payment_submissions from public, anon, authenticated;
 grant select, insert on public.manual_payment_submissions to authenticated;
