@@ -1,3 +1,4 @@
+import { homeLivingFields } from './homeLivingFields';
 export type CategoryDetails = Record<string, string | boolean | number>;
 
 export type CategoryDetailField = {
@@ -86,7 +87,7 @@ const electronicsFields: CategoryDetailField[] = [
   { key: 'compatibility', label: 'گونجان لەگەڵ ئامێرەکان', type: 'text', maxLength: 500 },
 ];
 
-const homeLivingFields: CategoryDetailField[] = [
+const legacyHomeLivingFields: CategoryDetailField[] = [
   { key: 'product_type', label: 'جۆری کاڵای ماڵ', type: 'select', required: true, options: [
     { value: 'furniture', label: 'کەلوپەلی ماڵ' }, { value: 'decor', label: 'دیکۆر و جوانکاری' },
     { value: 'bedding', label: 'نووستن و پۆشاکی جێگا' }, { value: 'kitchenware', label: 'کەلوپەلی چێشتخانە' },
