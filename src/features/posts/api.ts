@@ -4,6 +4,7 @@ import { deletePostImages, MAX_POST_IMAGES, uploadPostImage, validatePostImage }
 import type { AppRole } from '@/lib/permissions/AuthorizationContext';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, ApparelVariant, Post, PostCategory, PostTarget } from './types';
 import { VEHICLE_PHOTO_KIND_LABELS, validateVehicleListing, vehicleListingToDatabase, type VehicleListingDraft, type VehiclePhotoKind } from './vehicleTypes';
+import { submitManualPayment } from './manualPayments';
 
 export type ApparelVariantInput = {
   color_name: string;
@@ -46,6 +47,8 @@ export async function createPost(input: {
   images?: File[];
   apparel?: ApparelPostInput;
   vehicle?: { details: VehicleListingDraft; imageKinds?: VehiclePhotoKind[] };
+  manualReviewRequired?: boolean;
+  manualPayment?: { paymentMethodId: string; receiptFile: File; amountIqd: number };
 }): Promise<Post> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error('Not authenticated');
@@ -82,6 +85,15 @@ export async function createPost(input: {
     if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) {
       throw new Error('بۆ ماڵ و ژیان لانیکەم یەک و زۆرترین ٨ وێنە هەڵبژێرە.');
     }
+  }
+  if (input.manualReviewRequired && !isHomeLivingPost) {
+    throw new Error('پشکنینی دەستی تەنها بۆ پۆستی ماڵ و ژیان بەردەستە.');
+  }
+  if (isHomeLivingPost && (!input.manualReviewRequired || !input.manualPayment)) {
+    throw new Error('پێش ناردنی پۆستی ماڵ و ژیان، شێوازی پارەدان و وەسڵی پارەدان پێویستە.');
+  }
+  if (input.manualPayment && (!isHomeLivingPost || input.manualPayment.amountIqd !== homeLivingPostingFee)) {
+    throw new Error('بڕی پارەی پۆستکردن لەگەڵ جۆری لیستینگ ناگونجێت.');
   }
   let electronicsColorImageIndexes: Record<string, number> | null = null;
   if (isElectronicsPost) {
@@ -209,6 +221,7 @@ export async function createPost(input: {
   if (!needsStagedPublish) return created as Post;
 
   const uploadedPaths: string[] = [];
+  let uploadedPaymentProofPath: string | null = null;
   try {
     if (input.vehicle) {
       const { error: vehicleDetailsError } = await supabase
@@ -243,7 +256,21 @@ export async function createPost(input: {
         alt_ku: input.vehicle && photoKind ? VEHICLE_PHOTO_KIND_LABELS[photoKind] : title,
       };
     });
-    const publishPatch: Record<string, unknown> = { images: postImages, status: 'active' };
+    if (input.manualPayment) {
+      const submission = await submitManualPayment({
+        purpose: 'home_living_post_fee',
+        targetId: postId,
+        paymentMethodId: input.manualPayment.paymentMethodId,
+        amountIqd: input.manualPayment.amountIqd,
+        receiptFile: input.manualPayment.receiptFile,
+      });
+      uploadedPaymentProofPath = submission.receipt_storage_path;
+    }
+
+    const publishPatch: Record<string, unknown> = {
+      images: postImages,
+      status: input.manualReviewRequired ? 'archived' : 'active',
+    };
     if (isElectronicsPost && electronicsColorImageIndexes) {
       const detailsForPublish: CategoryDetails = { ...electronicsDetailsResult.values };
       const pathMap = Object.fromEntries(Object.entries(electronicsColorImageIndexes).map(([colorValue, index]) => {
@@ -269,6 +296,9 @@ export async function createPost(input: {
     // Roll back this in-progress publish only; never touch existing posts.
     try { await supabase.from('posts').delete().eq('id', postId).eq('author_id', user.id); } catch { /* preserve original error */ }
     try { await deletePostImages(uploadedPaths); } catch { /* storage cleanup can be retried by an admin */ }
+    if (uploadedPaymentProofPath) {
+      try { await supabase.storage.from('manual-payment-proofs').remove([uploadedPaymentProofPath]); } catch { /* preserve the original error */ }
+    }
     throw error;
   }
 }
