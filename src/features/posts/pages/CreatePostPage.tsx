@@ -752,8 +752,9 @@ export function CreatePostPage() {
                   return <button key={option.value} type="button" aria-pressed={selected} onClick={() => { setHomeLivingDetails((current) => ({ listing_kind: option.value })); setReviewing(false); setError(null); }} className={`min-h-16 rounded-xl border px-3 py-3 text-sm font-black transition ${selected ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]' : 'border-black/10 bg-[var(--shakh-bg)] text-black/65'}`}>{option.label}</button>;
                 }))}
               </div>
-              {getCategoryDetailFields('home-living').filter((field) => field.key !== 'listing_kind').filter((field) => {
+              {getCategoryDetailFields('home-living').filter((field) => {
                 const kind = homeLivingDetails.listing_kind;
+                if (field.key === 'listing_kind') return false;
                 if (['property_type','deal_type','area_sqm','bedrooms','bathrooms','floor_number','property_condition','ownership_documents'].includes(field.key)) return kind === 'property';
                 if (['furniture_condition','color','style','room_or_location','dimension_length','dimension_width','dimension_height','dimension_unit','weight_value','weight_unit','assembly_required','warranty_months','care_instructions'].includes(field.key)) return kind === 'furniture';
                 return false;
