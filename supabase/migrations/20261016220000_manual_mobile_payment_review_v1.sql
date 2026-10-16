@@ -277,6 +277,8 @@ language plpgsql
 security definer
 set search_path to 'pg_catalog', 'public', 'private'
 as $function$
+declare
+  v_expected_fee numeric(14,2);
 begin
   if new.category <> 'home_living'::public.post_category or new.status <> 'active'::public.post_status then
     return new;
@@ -288,10 +290,47 @@ begin
     return new;
   end if;
 
-  if (old.status is distinct from new.status or old.category is distinct from new.category)
-    and not exists (
+  -- Existing active listings are grandfathered only when the migration marked
+  -- both the old and new row. A newly created post cannot self-assign this flag.
+  if old.category_details->>'legacy_fee_exempt' = 'true'
+    and new.category_details->>'legacy_fee_exempt' = 'true' then
+    return new;
+  end if;
+
+  v_expected_fee := case new.category_details->>'listing_kind'
+    when 'property' then 5000
+    when 'furniture' then 2000
+    else 0
+  end;
+
+  if v_expected_fee <= 0
+    or coalesce(new.category_details->>'posting_fee_iqd', '') <>
+      case new.category_details->>'listing_kind'
+        when 'property' then '5000'
+        when 'furniture' then '2000'
+        else ''
+      end
+    or new.price_iqd is null
+    or new.price_iqd <= 0
+    or jsonb_typeof(new.images) is distinct from 'array'
+    or jsonb_array_length(new.images) = 0
+    or not exists (
       select 1
       from public.manual_payment_submissions m
+      where m.purpose = 'home_living_post_fee'
+        and m.post_id = new.id
+        and m.payer_id = new.author_id
+        and m.status = 'approved'
+        and m.amount_iqd = v_expected_fee
+    ) then
+    raise exception using errcode='42501', message='Home & Living posts remain unpublished until a Super Admin approves the correct manual payment';
+  end if;
+
+  return new;
+end;
+$function$;
+
+blic.manual_payment_submissions m
       where m.purpose = 'home_living_post_fee'
         and m.post_id = new.id
         and m.payer_id = new.author_id
