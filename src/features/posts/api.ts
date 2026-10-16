@@ -55,6 +55,7 @@ export async function createPost(input: {
   const isApparelPost = input.category === 'fashion';
   const isVehiclePost = input.category === 'cars';
   const isElectronicsPost = input.category === 'electronics';
+  const isHomeLivingPost = input.category === 'home_living';
   const referralReward = input.category === 'food' || input.category === 'fashion' || isElectronicsPost
     ? Number(input.referralRewardIqd ?? 0)
     : 0;
@@ -65,6 +66,23 @@ export async function createPost(input: {
   const electronicsDetailsResult = isElectronicsPost
     ? sanitizeCategoryDetails('electronics', input.categoryDetails ?? {})
     : { values: {} as CategoryDetails, error: null };
+  const homeLivingDetailsResult = isHomeLivingPost
+    ? sanitizeCategoryDetails('home-living', input.categoryDetails ?? {})
+    : { values: {} as CategoryDetails, error: null };
+  let homeLivingPostingFee = 0;
+  if (isHomeLivingPost) {
+    if (homeLivingDetailsResult.error) throw new Error(homeLivingDetailsResult.error);
+    const listingKind = String(homeLivingDetailsResult.values.listing_kind ?? '');
+    homeLivingPostingFee = listingKind === 'property' ? 5000 : listingKind === 'furniture' ? 2000 : 0;
+    if (!homeLivingPostingFee) throw new Error('جۆری پۆستی ماڵ و ژیان دیاری بکە.');
+    if (!Number.isFinite(input.priceIqd) || Number(input.priceIqd) <= 0) throw new Error('نرخی موڵک یان کەلوپەل پێویستە و دەبێت لە سفر زیاتر بێت.');
+    if (listingKind === 'property' && (!homeLivingDetailsResult.values.property_type || !homeLivingDetailsResult.values.deal_type)) {
+      throw new Error('جۆری موڵک و جۆری مامەڵە (فرۆشتن/کرێ) دیاری بکە.');
+    }
+    if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) {
+      throw new Error('بۆ ماڵ و ژیان لانیکەم یەک و زۆرترین ٨ وێنە هەڵبژێرە.');
+    }
+  }
   let electronicsColorImageIndexes: Record<string, number> | null = null;
   if (isElectronicsPost) {
     if (!input.brand?.trim()) throw new Error('بڕاندی ئامێر پێویستە.');
@@ -166,6 +184,9 @@ export async function createPost(input: {
       ...(isElectronicsPost ? {
         brand: input.brand?.trim() || null,
         category_details: electronicsDetailsResult.values,
+      } : {}),
+      ...(isHomeLivingPost ? {
+        category_details: { ...homeLivingDetailsResult.values, posting_fee_iqd: String(homeLivingPostingFee) },
       } : {}),
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
       status: needsStagedPublish ? 'archived' : 'active',
