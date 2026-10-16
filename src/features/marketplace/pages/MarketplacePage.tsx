@@ -222,7 +222,7 @@ export function MarketplacePage() {
             {postError ? <div role="alert" className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-50 p-4 text-sm font-bold text-amber-800">{postError}</div> : null}
             {postsLoading ? <div className="mt-4 rounded-2xl bg-white p-8 text-center text-sm font-bold text-black/45">بارکردنی پۆستەکان...</div> : null}
             {!postsLoading && !postError && visiblePosts.length ? (
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {visiblePosts.map((post) => (
                   <Link key={post.id} to={`/posts/${post.id}`} className="group min-w-0 overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_6px_20px_rgba(16,22,35,.035)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(16,22,35,.08)]">
                     {post.images?.[0]?.storage_path ? <img src={getPostImageUrl(post.images[0].storage_path)} alt={post.title} className="aspect-[3/2] w-full bg-[var(--shakh-bg)] object-cover" loading="lazy" /> : null}
