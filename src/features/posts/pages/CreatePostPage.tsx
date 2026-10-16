@@ -139,6 +139,15 @@ export function CreatePostPage() {
     return () => { cancelled = true; };
   }, [homeLivingPaymentStep]);
 
+  // Any edit invalidates the current payment step and selected receipt. This avoids
+  // accidentally submitting an old receipt after changing the post, price, photos,
+  // or listing type.
+  useEffect(() => {
+    setHomeLivingPaymentStep(false);
+    setManualPaymentReceipt(null);
+    setSelectedManualPaymentMethodId('');
+  }, [category, title, content, price, location, images, homeLivingDetails]);
+
   const roles = useMemo(() => [...new Set(targets.map((item) => item.publisher_role))], [targets]);
   const preferredRole = useMemo(
     () => roles.find((item) => item !== 'customer' && item !== 'super_admin') ?? roles[0] ?? '',
