@@ -293,7 +293,8 @@ begin
   -- Existing active listings are grandfathered only when the migration marked
   -- both the old and new row. A newly created post cannot self-assign this flag.
   if old.category_details->>'legacy_fee_exempt' = 'true'
-    and new.category_details->>'legacy_fee_exempt' = 'true' then
+    and new.category_details->>'legacy_fee_exempt' = 'true'
+    and new.category_details->>'listing_kind' is null then
     return new;
   end if;
 
