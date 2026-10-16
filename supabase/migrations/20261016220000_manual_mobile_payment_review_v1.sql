@@ -77,6 +77,8 @@ create table if not exists public.manual_payment_submissions (
   booking_request_id uuid references public.umrah_booking_requests(id) on delete cascade,
   payment_method_id uuid not null references public.manual_payment_methods(id) on delete restrict,
   provider_snapshot text not null check (provider_snapshot in ('fastpay','fib','asia_hawala')),
+  account_identifier_snapshot text not null,
+  account_holder_snapshot text,
   amount_iqd numeric(14,2) not null check (amount_iqd > 0),
   receipt_storage_path text not null unique,
   status text not null default 'pending_review'
@@ -117,6 +119,7 @@ create policy manual_payment_submissions_insert_valid_target
       select 1 from public.manual_payment_methods m
       where m.id = payment_method_id
         and m.provider = provider_snapshot
+        and m.account_identifier = account_identifier_snapshot
         and m.is_active
     )
     and (
@@ -128,12 +131,19 @@ create policy manual_payment_submissions_insert_valid_target
             and p.author_id = (select auth.uid())
             and p.category = 'home_living'::public.post_category
             and p.status = 'archived'::public.post_status
+            and p.price_iqd > 0
             and jsonb_array_length(p.images) > 0
-            and case p.category_details->>'listing_kind'
-              when 'property' then amount_iqd = 5000
-              when 'furniture' then amount_iqd = 2000
-              else false
-            end
+            and (
+              (p.category_details->>'listing_kind' = 'property'
+                and p.category_details->>'posting_fee_iqd' = '5000'
+                and p.category_details->>'property_type' in ('house','apartment','land','commercial','villa','other')
+                and p.category_details->>'deal_type' in ('sale','rent')
+                and amount_iqd = 5000)
+              or
+              (p.category_details->>'listing_kind' = 'furniture'
+                and p.category_details->>'posting_fee_iqd' = '2000'
+                and amount_iqd = 2000)
+            )
         )
       )
       or
@@ -346,7 +356,10 @@ begin
       and price_iqd > 0
       and jsonb_array_length(images) > 0
       and (
-        (category_details->>'listing_kind' = 'property' and category_details->>'posting_fee_iqd' = '5000')
+        (category_details->>'listing_kind' = 'property'
+          and category_details->>'posting_fee_iqd' = '5000'
+          and category_details->>'property_type' in ('house','apartment','land','commercial','villa','other')
+          and category_details->>'deal_type' in ('sale','rent'))
         or (category_details->>'listing_kind' = 'furniture' and category_details->>'posting_fee_iqd' = '2000')
       )
       and exists (
