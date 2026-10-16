@@ -193,6 +193,19 @@ export async function createUmrahBookingRequest(input: {
   return data as UmrahBookingRequest;
 }
 
+export async function getLatestManualPaymentForPost(postId: string): Promise<ManualPaymentSubmission | null> {
+  const { data, error } = await supabase
+    .from('manual_payment_submissions')
+    .select('id,purpose,payer_id,post_id,booking_request_id,payment_method_id,provider_snapshot,account_identifier_snapshot,account_holder_snapshot,amount_iqd,receipt_storage_path,status,admin_note,reviewed_by,reviewed_at,created_at')
+    .eq('purpose', 'home_living_post_fee')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as ManualPaymentSubmission | null;
+}
+
 export async function listManualPaymentSubmissions(): Promise<ManualPaymentSubmission[]> {
   const { data, error } = await supabase
     .from('manual_payment_submissions')
