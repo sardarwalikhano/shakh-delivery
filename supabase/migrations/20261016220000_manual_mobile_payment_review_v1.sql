@@ -191,6 +191,39 @@ create policy manual_payment_proofs_delete_own
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
+-- Users may not publish a Home & Living post directly by setting status='active'.
+-- The review RPC runs with the post-management permission and is the publication path.
+create or replace function private.guard_home_living_post_publication()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'pg_catalog', 'public', 'private'
+as $function$
+begin
+  if tg_op = 'INSERT' then
+    if new.category = 'home_living'::public.post_category
+      and new.status = 'active'::public.post_status
+      and not coalesce((select private.has_permission('posts.manage')), false) then
+      raise exception using errcode='42501', message='Home & Living posts require manual payment review before publishing';
+    end if;
+  elsif tg_op = 'UPDATE' then
+    if new.category = 'home_living'::public.post_category
+      and new.status = 'active'::public.post_status
+      and (old.status is distinct from new.status or old.category is distinct from new.category)
+      and not coalesce((select private.has_permission('posts.manage')), false) then
+      raise exception using errcode='42501', message='Home & Living posts require manual payment review before publishing';
+    end if;
+  end if;
+  return new;
+end;
+$function$;
+
+revoke all on function private.guard_home_living_post_publication() from public, anon, authenticated;
+drop trigger if exists posts_home_living_publication_gate on public.posts;
+create trigger posts_home_living_publication_gate
+  before insert or update on public.posts
+  for each row execute function private.guard_home_living_post_publication();
+
 create or replace function public.create_umrah_booking_request(
   p_package_post_id uuid,
   p_customer_name text,
@@ -310,7 +343,23 @@ begin
       and author_id = v_submission.payer_id
       and category = 'home_living'::public.post_category
       and status = 'archived'::public.post_status
-      and jsonb_array_length(images) > 0;
+      and price_iqd > 0
+      and jsonb_array_length(images) > 0
+      and (
+        (category_details->>'listing_kind' = 'property' and category_details->>'posting_fee_iqd' = '5000')
+        or (category_details->>'listing_kind' = 'furniture' and category_details->>'posting_fee_iqd' = '2000')
+      )
+      and exists (
+        select 1 from public.manual_payment_submissions m
+        where m.id = p_submission_id
+          and m.post_id = public.posts.id
+          and m.status = 'pending_review'
+          and m.amount_iqd = case public.posts.category_details->>'listing_kind'
+            when 'property' then 5000
+            when 'furniture' then 2000
+            else 0
+          end
+      );
     if not found then
       raise exception using errcode='22023', message='The Home & Living post cannot be published';
     end if;
