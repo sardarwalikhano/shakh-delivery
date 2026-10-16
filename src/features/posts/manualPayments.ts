@@ -173,6 +173,31 @@ export async function submitManualPayment(input: {
   return data as ManualPaymentSubmission;
 }
 
+export async function getLatestUmrahBookingForPost(packagePostId: string): Promise<UmrahBookingRequest | null> {
+  const { data, error } = await supabase
+    .from('umrah_booking_requests')
+    .select('id,status,package_post_id,package_price_iqd,traveler_count,total_amount_iqd,customer_name,customer_phone,preferred_departure_date')
+    .eq('package_post_id', packagePostId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as UmrahBookingRequest | null;
+}
+
+export async function getLatestManualPaymentForBooking(bookingRequestId: string): Promise<ManualPaymentSubmission | null> {
+  const { data, error } = await supabase
+    .from('manual_payment_submissions')
+    .select('id,purpose,payer_id,post_id,booking_request_id,payment_method_id,provider_snapshot,account_identifier_snapshot,account_holder_snapshot,amount_iqd,receipt_storage_path,status,admin_note,reviewed_by,reviewed_at,created_at')
+    .eq('purpose', 'umrah_booking')
+    .eq('booking_request_id', bookingRequestId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as ManualPaymentSubmission | null;
+}
+
 export async function createUmrahBookingRequest(input: {
   packagePostId: string;
   customerName: string;
