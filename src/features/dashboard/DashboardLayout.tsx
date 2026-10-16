@@ -15,6 +15,8 @@ const navItems: NavItem[] = [
   { label: 'بەڕێوەبردنی پۆستەکان', href: '/dashboard/posts/manage', icon: Package, permission: 'posts.update_own' },
   { label: 'شێر و قازانج', href: '/dashboard/referral-wallet', icon: Gift, permission: 'posts.view' },
   { label: 'داواکاریی جل‌وبەرگ', href: '/post-orders', icon: ShoppingCart, permission: 'posts.view' },
+  { label: 'پشکنینی وەسڵەکان', href: '/dashboard/manual-payments', icon: WalletCards, permission: 'posts.manage' },
+  { label: 'ژمارەکانی پارەدان', href: '/dashboard/manual-payment-methods', icon: WalletCards, permission: 'posts.manage' },
   { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view' },
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view' },
