@@ -1,5 +1,5 @@
 import { CalendarDays, CheckCircle2, LoaderCircle, Send, ShieldCheck, Upload, WalletCards } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { getActiveManualPaymentMethods, createUmrahBookingRequest, submitManualPayment, type ManualPaymentMethod, type UmrahBookingRequest } from '../manualPayments';
 import type { Post } from '../types';
@@ -50,7 +50,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
     return () => { cancelled = true; };
   }, [stage]);
 
-  const startBooking = async (event: React.FormEvent<HTMLFormElement>) => {
+  const startBooking = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
     if (!currentUserId) return;
@@ -209,7 +209,7 @@ export function UmrahBookingPanel({ post, currentUserId, ownsPost }: Props) {
           <button type="button" onClick={() => void submitProof()} disabled={busy || methodsLoading || !methods.length} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">
             {busy ? <LoaderCircle size={17} className="animate-spin"/> : <Upload size={17}/>} {busy ? 'ناردنی داواکاری...' : 'ناردن بۆ پشکنینی سوپەر ئەدمین'}
           </button>
-          <button type="button" onClick={() => { setStage('details'); setBooking(null); setReceipt(null); }} disabled={busy} className="w-full rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-black text-black/60">گەڕانەوە بۆ گۆڕینی زانیاریی حیجز</button>
+<p className="text-xs leading-6 text-black/45">ئەگەر زانیارییەکانت پێویستیان بە گۆڕانکاری هەیە، پێش ناردنی وەسڵ لەگەڵ ئەژانس پەیوەندی بکە؛ داواکاریی حیجزەکە تۆمار کراوە.</p>
         </div>
       )}
     </section>
