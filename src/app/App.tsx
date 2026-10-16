@@ -81,8 +81,8 @@ export function App() {
           <Route path="/dashboard/role-requests" element={<RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission>} />
           <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission>} />
           <Route path="/dashboard/referral-wallet" element={<RequirePermission permission="posts.view"><ReferralWalletPage /></RequirePermission>} />
-          <Route path="/dashboard/manual-payments" element={<RequirePermission permission="posts.manage"><ManualPaymentReviewPage /></RequirePermission>} />
-          <Route path="/dashboard/manual-payment-methods" element={<RequirePermission permission="posts.manage"><ManualPaymentMethodsPage /></RequirePermission>} />
+          <Route path="/dashboard/manual-payments" element={<RequirePermission permission="manual_payments.review"><ManualPaymentReviewPage /></RequirePermission>} />
+          <Route path="/dashboard/manual-payment-methods" element={<RequirePermission permission="manual_payments.review"><ManualPaymentMethodsPage /></RequirePermission>} />
           <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission>} />
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
