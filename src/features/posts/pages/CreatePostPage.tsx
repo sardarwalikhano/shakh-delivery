@@ -749,7 +749,7 @@ export function CreatePostPage() {
               <div className="grid grid-cols-2 gap-2">
                 {getCategoryDetailFields('home-living').filter((field) => field.key === 'listing_kind').flatMap((field) => (field.options ?? []).map((option) => {
                   const selected = homeLivingDetails.listing_kind === option.value;
-                  return <button key={option.value} type="button" aria-pressed={selected} onClick={() => { setHomeLivingDetails((current) => ({ listing_kind: option.value })); setReviewing(false); setError(null); }} className={`min-h-16 rounded-xl border px-3 py-3 text-sm font-black transition ${selected ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]' : 'border-black/10 bg-[var(--shakh-bg)] text-black/65'}`}>{option.label}</button>;
+                  return <button key={option.value} type="button" aria-pressed={selected} onClick={() => { setHomeLivingDetails({ listing_kind: option.value }); setReviewing(false); setError(null); }} className={`min-h-16 rounded-xl border px-3 py-3 text-sm font-black transition ${selected ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]' : 'border-black/10 bg-[var(--shakh-bg)] text-black/65'}`}>{option.label}</button>;
                 }))}
               </div>
               {getCategoryDetailFields('home-living').filter((field) => {
