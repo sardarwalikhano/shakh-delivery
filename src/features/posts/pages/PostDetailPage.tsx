@@ -14,6 +14,7 @@ import { ElectronicsPurchasePanel } from '../components/ElectronicsPurchasePanel
 import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { UmrahBookingPanel } from '../components/UmrahBookingPanel';
+import { HomeLivingPaymentStatusPanel } from '../components/HomeLivingPaymentStatusPanel';
 import { singleVehicleListing } from '../vehicleTypes';
 import { addFoodPostToCart } from '../foodPostCart';
 import { createPostShareLink, getPostShareToken, recordPostShareAttribution, rememberPostShareToken } from '../shareRewards';
@@ -555,12 +556,7 @@ ${share.title || post.title}
               <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-black/45">{postRoleLabels[post.publisher_role]}</span>
               {discount > 0 ? <span className="rounded-full bg-red-500/10 px-3 py-1.5 text-red-600">{discount}٪ داشکاندن</span> : null}
             </div>
-            {ownsPost && new URLSearchParams(location.search).get('submission') === 'pending-review' ? (
-              <div role="status" className="mt-4 rounded-xl border border-amber-500/20 bg-amber-50 p-4 text-sm leading-7 text-amber-900 sm:rounded-2xl">
-                <div className="font-black">پۆستەکەت نێردرا بۆ پشکنینی سوپەر ئەدمین</div>
-                وەسڵەکە بە سەرکەوتوویی تۆمار کرا. پۆستەکە تەنها دوای پەسەندکردنی پارەدان لە داشبۆرد بڵاو دەکرێتەوە.
-              </div>
-            ) : null}
+
             <h1 className="mt-3 break-words text-2xl font-black leading-tight sm:mt-4 sm:text-4xl">{post.title}</h1>
             {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
             {(isApparel || isElectronics) && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
@@ -589,6 +585,7 @@ ${share.title || post.title}
                 </dl>
               </section>
             ) : null}
+            {ownsPost && post.category === 'home_living' ? <HomeLivingPaymentStatusPanel post={post} /> : null}
 
             {isVehicle && !vehicleListing ? <div role="status" className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm leading-6 text-amber-800">وردەکاریی تەکنیکی ئەم پۆستە لە داتابەیسدا تۆمار نەکراوە. هیچ زانیارییەکی ئۆتۆمبێل بە خۆڕایی دانەنراوە؛ تکایە لە فرۆشیارەوە پشتڕاستی بکەرەوە.</div> : null}
 
