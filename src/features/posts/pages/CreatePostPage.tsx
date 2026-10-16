@@ -441,7 +441,7 @@ export function CreatePostPage() {
           },
         });
         setSuccess(true);
-        navigate(`/posts/${created.id}?submission=pending-review`, { replace: true });
+        navigate(`/posts/${created.id}`, { replace: true });
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : 'ناردنی پۆست بۆ پشکنین سەرکەوتوو نەبوو.');
       } finally {
