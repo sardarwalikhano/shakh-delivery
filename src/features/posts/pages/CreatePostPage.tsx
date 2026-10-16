@@ -77,6 +77,7 @@ export function CreatePostPage() {
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
   const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
+  const [homeLivingDetails, setHomeLivingDetails] = useState<CategoryDetails>({});
   const [electronicsColorImageFiles, setElectronicsColorImageFiles] = useState<Record<string, File>>({});
   const [material, setMaterial] = useState('');
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
@@ -373,6 +374,42 @@ export function CreatePostPage() {
 
     const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
     if (numericPrice !== null && (!Number.isFinite(numericPrice) || numericPrice < 0)) return setError('نرخی پۆست دروست نییە.');
+
+    if (category === 'home_living') {
+      const details = sanitizeCategoryDetails('home-living', homeLivingDetails);
+      if (details.error) return setError(details.error);
+      const listingKind = String(details.values.listing_kind ?? '');
+      const postingFee = listingKind === 'property' ? 5000 : listingKind === 'furniture' ? 2000 : 0;
+      if (!listingKind) return setError('تکایە جۆری پۆست دیاری بکە.');
+      if (!price.trim() || numericPrice === null || numericPrice <= 0) {
+        return setError(listingKind === 'property' ? 'نرخی خانوو، زەوی یان موڵک بنووسە.' : 'نرخی مۆبیلیات یان کەلوپەل بنووسە.');
+      }
+      if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ ئەم پۆستە لانیکەم یەک و زۆرترین ٨ وێنە هەڵبژێرە.');
+      if (listingKind === 'property' && !details.values.property_type) return setError('جۆری موڵک دیاری بکە.');
+      if (!reviewing) { setReviewing(true); return; }
+      setBusy(true);
+      try {
+        const created = await createPost({
+          publisherRole: role,
+          category: 'home_living',
+          title,
+          content,
+          priceIqd: numericPrice,
+          referralRewardIqd: 0,
+          brand: null,
+          categoryDetails: { ...details.values, posting_fee_iqd: String(postingFee) },
+          location,
+          images,
+        });
+        setSuccess(true);
+        navigate(`/posts/${created.id}`, { replace: true });
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : 'پۆستکردنی ماڵ و ژیان سەرکەوتوو نەبوو.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
 
     const apparel = category === 'fashion';
     if (apparel) {
@@ -700,6 +737,43 @@ export function CreatePostPage() {
                   <div className="mt-1 text-xl font-black">{price.trim() && Number(price.replace(/,/g, '')) > 0 ? Math.round(Number(price.replace(/,/g, '')) * (100 - Math.min(99, Math.max(0, Number(discountPercent) || 0))) / 100).toLocaleString('en-US') : '—'} <span className="text-xs text-black/40">د.ع</span></div>
                 </div>
               </div>
+            </section>
+          ) : null}
+
+          {category === 'home_living' ? (
+            <section className="space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-white p-4 sm:p-6">
+              <div>
+                <h2 className="text-lg font-black">وردەکاریی ماڵ و ژیان</h2>
+                <p className="mt-1 text-sm leading-6 text-black/50">بەپێی جۆری پۆست، زانیاریی موڵک یان مۆبیلیات پڕ بکەرەوە.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {getCategoryDetailFields('home-living').filter((field) => field.key === 'listing_kind').flatMap((field) => (field.options ?? []).map((option) => {
+                  const selected = homeLivingDetails.listing_kind === option.value;
+                  return <button key={option.value} type="button" aria-pressed={selected} onClick={() => { setHomeLivingDetails((current) => ({ listing_kind: option.value })); setReviewing(false); setError(null); }} className={`min-h-16 rounded-xl border px-3 py-3 text-sm font-black transition ${selected ? 'border-[var(--shakh-orange)] bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]' : 'border-black/10 bg-[var(--shakh-bg)] text-black/65'}`}>{option.label}</button>;
+                }))}
+              </div>
+              {getCategoryDetailFields('home-living').filter((field) => field.key !== 'listing_kind').filter((field) => {
+                const kind = homeLivingDetails.listing_kind;
+                if (['property_type','deal_type','area_sqm','bedrooms','bathrooms','floor_number','property_condition','ownership_documents'].includes(field.key)) return kind === 'property';
+                if (['furniture_condition','color','style','room_or_location','dimension_length','dimension_width','dimension_height','dimension_unit','weight_value','weight_unit','assembly_required','warranty_months','care_instructions'].includes(field.key)) return kind === 'furniture';
+                return false;
+              }).map((field) => {
+                const current = homeLivingDetails[field.key];
+                const value = typeof current === 'string' || typeof current === 'number' ? String(current) : '';
+                const setValue = (nextValue: string) => { setHomeLivingDetails((previous) => ({ ...previous, [field.key]: nextValue })); setReviewing(false); };
+                if (field.type === 'select') return <Field key={field.key} label={field.label}><select className={inputClass} value={value} onChange={(event) => setValue(event.target.value)}><option value="">هەڵبژاردەیەک دیاری بکە</option>{(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>;
+                if (field.type === 'number') return <Field key={field.key} label={field.label} hint={field.unit}><input className={inputClass} type="number" min={field.min} max={field.max} step="1" inputMode="numeric" value={value} onChange={(event) => setValue(event.target.value)} placeholder={field.unit ?? 'ژمارە'} /></Field>;
+                if (field.type === 'checkbox') return <label key={field.key} className="flex min-h-12 items-center gap-3 rounded-xl border border-black/10 px-3 text-sm font-bold"><input type="checkbox" checked={current === true} onChange={(event) => { setHomeLivingDetails((previous) => ({ ...previous, [field.key]: event.target.checked })); setReviewing(false); }} className="size-4 accent-[var(--shakh-orange)]" />{field.label}</label>;
+                if (field.type === 'textarea') return <Field key={field.key} label={field.label}><textarea className={inputClass + ' min-h-24'} value={value} onChange={(event) => setValue(event.target.value)} maxLength={field.maxLength ?? 2000} /></Field>;
+                return <Field key={field.key} label={field.label}><input className={inputClass} value={value} onChange={(event) => setValue(event.target.value)} maxLength={field.maxLength ?? 120} placeholder={field.placeholder ?? ''} /></Field>;
+              })}
+              {homeLivingDetails.listing_kind ? (
+                <div className="rounded-xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.06] p-4">
+                  <div className="text-sm font-black">کرێی پۆستکردن</div>
+                  <div className="mt-1 text-2xl font-black text-[var(--shakh-orange)]">{homeLivingDetails.listing_kind === 'property' ? '٥,٠٠٠' : '٢,٠٠٠'} <span className="text-xs">د.ع</span></div>
+                  <p className="mt-1 text-xs leading-6 text-black/50">{homeLivingDetails.listing_kind === 'property' ? 'بۆ خانوو، زەوی و موڵک.' : 'بۆ مۆبیلیات و کەلوپەل.'}</p>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
