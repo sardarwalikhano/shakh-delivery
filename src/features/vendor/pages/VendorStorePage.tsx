@@ -1,8 +1,10 @@
-import { Building2, CheckCircle2, Plus, Save, Store } from 'lucide-react';
+import { Building2, CheckCircle2, Minus, Plus, Save, Store } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { createVendorStore, getVendorStores, updateVendorStore, type VendorStore } from '../api';
+import { DeliveryPointPicker } from '@/features/posts/components/DeliveryPointPicker';
+import type { DeliveryPoint } from '@/features/posts/deliveryZones';
 
 export function VendorStorePage() {
   const { user } = useAuth();
@@ -13,6 +15,9 @@ export function VendorStorePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState({ name_ku: '', name_ar: '', name_en: '', slug: '', description_ku: '' });
+  const [deliveryPoint, setDeliveryPoint] = useState<DeliveryPoint | null>(null);
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(15);
+  const defaultDeliveryRadiusKm = roles.includes('restaurant_vendor') ? 5 : 15;
 
   const refresh = async () => {
     if (!user) return;
@@ -25,12 +30,16 @@ export function VendorStorePage() {
   const loadStore = (store: VendorStore) => {
     setSelected(store.id);
     setForm({ name_ku: store.name_ku, name_ar: store.name_ar, name_en: store.name_en, slug: store.slug, description_ku: store.description_ku ?? '' });
+    setDeliveryPoint(store.delivery_latitude != null && store.delivery_longitude != null ? { latitude: Number(store.delivery_latitude), longitude: Number(store.delivery_longitude) } : null);
+    setDeliveryRadiusKm(Number(store.delivery_radius_km || defaultDeliveryRadiusKm));
     setMessage(null);
   };
 
   const reset = () => {
     setSelected(null);
     setForm({ name_ku: '', name_ar: '', name_en: '', slug: '', description_ku: '' });
+    setDeliveryPoint(null);
+    setDeliveryRadiusKm(defaultDeliveryRadiusKm);
     setMessage(null);
   };
 
@@ -39,11 +48,14 @@ export function VendorStorePage() {
     setSaving(true); setMessage(null);
     try {
       if (!form.name_ku || !form.name_ar || !form.name_en || !form.slug) throw new Error('ناوی فرۆشگا و slug پێویستن.');
+      if (!deliveryPoint) throw new Error('پێش تۆمارکردن شوێنی GPS و زۆنی گەیاندنی فرۆشگا دیاری بکە.');
+      if (!Number.isInteger(deliveryRadiusKm) || deliveryRadiusKm < 1 || deliveryRadiusKm > 100) throw new Error('مەودای گەیاندن دەبێت لە ١ تا ١٠٠ کیلۆمەتر بێت.');
+      const deliveryZone = { delivery_latitude: deliveryPoint.latitude, delivery_longitude: deliveryPoint.longitude, delivery_radius_km: deliveryRadiusKm };
       if (selected) {
-        await updateVendorStore(user.id, selected, { ...form });
+        await updateVendorStore(user.id, selected, { ...form, ...deliveryZone });
         setMessage('زانیاری فرۆشگا نوێکرایەوە.');
       } else {
-        await createVendorStore(user.id, { ...form });
+        await createVendorStore(user.id, { ...form, ...deliveryZone });
         setMessage('داواکاری فرۆشگا نێردرا و چاوەڕوانی پشتڕاستکردنەوەی بەڕێوەبەرە.');
       }
       await refresh();
@@ -88,6 +100,21 @@ export function VendorStorePage() {
             <Field label="Slug" value={form.slug} onChange={(v) => setForm({ ...form, slug: v.toLowerCase().replace(/[^a-z0-9-]/g, '-') })} dir="ltr" />
             <label className="md:col-span-2"><span className="text-xs font-black text-black/55">وەسفی کوردی</span><textarea value={form.description_ku} onChange={(e) => setForm({ ...form, description_ku: e.target.value })} rows={4} className="mt-2 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 py-3 text-sm outline-none ring-[var(--shakh-blue)]/20 focus:ring-4" /></label>
           </div>
+          <section className="mt-5 space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-bg)] p-4">
+            <div>
+              <h3 className="text-sm font-black">زۆنی گەیاندنی فرۆشگا</h3>
+              <p className="mt-1 text-xs leading-6 text-black/50">خواردن بە ٥ کم و فرۆشگای مارکێت و بەرهەمەکانی تر بە ١٥ کم دەستپێدەکەن. ئەم زۆنە بۆ هەموو بەرهەمەکانی ئەم فرۆشگایە جێبەجێ دەبێت.</p>
+            </div>
+            <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی بنەڕەتی فرۆشگا" description="GPS ـی شوێنی فرۆشگا/چێشتخانە وەربگرە." />
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-3">
+              <div><div className="text-sm font-black">مەودای گەیاندن</div><div className="mt-1 text-xs text-black/45">١ تا ١٠٠ کیلۆمەتر</div></div>
+              <div className="flex items-center gap-3">
+                <button type="button" aria-label="کەمکردنەوەی مەودا" disabled={saving || deliveryRadiusKm <= 1} onClick={() => setDeliveryRadiusKm((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Minus size={16}/></button>
+                <span className="min-w-16 text-center text-lg font-black tabular-nums">{deliveryRadiusKm} کم</span>
+                <button type="button" aria-label="زیادکردنی مەودا" disabled={saving || deliveryRadiusKm >= 100} onClick={() => setDeliveryRadiusKm((value) => Math.min(100, value + 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Plus size={16}/></button>
+              </div>
+            </div>
+          </section>
           {message ? <div className="mt-5 rounded-2xl bg-[var(--shakh-blue)]/8 px-4 py-3 text-sm font-bold leading-6 text-[var(--shakh-blue)]">{message}</div> : null}
           <div className="mt-6 flex flex-wrap gap-3"><button disabled={saving} onClick={() => void save()} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Save size={17} /> {saving ? 'پاشەکەوتکردن...' : selected ? 'پاشەکەوتکردنی گۆڕانکاری' : 'ناردنی داواکاری'}</button>{selected ? <button onClick={reset} className="rounded-2xl border border-black/10 px-5 py-3 text-sm font-black">هەڵوەشاندنەوە</button> : null}</div>
         </section>
