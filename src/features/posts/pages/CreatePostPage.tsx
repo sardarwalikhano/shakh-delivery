@@ -1,4 +1,4 @@
-import { BadgeDollarSign, FileText, MapPin, Send, Tag, X } from 'lucide-react';
+import { BadgeDollarSign, FileText, MapPin, Minus, Plus, Send, Tag, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
@@ -12,6 +12,8 @@ import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, PostTarget } from '../types';
 import { getCategoryDetailFields, getVisibleCategoryDetails, sanitizeCategoryDetails, type CategoryDetails } from '@/lib/catalog/categoryDetails';
+import { DeliveryPointPicker } from '../components/DeliveryPointPicker';
+import type { DeliveryPoint } from '../deliveryZones';
 
 type ApparelColor = { name: string; hex: string };
 type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
@@ -74,6 +76,8 @@ export function CreatePostPage() {
   const [price, setPrice] = useState('');
   const [referralRewardIqd, setReferralRewardIqd] = useState('0');
   const [location, setLocation] = useState('');
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(15);
+  const [deliveryPoint, setDeliveryPoint] = useState<DeliveryPoint | null>(null);
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
   const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
@@ -133,7 +137,10 @@ export function CreatePostPage() {
         ?? roleTargets[0]?.category
         ?? '';
     if (role !== nextRole) setRole(nextRole);
-    if (category !== nextCategory) setCategory(nextCategory);
+    if (category !== nextCategory) {
+      setCategory(nextCategory);
+      setDeliveryRadiusKm(nextCategory === 'food' ? 5 : 15);
+    }
   }, [category, preferredRole, role, roles, targets]);
 
   const availableSizes = useMemo(() => sizeOptionsFor(apparelType), [apparelType]);
@@ -292,6 +299,8 @@ export function CreatePostPage() {
 
     if (title.trim().length < 3) return setError('ناونیشانی پۆست دەبێت لانیکەم 3 پیت بێت.');
     if (content.trim().length > 12000) return setError('ناوەڕۆک زۆر درێژە.');
+    if (!deliveryPoint) return setError('پێش پۆستکردن شوێنی GPS و زۆنی گەیاندن دیاری بکە.');
+    if (!Number.isInteger(deliveryRadiusKm) || deliveryRadiusKm < 1 || deliveryRadiusKm > 100) return setError('مەودای گەیاندن دەبێت لە ١ تا ١٠٠ کیلۆمەتر بێت.');
 
     if (category === 'cars') {
       const vehicleError = validateVehicleListing(vehicleListing);
@@ -308,6 +317,9 @@ export function CreatePostPage() {
           priceIqd: Number(vehicleListing.price_amount),
           referralRewardIqd: 0,
           location: vehicleListing.location,
+          deliveryLatitude: deliveryPoint.latitude,
+          deliveryLongitude: deliveryPoint.longitude,
+          deliveryRadiusKm,
           images,
           vehicle: {
             details: vehicleListing,
@@ -359,6 +371,9 @@ export function CreatePostPage() {
           brand: brand.trim(),
           categoryDetails: details.values,
           location,
+          deliveryLatitude: deliveryPoint.latitude,
+          deliveryLongitude: deliveryPoint.longitude,
+          deliveryRadiusKm,
           images,
         });
         setSuccess(true);
@@ -420,6 +435,9 @@ export function CreatePostPage() {
           priceIqd: numericPrice,
           referralRewardIqd: Number(referralRewardIqd || '0'),
           location,
+          deliveryLatitude: deliveryPoint.latitude,
+          deliveryLongitude: deliveryPoint.longitude,
+          deliveryRadiusKm,
           itemCondition,
           apparelAudience,
           apparel: {
@@ -446,7 +464,7 @@ export function CreatePostPage() {
     if (!reviewing) { setReviewing(true); return; }
     setBusy(true);
     try {
-      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, referralRewardIqd: Number(referralRewardIqd || '0'), location, images });
+      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, referralRewardIqd: Number(referralRewardIqd || '0'), location, deliveryLatitude: deliveryPoint.latitude, deliveryLongitude: deliveryPoint.longitude, deliveryRadiusKm, images });
       setSuccess(true);
       navigate(`/posts/${created.id}`, { replace: true });
     } catch (nextError) {
@@ -512,11 +530,30 @@ export function CreatePostPage() {
           <Field label="جۆری پۆست">
             <div className="relative">
               <Tag className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-black/35" size={17} />
-              <select className={inputClass + ' ps-11'} value={category} onChange={(event) => setCategory(event.target.value as PostTarget['category'])}>
+              <select className={inputClass + ' ps-11'} value={category} onChange={(event) => { const nextCategory = event.target.value as PostTarget['category']; setCategory(nextCategory); setDeliveryRadiusKm(nextCategory === 'food' ? 5 : 15); setReviewing(false); }}>
                 {categories.map((item) => <option key={item} value={item}>{postCategoryLabels[item]}</option>)}
               </select>
             </div>
           </Field>
+
+          <section className="space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-blue)]/[0.035] p-4">
+            <div>
+              <h2 className="text-base font-black">یەکەم: زۆنی گەیاندن دیاری بکە</h2>
+              <p className="mt-1 text-xs leading-6 text-black/50">مەودا بە کیلۆمەترە و لە ناوەندی ئەم شوێنەوە هەژمار دەکرێت. بۆ خواردن ٥ کم و بۆ بازاڕ و بەرهەمەکانی تر ١٥ کم دەستپێکە؛ دەتوانیت بە + و − بگۆڕیت.</p>
+            </div>
+            <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی بنەڕەتی گەیاندنی پۆستەکە" description="لە شوێنی چێشتخانە، فرۆشگا یان ئەو شوێنەوە GPS وەربگرە کە کاڵاکە لێیەوە دەنێردرێت." />
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-3">
+              <div>
+                <div className="text-sm font-black">مەودای گەیاندن</div>
+                <div className="mt-1 text-xs text-black/45">لە ١ تا ١٠٠ کیلۆمەتر</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" aria-label="کەمکردنەوەی مەودای گەیاندن" disabled={busy || deliveryRadiusKm <= 1} onClick={() => setDeliveryRadiusKm((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Minus size={16}/></button>
+                <span className="min-w-16 text-center text-lg font-black tabular-nums">{deliveryRadiusKm} کم</span>
+                <button type="button" aria-label="زیادکردنی مەودای گەیاندن" disabled={busy || deliveryRadiusKm >= 100} onClick={() => setDeliveryRadiusKm((value) => Math.min(100, value + 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Plus size={16}/></button>
+              </div>
+            </div>
+          </section>
 
           {category === 'cars' ? (
             <VehicleListingFields

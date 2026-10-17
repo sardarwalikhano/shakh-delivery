@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import { getPostShareToken } from './shareRewards';
+import { isWithinDeliveryZone, readableDeliveryError, saveMyDeliveryPoint, type DeliveryPoint } from './deliveryZones';
 
 export type FoodPostCartPost = {
   id: string;
@@ -9,6 +10,9 @@ export type FoodPostCartPost = {
   price_iqd: number | null;
   discount_percent: number;
   location: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
+  delivery_radius_km: number;
   status: 'active' | 'archived' | 'deleted';
   images: Array<{ storage_path: string; alt_ku?: string | null }>;
 };
@@ -38,7 +42,7 @@ export type FoodPostOrderResult = {
 export async function getFoodPostCart(userId: string): Promise<FoodPostCartItem[]> {
   const { data, error } = await supabase
     .from('food_post_cart_items')
-    .select('id,post_id,quantity,created_at,post:posts!food_post_cart_items_post_id_fkey(id,author_id,title,content,price_iqd,discount_percent,location,status,images)')
+    .select('id,post_id,quantity,created_at,post:posts!food_post_cart_items_post_id_fkey(id,author_id,title,content,price_iqd,discount_percent,location,delivery_latitude,delivery_longitude,delivery_radius_km,status,images)')
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
   if (error) throw error;
@@ -80,11 +84,20 @@ export async function checkoutFoodPostCart(input: {
   deliveryCity: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  deliveryPoint: DeliveryPoint;
 }): Promise<FoodPostOrderResult[]> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error('پێویستە سەرەتا بچیتە ژوورەوە.');
 
   const cartItems = await getFoodPostCart(userData.user.id);
+  for (const item of cartItems) {
+    const post = item.post;
+    if (!post || post.status !== 'active' || !isWithinDeliveryZone(post.delivery_latitude, post.delivery_longitude, post.delivery_radius_km, input.deliveryPoint)) {
+      throw new Error('بۆ ئێرە بەردەست نییە؛ ناونیشانی تۆ لە دەرەوەی زۆنی گەیاندنی یەکێک لە خواردنە هەڵبژێردراوەکانە.');
+    }
+  }
+  await saveMyDeliveryPoint(input.deliveryPoint);
+
   const shareLinks: Record<string, string> = {};
   for (const item of cartItems) {
     const shareLinkId = getPostShareToken(item.post_id);
@@ -100,7 +113,7 @@ export async function checkoutFoodPostCart(input: {
     p_share_links: shareLinks,
     p_use_share_balance: false,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
   const result = data as { orders?: FoodPostOrderResult[] } | null;
   if (!result?.orders?.length) throw new Error('داواکارییەک تۆمار نەکرا. سەلەکەت بەتاڵە یان نرخی خواردن بەردەست نییە.');
   return result.orders;

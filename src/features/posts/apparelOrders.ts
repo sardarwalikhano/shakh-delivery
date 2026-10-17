@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
+import { readableDeliveryError } from './deliveryZones';
 
 // Electronics direct-post orders are separate from apparel inventory orders.
 export type ElectronicsPostOrderStatus = 'pending' | 'confirmed' | 'rejected' | 'delivered' | 'cancelled';
@@ -53,7 +54,7 @@ export async function createElectronicsPostOrder(input: {
     p_payment_method: input.paymentMethod,
     p_share_link_id: input.shareLinkId ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
   return data as ElectronicsPostOrder;
 }
 
@@ -72,7 +73,7 @@ export async function updateElectronicsPostOrderStatus(orderId: string, status: 
     p_order_id: orderId,
     p_status: status,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
 }
 
 
@@ -126,7 +127,7 @@ export async function createApparelPostOrder(input: {
     p_share_link_id: input.shareLinkId ?? null,
     p_use_share_balance: false,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
   return data as { id: string; order_number: string; status: ApparelPostOrderStatus; quantity: number; unit_price_iqd: number; line_total_iqd: number; delivery_city: string; delivery_fee_iqd: number; platform_fee_iqd: number; total_iqd: number };
 }
 
@@ -185,19 +186,19 @@ export async function listFoodPostOrders(): Promise<FoodPostOrder[]> {
 
 export async function claimFoodPostDelivery(orderId: string): Promise<void> {
   const { error } = await supabase.rpc('claim_food_post_delivery', { p_order_id: orderId });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
 }
 
 export type FoodPostDeliveryStatus = FoodPostOrder['delivery_status'];
 
 export async function updateFoodPostDeliveryStatus(orderId: string, status: FoodPostDeliveryStatus): Promise<void> {
   const { error } = await supabase.rpc('update_food_post_delivery_status', { p_order_id: orderId, p_status: status });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
 }
 
 export async function recordFoodPostPayment(orderId: string, amountIqd: number): Promise<void> {
   const { error } = await supabase.rpc('record_food_post_payment', { p_order_id: orderId, p_amount_iqd: amountIqd, p_note: null });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(readableDeliveryError(error.message));
 }
 
 export async function updateFoodPostOrderStatus(orderId: string, status: FoodPostOrderStatus): Promise<void> {

@@ -13,6 +13,7 @@ import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { ElectronicsPurchasePanel } from '../components/ElectronicsPurchasePanel';
 import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
+import { PostDeliveryZonePanel } from '../components/PostDeliveryZonePanel';
 import { singleVehicleListing } from '../vehicleTypes';
 import { addFoodPostToCart } from '../foodPostCart';
 import { createPostShareLink, getPostShareToken, recordPostShareAttribution, rememberPostShareToken } from '../shareRewards';
@@ -417,6 +418,8 @@ ${share.title || post.title}
         ) : null}
 
         {editMessage ? <div role="status" className="mt-4 rounded-2xl border border-emerald-600/15 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">{editMessage}</div> : null}
+
+        <PostDeliveryZonePanel post={post} canEdit={canEditPost} onSaved={setPost} />
 
         {isEditing ? (
           <form onSubmit={saveEdits} className="mt-5 space-y-4 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 shadow-sm sm:p-6">

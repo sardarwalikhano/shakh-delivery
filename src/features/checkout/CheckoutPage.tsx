@@ -10,6 +10,7 @@ import { buildGoogleMapsLocationUrl } from '@/lib/maps/navigation';
 import type { PaymentMethod } from './types';
 import { isRestaurantMenuAvailable } from '@/lib/catalog/restaurant';
 import { isSupermarketItemExpired } from '@/lib/catalog/supermarket';
+import { readableDeliveryError } from '@/features/posts/deliveryZones';
 
 export function CheckoutPage() {
   const { user } = useAuth();
@@ -69,6 +70,10 @@ export function CheckoutPage() {
       setError('ناونیشانی گەیاندن پێویستە.');
       return;
     }
+    if (!coordinates) {
+      setError('بۆ پشکنینی زۆنی گەیاندن تکایە شوێنی GPS ـی ناونیشانی خۆت دیاری بکە.');
+      return;
+    }
     const phoneError = validatePhone(phone);
     if (phoneError) {
       setError(phoneError);
@@ -84,7 +89,7 @@ export function CheckoutPage() {
       const result = await createCheckout({ deliveryAddress: address, deliveryLat: coordinates?.latitude ?? null, deliveryLng: coordinates?.longitude ?? null, customerNote: note, paymentMethod });
       navigate(`/orders?checkout=${result.checkout_id}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Checkout سەرنەکەوت.');
+      setError(err instanceof Error ? readableDeliveryError(err.message) : 'Checkout سەرنەکەوت.');
     } finally {
       setSubmitting(false);
     }
@@ -141,6 +146,7 @@ export function CheckoutPage() {
                   </button>
                   {coordinates ? <><span className="rounded-2xl bg-emerald-500/8 px-3 py-2 text-xs font-bold text-emerald-700">GPS تۆمارکرا</span><a href={buildGoogleMapsLocationUrl(coordinates)} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center gap-2 rounded-2xl px-3 text-xs font-black text-[var(--shakh-blue)]"><Navigation size={15} /> پیشاندانی شوێن</a></> : null}
                 </div>
+                <div className="mt-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-bg)] p-3 text-xs font-bold leading-6 text-black/55">پێش تۆمارکردنی ئۆردەر، شوێنی GPS ـەکەت بە زۆنی فرۆشگا/مارکێت بەراورد دەکرێت. ئەگەر لە دەرەوەی زۆن بوویت، داواکاری وەرناگیرێت.</div>
                 <textarea value={note} onChange={(event) => setNote(event.target.value)} className="mt-3 min-h-20 w-full resize-y rounded-2xl border border-black/10 bg-white p-4 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="تێبینی بۆ سەلماندنی داواکاری (ئارەزوومەندانە)" />
               </div>
 
