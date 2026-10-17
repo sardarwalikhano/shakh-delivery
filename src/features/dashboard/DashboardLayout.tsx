@@ -73,7 +73,7 @@ export function DashboardLayout() {
   );
 
   return (
-    <div className="shakh-dashboard min-h-[calc(100dvh-4rem)]">
+    <div className="shakh-dashboard shakh-dashboard-v3 min-h-[calc(100dvh-4rem)]">
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1600px]">
         <aside className="shakh-dashboard__sidebar sticky top-16 hidden h-[calc(100dvh-4rem)] w-72 shrink-0 self-start overflow-y-auto p-4 lg:block lg:p-5">
           {renderNavigation()}

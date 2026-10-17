@@ -38,16 +38,16 @@ export function AppShell({ children }: AppShellProps) {
   };
 
   return (
-    <div className="min-h-dvh bg-[var(--shakh-bg)] text-[var(--shakh-ink)]">
+    <div className="shakh-app min-h-dvh bg-[var(--shakh-bg)] text-[var(--shakh-ink)]">
       <header className="shakh-topbar sticky top-0 z-40">
         <div className="shakh-topbar__inner mx-auto flex max-w-7xl items-center gap-3 px-4 sm:px-6">
           <button type="button" onClick={() => setMobileMenuOpen(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-black/65 hover:bg-black/[0.05] lg:hidden" aria-label="کردنەوەی مینۆ" aria-expanded={mobileMenuOpen}>
             <Menu size={21} />
           </button>
-          <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex min-w-0 items-center gap-2" aria-label="SHAKH Delivery home">
+          <Link to="/" onClick={() => setMobileMenuOpen(false)} className="shakh-brand-lockup flex min-w-0 items-center gap-2" aria-label="SHAKH Delivery home">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)] text-sm font-black text-[var(--shakh-navy)] shadow-sm">S</span>
             <div className="min-w-0 leading-tight">
-              <div className="truncate text-sm font-black tracking-wide">SHAKH</div>
+              <div className="shakh-brand-name truncate text-sm font-black tracking-wide">SHAKH</div>
               <div className="truncate text-[11px] text-black/45">Delivery</div>
             </div>
           </Link>

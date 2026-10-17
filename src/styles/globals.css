@@ -2,18 +2,18 @@
 
 :root {
   color-scheme: light;
-  --shakh-navy: #121c2f;
-  --shakh-blue: #2563eb;
-  --shakh-orange: #f97316;
-  --shakh-green: #16835d;
-  --shakh-bg: #f5f7fb;
-  --shakh-ink: #182235;
-  --shakh-muted: #687386;
-  --shakh-border: rgba(20, 32, 52, 0.09);
-  --shakh-shadow-sm: 0 2px 8px rgba(17, 28, 47, 0.04);
-  --shakh-shadow-card: 0 10px 30px rgba(17, 28, 47, 0.055);
-  --shakh-shadow-raised: 0 18px 44px rgba(17, 28, 47, 0.10);
-  --shakh-radius-card: 1.25rem;
+  --shakh-navy: #07182f;
+  --shakh-blue: #245cff;
+  --shakh-orange: #ff6a16;
+  --shakh-green: #00a875;
+  --shakh-bg: #f1f5fc;
+  --shakh-ink: #11243d;
+  --shakh-muted: #5c6e86;
+  --shakh-border: rgba(20, 43, 78, 0.11);
+  --shakh-shadow-sm: 0 5px 16px rgba(12, 31, 64, 0.07);
+  --shakh-shadow-card: 0 14px 34px rgba(12, 31, 64, 0.085);
+  --shakh-shadow-raised: 0 22px 52px rgba(12, 31, 64, 0.16);
+  --shakh-radius-card: 1.35rem;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--shakh-ink);
   background: var(--shakh-bg);
@@ -254,4 +254,409 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* SHAKH visual refresh v3: unmistakable brand contrast across every route */
+:root {
+  --shakh-orange-hot: #ff6a16;
+  --shakh-orange-light: #fff0e5;
+  --shakh-blue-light: #e9efff;
+  --shakh-green-light: #e4f8f0;
+  --shakh-card-line: rgba(36, 92, 255, .16);
+}
+
+html, body {
+  background:
+    radial-gradient(ellipse at 4% 0%, rgba(255, 106, 22, .075), transparent 34rem),
+    radial-gradient(ellipse at 96% 24%, rgba(36, 92, 255, .07), transparent 38rem),
+    #f1f5fc;
+}
+
+body { color: #11243d; }
+
+/* A deep branded app bar instead of the nearly-white header. */
+.shakh-topbar {
+  color: #fff;
+  border-bottom: 3px solid #ff6a16;
+  background: linear-gradient(108deg, #07162c 0%, #102c50 54%, #163e66 100%);
+  box-shadow: 0 12px 34px rgba(7, 22, 44, .2);
+  backdrop-filter: blur(18px);
+}
+.shakh-topbar__inner { min-height: 4.75rem; }
+.shakh-topbar a,
+.shakh-topbar nav button { color: rgba(255,255,255,.82); }
+.shakh-topbar a:hover,
+.shakh-topbar nav button:hover { color: #fff; background-color: rgba(255,255,255,.1); }
+.shakh-topbar > div > a > span:first-child,
+.shakh-topbar a[aria-label="SHAKH Delivery home"] > span {
+  background: linear-gradient(140deg, #ff8a32 0%, #ff6a16 48%, #ffd166 100%);
+  color: #07182f;
+  box-shadow: 0 8px 22px rgba(255,106,22,.36);
+  border: 1px solid rgba(255,255,255,.24);
+}
+.shakh-topbar a[aria-label="SHAKH Delivery home"] > div > div:first-child { color: #fff; letter-spacing: .13em; }
+.shakh-topbar a[aria-label="SHAKH Delivery home"] > div > div:last-child { color: rgba(255,255,255,.6); }
+.shakh-topbar a[href="/dashboard/posts/new"] {
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 999px;
+  padding-inline: 1rem;
+  background: linear-gradient(135deg, #ff7b23, #ff5a0a);
+  color: #fff !important;
+  box-shadow: 0 7px 20px rgba(255, 96, 12, .25);
+}
+.shakh-topbar a[href="/dashboard/posts/new"]:hover { background: linear-gradient(135deg, #ff8c36, #ff6816); }
+.shakh-topbar ~ div aside { border-inline-end: 1px solid rgba(255,255,255,.1); }
+
+/* Full-page color atmosphere is used by listing, details, order, wallet and role pages. */
+.shakh-main {
+  min-height: calc(100dvh - 9rem);
+  background: transparent;
+}
+.shakh-page {
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(36,92,255,.09), transparent 31rem),
+    radial-gradient(ellipse at 0% 20%, rgba(255,106,22,.065), transparent 28rem),
+    linear-gradient(180deg, #f4f7ff 0%, #f6f8fc 38%, #edf3fb 100%);
+}
+.shakh-page-title {
+  color: #0d2340;
+  letter-spacing: -.045em;
+  font-size: clamp(1.55rem, 2.8vw, 2.45rem);
+}
+.shakh-page-title::after {
+  content: "";
+  display: block;
+  width: 3.2rem;
+  height: .27rem;
+  margin-top: .62rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff6a16, #ffbd66);
+  box-shadow: 0 3px 10px rgba(255,106,22,.22);
+}
+
+/* Home hero: a high contrast campaign panel, not a subtle tint. */
+.shakh-home-hero {
+  overflow: hidden;
+  position: relative;
+  color: #fff;
+  background:
+    radial-gradient(circle at 86% 15%, rgba(36,92,255,.6), transparent 24rem),
+    radial-gradient(circle at 6% 92%, rgba(255,106,22,.36), transparent 29rem),
+    linear-gradient(125deg, #06142a 0%, #102b4e 52%, #153f68 100%);
+}
+.shakh-home-hero::before,
+.shakh-market-hero::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.22) .75px, transparent .75px);
+  background-size: 17px 17px;
+  opacity: .15;
+  mask-image: linear-gradient(105deg, transparent 10%, #000 100%);
+}
+.shakh-home-hero h1 { color: #fff !important; }
+.shakh-home-hero h1 span { color: #ffae66 !important; }
+.shakh-home-hero p { color: rgba(255,255,255,.72) !important; }
+.shakh-home-hero .shakh-home-feature {
+  color: #10223c;
+  border: 1px solid rgba(255,255,255,.45);
+  border-top: 4px solid #ff6a16;
+  border-radius: 1.35rem;
+  background: linear-gradient(150deg, rgba(255,255,255,.99), rgba(242,247,255,.94));
+  box-shadow: 0 18px 44px rgba(0,0,0,.18);
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+.shakh-home-hero .shakh-home-feature:nth-child(2) { border-top-color: #245cff; }
+.shakh-home-hero .shakh-home-feature:nth-child(3) { border-top-color: #00a875; }
+.shakh-home-hero .shakh-home-feature:hover { transform: translateY(-5px); box-shadow: 0 25px 48px rgba(0,0,0,.23); }
+.shakh-home-hero .shakh-home-feature > div:first-child {
+  width: 3rem; height: 3rem; border-radius: 1rem;
+  display: grid; place-items: center;
+  background: linear-gradient(145deg, #fff0e5, #ffe2cc);
+  box-shadow: inset 0 0 0 1px rgba(255,106,22,.1);
+}
+.shakh-home-hero .shakh-home-feature:nth-child(2) > div:first-child { background: linear-gradient(145deg,#e9efff,#dfe7ff); color:#245cff; }
+.shakh-home-hero .shakh-home-feature:nth-child(3) > div:first-child { background: linear-gradient(145deg,#e4f8f0,#d4f5e7); color:#008c62; }
+
+/* Marketplace campaign header: navy, electric blue and orange. */
+.shakh-market-hero {
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 2rem;
+  background:
+    radial-gradient(ellipse at 92% 5%, rgba(65,116,255,.7), transparent 23rem),
+    radial-gradient(ellipse at 8% 115%, rgba(255,106,22,.5), transparent 26rem),
+    linear-gradient(125deg, #06142a 0%, #10315c 58%, #164c7d 100%);
+  box-shadow: 0 28px 62px rgba(7, 24, 47, .23);
+}
+.shakh-market-hero .text-orange-300 { color: #ffb16a !important; }
+.shakh-search-box { border: 2px solid rgba(255,255,255,.78); box-shadow: 0 14px 35px rgba(0,0,0,.2); }
+.shakh-search-box button {
+  background: linear-gradient(135deg,#ff8a31,#ff5d0a) !important;
+  box-shadow: 0 7px 18px rgba(255,95,12,.28);
+}
+.shakh-chip {
+  border: 1px solid rgba(36,92,255,.15);
+  border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(12,31,64,.045);
+}
+.shakh-chip[aria-pressed="true"] {
+  border-color: #ff6a16;
+  background: linear-gradient(120deg,#ff7a21,#ff5c0a);
+  color: #fff;
+  box-shadow: 0 9px 20px rgba(255,106,22,.24);
+}
+
+/* Cards used throughout all pages: product, post, account, order, wallet and dashboard. */
+.shakh-product-card,
+.shakh-surface,
+.shakh-auth-panel,
+.shakh-home-feature,
+main article[class*="rounded-"],
+main section[class*="rounded-"][class*="bg-white"],
+main div[class*="rounded-"][class*="bg-white"][class*="p-"],
+main form[class*="rounded-"] {
+  border-color: rgba(23, 54, 98, .13);
+  box-shadow: 0 9px 26px rgba(12, 31, 64, .07), 0 2px 5px rgba(12, 31, 64, .025);
+}
+.shakh-product-card {
+  border-radius: 1.45rem;
+  border: 1px solid rgba(23,54,98,.14);
+  background: linear-gradient(165deg,#fff 0%,#fff 76%,#f7faff 100%);
+  box-shadow: 0 9px 24px rgba(12,31,64,.08);
+}
+.shakh-product-card::before {
+  content: "";
+  display: block;
+  position: absolute;
+  z-index: 2;
+  top: 0; inset-inline: 0;
+  height: 4px;
+  background: linear-gradient(90deg,#ff6a16 0%,#ffb24d 34%,#245cff 72%,#00a875 100%);
+  opacity: .96;
+}
+.shakh-product-card { position: relative; }
+.shakh-product-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(36,92,255,.32);
+  box-shadow: 0 23px 48px rgba(12,31,64,.16);
+}
+.shakh-product-card > div:first-child {
+  background: linear-gradient(145deg,#e8efff,#fff0e5);
+}
+.shakh-product-card h3 { color: #10243d; }
+.shakh-product-card .text-base.font-black.tabular-nums,
+.shakh-product-card .text-lg.font-black.tabular-nums { color: #f35a12; }
+.shakh-empty-state {
+  border: 2px dashed rgba(36,92,255,.22);
+  background: linear-gradient(140deg,rgba(255,255,255,.98),rgba(232,239,255,.58));
+  box-shadow: inset 0 0 0 6px rgba(255,255,255,.5);
+}
+
+/* Every common page/card receives clear depth and a purposeful accent. */
+main [class*="rounded-2xl"][class*="border"][class*="bg-white"],
+main [class*="rounded-3xl"][class*="border"][class*="bg-white"] {
+  border-color: rgba(20,52,98,.13);
+}
+main article:hover,
+main a.shakh-product-card:hover { transform: translateY(-4px); }
+main h1:not([class*="text-white"]):not([class*="text-[var(--shakh-navy)]"]) { color: #0b2343; }
+main h2 { letter-spacing: -.025em; }
+main label { color: #203957; }
+main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+main textarea,
+main select {
+  border-color: rgba(27,67,122,.2);
+  border-radius: .95rem;
+  background-color: rgba(255,255,255,.96);
+  color: #10243d;
+  transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+main textarea:focus,
+main select:focus {
+  border-color: #245cff;
+  box-shadow: 0 0 0 4px rgba(36,92,255,.13);
+  background-color: #fff;
+  outline: none;
+}
+main button, main a[class*="rounded-"] { transition: transform .17s ease, box-shadow .17s ease, background-color .17s ease, border-color .17s ease; }
+main button:not(:disabled):hover { filter: saturate(1.08); }
+main button[class*="bg-[var(--shakh-navy)]"],
+main a[class*="bg-[var(--shakh-navy)]"] {
+  border-color: rgba(255,255,255,.12);
+  background: linear-gradient(125deg,#102b4b,#07182f) !important;
+  box-shadow: 0 8px 20px rgba(7,24,47,.18);
+}
+main button[class*="bg-[var(--shakh-orange)]"],
+main a[class*="bg-[var(--shakh-orange)]"] {
+  background: linear-gradient(125deg,#ff8a32,#ff5a0a) !important;
+  box-shadow: 0 8px 20px rgba(255,106,22,.22);
+}
+main button[class*="bg-[var(--shakh-blue)]"],
+main a[class*="bg-[var(--shakh-blue)]"] {
+  background: linear-gradient(125deg,#3d78ff,#245cff) !important;
+  box-shadow: 0 8px 20px rgba(36,92,255,.2);
+}
+main button:disabled { filter: grayscale(.12); box-shadow: none; }
+main [role="alert"] { border-color: rgba(224,67,67,.22); box-shadow: inset 4px 0 0 rgba(224,67,67,.55); }
+main [role="status"] { box-shadow: inset 4px 0 0 rgba(0,168,117,.45); }
+main table { border-collapse: separate; border-spacing: 0; overflow: hidden; border-radius: 1rem; }
+main thead { background: linear-gradient(110deg,#0a1d37,#14375f); color: #fff; }
+main thead th { color: #fff !important; border-color: rgba(255,255,255,.12) !important; }
+main tbody tr:nth-child(even) { background: rgba(36,92,255,.035); }
+main tbody tr:hover { background: rgba(255,106,22,.055); }
+
+/* Dashboard becomes a true admin workspace with persistent dark navigation. */
+.shakh-dashboard { background: linear-gradient(145deg,#f5f7fc,#eaf0fb); }
+.shakh-dashboard__sidebar {
+  border-inline-end: 1px solid rgba(255,255,255,.09);
+  background: linear-gradient(180deg,#07162c 0%,#0d2544 54%,#112f52 100%);
+  box-shadow: 15px 0 38px rgba(7,22,44,.08);
+}
+.shakh-dashboard__brand {
+  border: 1px solid rgba(255,255,255,.15);
+  background: linear-gradient(135deg,#ff7d26 0%,#ff6411 42%,#225dff 100%);
+  box-shadow: 0 15px 30px rgba(255,106,22,.22);
+}
+.shakh-dashboard__brand .text-white\/50,
+.shakh-dashboard__brand .text-white\/60 { color: rgba(255,255,255,.78) !important; }
+.shakh-dashboard__navlink { color: rgba(255,255,255,.69) !important; border-radius: .95rem; margin-block: .22rem; }
+.shakh-dashboard__navlink:hover { color: #fff !important; background: rgba(255,255,255,.085) !important; }
+.shakh-dashboard__navlink[aria-current="page"] {
+  color: #fff !important;
+  border-color: rgba(255,255,255,.14);
+  background: linear-gradient(110deg,#ff791f,#ff5c0d) !important;
+  box-shadow: 0 8px 18px rgba(255,106,22,.22);
+}
+.shakh-dashboard__navlink[aria-current="page"] svg { color: #fff; }
+.shakh-dashboard main h1,
+.shakh-dashboard h1 { color: #0a2341; }
+.shakh-dashboard .shakh-page-title::after { background: linear-gradient(90deg,#ff6a16,#245cff); }
+
+/* Auth surfaces are stronger, with a clear branded frame. */
+.shakh-auth-shell {
+  background:
+    radial-gradient(ellipse at 0% 0%,rgba(255,106,22,.16),transparent 27rem),
+    radial-gradient(ellipse at 100% 100%,rgba(36,92,255,.15),transparent 31rem),
+    linear-gradient(135deg,#f4f7ff,#edf2fb);
+}
+.shakh-auth-panel {
+  border: 1px solid rgba(36,92,255,.16);
+  border-top: 5px solid #ff6a16;
+  border-radius: 1.7rem;
+  box-shadow: 0 25px 65px rgba(10,35,70,.14);
+}
+.shakh-auth-mark { background: linear-gradient(140deg,#ff8a32,#ff5b0b 55%,#245cff); box-shadow: 0 15px 34px rgba(255,106,22,.28); }
+
+/* Full-width footer visually anchors all public pages. */
+.shakh-footer {
+  color: rgba(255,255,255,.68);
+  border-top: 4px solid #ff6a16;
+  background: linear-gradient(110deg,#06142a,#102c50 66%,#15416b);
+}
+.shakh-footer .text-black\/70 { color: #fff !important; }
+.shakh-footer .text-black\/45 { color: rgba(255,255,255,.67) !important; }
+.shakh-footer .font-black { letter-spacing: .08em; }
+
+@media (max-width: 640px) {
+  .shakh-topbar__inner { min-height: 4.15rem; }
+  .shakh-home-hero .relative.mx-auto { min-height: auto; }
+  .shakh-product-card { border-radius: 1.05rem; }
+  .shakh-market-hero { border-radius: 1.35rem; }
+  .shakh-page-title::after { width: 2.5rem; height: .22rem; margin-top: .45rem; }
+  .shakh-footer { border-top-width: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main button, main a, .shakh-product-card, .shakh-home-feature { transition: none !important; }
+}
+
+
+/* Page-wide finishing layer: every route shares the same visible card language. */
+.shakh-main :where(section, article, form, aside)[class*="rounded-"][class*="bg-white"] {
+  border-color: rgba(19, 53, 101, .14);
+  box-shadow: 0 10px 26px rgba(9, 29, 61, .07);
+}
+.shakh-main :where(section, article, form, aside)[class*="rounded-"][class*="bg-white"]:hover {
+  border-color: rgba(36, 92, 255, .22);
+}
+.shakh-main [class*="bg-[var(--shakh-bg)]"][class*="rounded-"] {
+  background: linear-gradient(145deg, #f8faff, #eaf0ff) !important;
+}
+.shakh-main [class*="bg-[var(--shakh-orange)]/10"] {
+  background: linear-gradient(140deg, #fff0e5, #ffe2cb) !important;
+  color: #c94b0b !important;
+  box-shadow: inset 0 0 0 1px rgba(255,106,22,.09);
+}
+.shakh-main [class*="bg-[var(--shakh-blue)]/10"] {
+  background: linear-gradient(140deg, #eef2ff, #dfe8ff) !important;
+  color: #214ed7 !important;
+  box-shadow: inset 0 0 0 1px rgba(36,92,255,.09);
+}
+.shakh-main [class*="bg-[var(--shakh-green)]/10"] {
+  background: linear-gradient(140deg, #e8fbf3, #d5f6e7) !important;
+  color: #007a55 !important;
+}
+.shakh-main [class*="border-dashed"] {
+  border-color: rgba(36,92,255,.28) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(233,240,255,.68));
+}
+.shakh-main .shakh-page > div > header,
+.shakh-main .shakh-page > header {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255,255,255,.14);
+  box-shadow: 0 20px 46px rgba(8,28,58,.19);
+}
+.shakh-main .shakh-page > div > header h1,
+.shakh-main .shakh-page > div > header h2,
+.shakh-main .shakh-page > header h1,
+.shakh-main .shakh-page > header h2 { position: relative; z-index: 1; }
+
+/* The first dashboard panel acts as a real welcome/overview hero. */
+.shakh-dashboard .space-y-6 > section:first-child {
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.12);
+  border-top: 4px solid #ff6a16;
+  background:
+    radial-gradient(circle at 96% 8%, rgba(36,92,255,.5), transparent 17rem),
+    radial-gradient(circle at 4% 100%, rgba(255,106,22,.26), transparent 20rem),
+    linear-gradient(120deg,#07162c,#12345b 76%,#16446e);
+  box-shadow: 0 22px 46px rgba(7,22,44,.19);
+}
+.shakh-dashboard .space-y-6 > section:first-child h1 { color: #fff !important; }
+.shakh-dashboard .space-y-6 > section:first-child p,
+.shakh-dashboard .space-y-6 > section:first-child .text-black\/50,
+.shakh-dashboard .space-y-6 > section:first-child .text-black\/35 { color: rgba(255,255,255,.72) !important; }
+.shakh-dashboard .space-y-6 > section:first-child > div > div:last-child {
+  border-color: rgba(255,255,255,.15);
+  border-radius: 1rem;
+  color: #fff;
+  background: rgba(255,255,255,.09);
+  backdrop-filter: blur(10px);
+}
+.shakh-dashboard .space-y-6 > section:nth-child(2) > div:nth-child(3n+1) { border-top: 4px solid #ff6a16; }
+.shakh-dashboard .space-y-6 > section:nth-child(2) > div:nth-child(3n+2) { border-top: 4px solid #245cff; }
+.shakh-dashboard .space-y-6 > section:nth-child(2) > div:nth-child(3n) { border-top: 4px solid #00a875; }
+.shakh-dashboard .space-y-6 > section:nth-child(2) > div { transition: transform .2s ease, box-shadow .2s ease; }
+.shakh-dashboard .space-y-6 > section:nth-child(2) > div:hover { transform: translateY(-4px); box-shadow: 0 22px 44px rgba(12,31,64,.13); }
+
+/* More legible tables, dense admin panels and long-form detail screens. */
+.shakh-main table th,
+.shakh-main table td { padding: .9rem 1rem; }
+.shakh-main table tbody tr { transition: background-color .15s ease; }
+.shakh-main [class*="divide-y"] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(20,52,98,.10); }
+.shakh-main [class*="border-t"][class*="pt-"] { border-color: rgba(20,52,98,.13); }
+.shakh-main h1 + p,
+.shakh-main h2 + p { line-height: 1.85; }
+.shakh-main img { image-rendering: auto; }
+.shakh-main .shakh-product-card img { transition: transform .45s cubic-bezier(.2,.7,.2,1), filter .3s ease; }
+.shakh-main .shakh-product-card:hover img { filter: saturate(1.06) contrast(1.02); }
+
+@media (max-width: 768px) {
+  .shakh-main [class*="rounded-2xl"][class*="bg-white"] { border-radius: 1.05rem; }
+  .shakh-main [class*="shadow-"] { --tw-shadow: 0 7px 20px rgba(9,29,61,.075); }
+  .shakh-topbar nav { gap: .15rem; }
 }

@@ -55,7 +55,7 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
   };
 
   return (
-    <article className="shakh-product-card group">
+    <article className="shakh-product-card shakh-product-card-v3 group">
       <div className="relative aspect-[4/3] overflow-hidden bg-[var(--shakh-bg)]">
         <Link to={`/product/${product.slug}`} className="absolute inset-0" aria-label={product.name_ku}>
           {product.images[0] ? (
