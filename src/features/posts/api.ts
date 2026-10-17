@@ -65,6 +65,7 @@ export async function createPost(input: {
   const isApparelPost = input.category === 'fashion';
   const isVehiclePost = input.category === 'cars';
   const isElectronicsPost = input.category === 'electronics';
+  const isSupermarketPost = input.category === 'supermarket';
   const referralReward = input.category === 'food' || input.category === 'fashion' || isElectronicsPost
     ? Number(input.referralRewardIqd ?? 0)
     : 0;
@@ -74,6 +75,9 @@ export async function createPost(input: {
   const imageFiles = input.apparel?.images ?? input.images ?? [];
   const electronicsDetailsResult = isElectronicsPost
     ? sanitizeCategoryDetails('electronics', input.categoryDetails ?? {})
+    : { values: {} as CategoryDetails, error: null };
+  const supermarketDetailsResult = isSupermarketPost
+    ? sanitizeCategoryDetails('supermarket', input.categoryDetails ?? {})
     : { values: {} as CategoryDetails, error: null };
   let electronicsColorImageIndexes: Record<string, number> | null = null;
   if (isElectronicsPost) {
@@ -108,6 +112,13 @@ export async function createPost(input: {
     }
   }
   const needsStagedPublish = Boolean(input.apparel) || Boolean(input.vehicle) || imageFiles.length > 0;
+
+  if (isSupermarketPost) {
+    const price = input.priceIqd ?? 0;
+    if (!Number.isFinite(price) || price <= 0) throw new Error('نرخی کاڵای سوپەرمارکێت دەبێت لە سفر زیاتر بێت.');
+    if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) throw new Error('بۆ کاڵای سوپەرمارکێت لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+    if (supermarketDetailsResult.error) throw new Error(supermarketDetailsResult.error);
+  }
 
   if (isApparelPost && !input.apparel) {
     throw new Error('بۆ پۆستی جل‌وبەرگ، زانیاریی جۆر، وێنە، ڕەنگ، قەبارە و کۆگا پێویستە.');
@@ -177,6 +188,7 @@ export async function createPost(input: {
         brand: input.brand?.trim() || null,
         category_details: electronicsDetailsResult.values,
       } : {}),
+      ...(isSupermarketPost ? { category_details: supermarketDetailsResult.values } : {}),
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
       delivery_latitude: input.deliveryLatitude,
       delivery_longitude: input.deliveryLongitude,
