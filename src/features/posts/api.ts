@@ -46,11 +46,21 @@ export async function createPost(input: {
   images?: File[];
   apparel?: ApparelPostInput;
   vehicle?: { details: VehicleListingDraft; imageKinds?: VehiclePhotoKind[] };
+  deliveryRadiusKm: number;
+  deliveryLatitude: number;
+  deliveryLongitude: number;
 }): Promise<Post> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error('Not authenticated');
 
   const user = userData.user;
+  if (!Number.isInteger(input.deliveryRadiusKm) || input.deliveryRadiusKm < 1 || input.deliveryRadiusKm > 100) {
+    throw new Error('زۆنی گەیاندن دەبێت لە ١ تا ١٠٠ کم بێت.');
+  }
+  if (!Number.isFinite(input.deliveryLatitude) || input.deliveryLatitude < -90 || input.deliveryLatitude > 90
+    || !Number.isFinite(input.deliveryLongitude) || input.deliveryLongitude < -180 || input.deliveryLongitude > 180) {
+    throw new Error('شوێنی GPS ـی بڵاوکەرەوە دروست نییە.');
+  }
   const title = input.title.trim();
   const isApparelPost = input.category === 'fashion';
   const isVehiclePost = input.category === 'cars';
@@ -97,7 +107,8 @@ export async function createPost(input: {
       electronicsColorImageIndexes = Object.fromEntries(selectedColors.map((colorValue) => [colorValue, Number(indexMap[colorValue])]));
     }
   }
-  const needsStagedPublish = Boolean(input.apparel) || Boolean(input.vehicle) || imageFiles.length > 0;
+  // Every new post stays archived until its delivery-zone GPS point has been saved.
+  const needsStagedPublish = true;
 
   if (isApparelPost && !input.apparel) {
     throw new Error('بۆ پۆستی جل‌وبەرگ، زانیاریی جۆر، وێنە، ڕەنگ، قەبارە و کۆگا پێویستە.');
@@ -168,6 +179,8 @@ export async function createPost(input: {
         category_details: electronicsDetailsResult.values,
       } : {}),
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
+      delivery_radius_km: input.deliveryRadiusKm,
+      delivery_zone_required: true,
       status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {
         apparel_type: input.apparel.apparel_type,
@@ -189,6 +202,16 @@ export async function createPost(input: {
 
   const uploadedPaths: string[] = [];
   try {
+    const { error: deliveryZoneError } = await supabase
+      .from('post_delivery_zones')
+      .insert({
+        post_id: postId,
+        owner_id: user.id,
+        latitude: input.deliveryLatitude,
+        longitude: input.deliveryLongitude,
+      });
+    if (deliveryZoneError) throw deliveryZoneError;
+
     if (input.vehicle) {
       const { error: vehicleDetailsError } = await supabase
         .from('vehicle_listings')
