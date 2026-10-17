@@ -81,6 +81,7 @@ export function CreatePostPage() {
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
   const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
+  const [supermarketDetails, setSupermarketDetails] = useState<CategoryDetails>({});
   const [electronicsColorImageFiles, setElectronicsColorImageFiles] = useState<Record<string, File>>({});
   const [material, setMaterial] = useState('');
   const [countryOfOrigin, setCountryOfOrigin] = useState('');
@@ -336,6 +337,38 @@ export function CreatePostPage() {
       return;
     }
 
+    if (category === 'supermarket') {
+      const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
+      if (numericPrice === null || !Number.isFinite(numericPrice) || numericPrice <= 0) return setError('نرخی کاڵای سوپەرمارکێت دەبێت لە سفر زیاتر بێت.');
+      if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ کاڵای سوپەرمارکێت لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+      const details = sanitizeCategoryDetails('supermarket', supermarketDetails);
+      if (details.error) return setError(details.error);
+      if (!reviewing) { setReviewing(true); return; }
+      setBusy(true);
+      try {
+        const created = await createPost({
+          publisherRole: role,
+          category: 'supermarket',
+          title,
+          content,
+          priceIqd: numericPrice,
+          categoryDetails: details.values,
+          location,
+          deliveryLatitude: deliveryPoint.latitude,
+          deliveryLongitude: deliveryPoint.longitude,
+          deliveryRadiusKm,
+          images,
+        });
+        setSuccess(true);
+        navigate(`/posts/${created.id}`, { replace: true });
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : 'پۆستکردنی کاڵای سوپەرمارکێت سەرکەوتوو نەبوو.');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     if (category === 'electronics') {
       if (!brand.trim()) return setError('بڕاندی ئامێر دیاری بکە.');
       const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
@@ -578,8 +611,8 @@ export function CreatePostPage() {
             onChange={updateImages}
             maxFiles={MAX_POST_IMAGES}
             disabled={busy}
-            required={category === 'fashion' || category === 'electronics'}
-            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : category === 'electronics' ? 'وێنەکانی ئەلیکترۆنیات' : 'وێنەکانی پۆست / بەرهەم'}
+            required={category === 'fashion' || category === 'electronics' || category === 'supermarket'}
+            label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : category === 'electronics' ? 'وێنەکانی ئەلیکترۆنیات' : category === 'supermarket' ? 'وێنەکانی سوپەرمارکێت' : 'وێنەکانی پۆست / بەرهەم'}
             hint="کامێرا یان گەلەری بەکاربهێنە؛ ڕیزی وێنەکان دەتوانیت بگۆڕیت، وێنەی یەکەم وێنەی سەرەکییە."
           />
 
@@ -740,6 +773,39 @@ export function CreatePostPage() {
             </section>
           ) : null}
 
+          {category === 'supermarket' ? (
+            <section className="space-y-5 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
+              <div>
+                <h2 className="text-xl font-black">وردەکاریی کاڵای سوپەرمارکێت</h2>
+                <p className="mt-1 text-sm leading-6 text-black/45">زانیارییەکانی پێکهاتە، خۆراک و بەرواری بەرهەم تەنها ئەگەر لەسەر پاکێت یان بەڵگەی بەرهەم نووسراون پڕیان بکەرەوە.</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {getCategoryDetailFields('supermarket').map((field) => {
+                  const current = supermarketDetails[field.key];
+                  const value = typeof current === 'string' ? current : typeof current === 'number' ? String(current) : '';
+                  const changeValue = (nextValue: string) => setSupermarketDetails((previous) => ({ ...previous, [field.key]: nextValue }));
+                  if (field.type === 'select') {
+                    return (
+                      <Field key={field.key} label={field.label}>
+                        <select className={inputClass} value={value} onChange={(event) => changeValue(event.target.value)}>
+                          <option value="">هەڵبژاردەیەک دیاری بکە</option>
+                          {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </Field>
+                    );
+                  }
+                  if (field.type === 'number') {
+                    return <Field key={field.key} label={field.label} hint={field.unit}><input className={inputClass} type="number" min={field.min} max={field.max} step="any" value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.unit ?? 'ژمارە بنووسە'} /></Field>;
+                  }
+                  if (field.type === 'textarea') {
+                    return <Field key={field.key} label={field.label}><textarea className={inputClass + ' min-h-24'} maxLength={field.maxLength ?? 2000} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} /></Field>;
+                  }
+                  return <Field key={field.key} label={field.label}><input className={inputClass} maxLength={field.maxLength ?? 120} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} /></Field>;
+                })}
+              </div>
+            </section>
+          ) : null}
+
           {category === 'electronics' ? (
             <section className="space-y-5 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
               <div>
@@ -864,7 +930,7 @@ export function CreatePostPage() {
             <Field label={category === 'fashion' ? 'نرخی سەرەکی (د.ع)' : category === 'electronics' ? 'نرخی ئەلیکترۆنیات (د.ع)' : 'نرخ (IQD)'} hint={category === 'fashion' ? 'نرخی ئەو ڕەنگ و قەبارانەی نرخی تایبەتیان نییە.' : 'نرخی پۆست؛ ئەگەر گونجاوە.'}>
               <div className="relative">
                 <BadgeDollarSign className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-black/30" size={17} />
-                <input className={inputClass + ' ps-11'} type="number" min={category === 'fashion' || category === 'electronics' ? 1 : 0} step="1" inputMode="decimal" required={category === 'fashion' || category === 'electronics'} value={price} onChange={(event) => setPrice(event.target.value)} placeholder="0" dir="ltr" />
+                <input className={inputClass + ' ps-11'} type="number" min={category === 'fashion' || category === 'electronics' || category === 'supermarket' ? 1 : 0} step="1" inputMode="decimal" required={category === 'fashion' || category === 'electronics' || category === 'supermarket'} value={price} onChange={(event) => setPrice(event.target.value)} placeholder="0" dir="ltr" />
               </div>
             </Field>
             <Field label="شوێنی فرۆشیار">

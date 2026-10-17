@@ -17,6 +17,7 @@ const postCategorySlugs: Record<PostCategory, string> = {
   food: 'food',
   fashion: 'fashion',
   electronics: 'electronics',
+  supermarket: 'supermarket',
   home_living: 'home-living',
   beauty: 'beauty',
   kids: 'kids',

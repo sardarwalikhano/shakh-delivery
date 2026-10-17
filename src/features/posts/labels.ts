@@ -6,6 +6,7 @@ export const postCategoryLabels: Record<PostCategory, string> = {
   food: 'خواردن',
   fashion: 'جل و بەرگ',
   electronics: 'ئەلیکترۆنیات',
+  supermarket: 'سوپەرمارکێت',
   home_living: 'ماڵ و ژیان',
   beauty: 'جوانکاری',
   kids: 'منداڵان',
