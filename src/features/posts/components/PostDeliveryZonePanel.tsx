@@ -50,20 +50,19 @@ export function PostDeliveryZonePanel({ post, canEdit, onSaved }: Props) {
     setError(null);
     setMessage(null);
     try {
-      const { data, error: updateError } = await supabase
-        .from('posts')
-        .update({
-          delivery_latitude: point.latitude,
-          delivery_longitude: point.longitude,
-          delivery_radius_km: radiusKm,
-        })
-        .eq('id', post.id)
-        .eq('author_id', post.author_id)
-        .select('*')
-        .single();
+      const { error: updateError } = await supabase.rpc('set_post_delivery_zone', {
+        p_post_id: post.id,
+        p_latitude: point.latitude,
+        p_longitude: point.longitude,
+        p_radius_km: radiusKm,
+      });
       if (updateError) throw updateError;
-      const updated = data as Post;
-      onSaved(updated);
+      onSaved({
+        ...post,
+        delivery_latitude: point.latitude,
+        delivery_longitude: point.longitude,
+        delivery_radius_km: radiusKm,
+      });
       setMessage('زۆنی گەیاندن پاشەکەوت کرا.');
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'پاشەکەوتکردنی زۆنی گەیاندن سەرکەوتوو نەبوو.');
