@@ -227,15 +227,15 @@ export function MyPostsPage() {
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post management</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی پۆستەکان</h1><p className="mt-2 text-sm leading-6 text-black/50">{isSuperAdmin ? 'سوپەر ئەدمین دەتوانێت پۆست و هەموو کاتەگۆرییەکان ببینێت و بەڕێوەیان ببات.' : 'تەنها کاتەگۆرییە پەیوەندیدارەکان بە ڕۆڵەکەت لێرە پیشان دەدرێن؛ ئۆتۆمبێل لەگەڵ کاتەگۆریی تایبەت بە ڕۆڵەکەت دەبێت.'} پۆستەکانی جل‌وبەرگ لێرە دەستکاریی وردی کۆگا و قەبارەیان هەیە.</p></div>
+          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post management</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی پۆستەکان</h1><p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">{isSuperAdmin ? 'سوپەر ئەدمین دەتوانێت پۆست و هەموو کاتەگۆرییەکان ببینێت و بەڕێوەیان ببات.' : 'تەنها کاتەگۆرییە پەیوەندیدارەکان بە ڕۆڵەکەت لێرە پیشان دەدرێن؛ ئۆتۆمبێل لەگەڵ کاتەگۆریی تایبەت بە ڕۆڵەکەت دەبێت.'} پۆستەکانی جل‌وبەرگ لێرە دەستکاریی وردی کۆگا و قەبارەیان هەیە.</p></div>
           <Link to="/dashboard/posts/new" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white"><Package size={16}/> پۆستی نوێ</Link>
         </div>
         {error ? <div role="alert" className="mt-4 rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
         {message ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">{message}</div> : null}
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(300px,.85fr)_minmax(0,1.15fr)]">
           <div className="min-w-0 space-y-3">
-            <div className="rounded-2xl border border-black/[0.06] bg-white p-3">
-              <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black text-black/45">
+            <div className="rounded-2xl border border-[var(--shakh-border)] bg-white p-3">
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs font-black text-[var(--shakh-muted)]">
                 <span>فلتەری کاتەگۆری</span><span>{visiblePosts.length} پۆست</span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -245,18 +245,18 @@ export function MyPostsPage() {
                 ))}
               </div>
             </div>
-            {loading ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-black/45">بارکردنی هەموو پۆستەکان...</div> : null}
-            {!loading && visiblePosts.length === 0 ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-black/45">هیچ پۆستێک لەم کاتەگۆرییەدا نییە.</div> : null}
+            {loading ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-[var(--shakh-muted)]">بارکردنی هەموو پۆستەکان...</div> : null}
+            {!loading && visiblePosts.length === 0 ? <div className="rounded-2xl bg-white p-8 text-sm font-bold text-[var(--shakh-muted)]">هیچ پۆستێک لەم کاتەگۆرییەدا نییە.</div> : null}
             {visiblePosts.map((post) => {
-              const rowClass = 'flex w-full gap-3 rounded-2xl border bg-white p-3 text-start transition hover:border-[var(--shakh-orange)]/40 ' + (selected?.id === post.id ? 'border-[var(--shakh-orange)] shadow-md' : 'border-black/[0.06]');
+              const rowClass = 'flex w-full gap-3 rounded-2xl border bg-white p-3 text-start transition hover:border-[var(--shakh-orange)]/40 ' + (selected?.id === post.id ? 'border-[var(--shakh-orange)] shadow-md' : 'border-[var(--shakh-border)]');
               const rowContent = (
                 <>
                   <PostThumbnail post={post} />
                   <span className="min-w-0 flex-1">
                     <span className="mb-1 inline-flex rounded-full bg-[var(--shakh-blue)]/8 px-2 py-1 text-[10px] font-black text-[var(--shakh-blue)]">{postCategoryLabels[post.category]}</span>
                     <span className="block truncate font-black">{post.title}</span>
-                    <span className="mt-1 block text-xs text-black/45">{post.status === 'active' ? 'چالاک' : post.status === 'archived' ? 'ئەرشیف' : post.status}</span>
-                    {post.price_iqd !== null ? <span className="mt-2 block text-sm font-black">{Number(post.price_iqd).toLocaleString('en-US')} <span className="text-[10px] font-bold text-black/40">{post.category === 'cars' ? 'نرخ' : 'د.ع'}</span></span> : <span className="mt-2 block text-xs text-black/35">نرخ دیاری نەکراوە</span>}
+                    <span className="mt-1 block text-xs text-[var(--shakh-muted)]">{post.status === 'active' ? 'چالاک' : post.status === 'archived' ? 'ئەرشیف' : post.status}</span>
+                    {post.price_iqd !== null ? <span className="mt-2 block text-sm font-black">{Number(post.price_iqd).toLocaleString('en-US')} <span className="text-[10px] font-bold text-[var(--shakh-muted)]">{post.category === 'cars' ? 'نرخ' : 'د.ع'}</span></span> : <span className="mt-2 block text-xs text-black/35">نرخ دیاری نەکراوە</span>}
                     {canManageAll ? <span className="mt-1 block truncate text-[10px] text-black/35">نووسەر: {post.author_id}</span> : null}
                   </span>
                   {post.category === 'fashion' ? <Edit3 size={16} className="mt-1 shrink-0 text-black/35"/> : <ExternalLink size={16} className="mt-1 shrink-0 text-black/35"/>}
@@ -268,10 +268,10 @@ export function MyPostsPage() {
             })}
           </div>
 
-          <div className="min-w-0 rounded-[26px] border border-black/[0.06] bg-white p-4 shadow-sm sm:p-6">
-            {!selected ? <div className="grid min-h-64 place-items-center text-center"><div><Package size={32} className="mx-auto text-black/20"/><p className="mt-3 text-sm font-bold text-black/45">یەکێک لە پۆستەکانی لیستەکە هەڵبژێرە بۆ دەستکاری.</p></div></div> : (
+          <div className="min-w-0 rounded-[1.4rem] border border-[var(--shakh-border)] bg-white p-4 shadow-sm sm:p-6">
+            {!selected ? <div className="grid min-h-64 place-items-center text-center"><div><Package size={32} className="mx-auto text-black/20"/><p className="mt-3 text-sm font-bold text-[var(--shakh-muted)]">یەکێک لە پۆستەکانی لیستەکە هەڵبژێرە بۆ دەستکاری.</p></div></div> : (
               <div className="space-y-5">
-                <div><h2 className="text-xl font-black">دەستکاری: {selected.title}</h2><p className="mt-1 text-xs text-black/40">دەستکاریی جل‌وبەرگ لەگەڵ قەبارە و کۆگا؛ بۆ کاتەگۆرییەکانی تر کلیک لە پۆستەکە بکە بۆ دەستکاری، وێنە و سڕینەوە.</p></div>
+                <div><h2 className="text-xl font-black">دەستکاری: {selected.title}</h2><p className="mt-1 text-xs text-[var(--shakh-muted)]">دەستکاریی جل‌وبەرگ لەگەڵ قەبارە و کۆگا؛ بۆ کاتەگۆرییەکانی تر کلیک لە پۆستەکە بکە بۆ دەستکاری، وێنە و سڕینەوە.</p></div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block text-sm font-black">ناوی کاڵا<input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={180} className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-normal"/></label>
                   <label className="block text-sm font-black">نرخ (د.ع)<input type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} className="mt-2 w-full rounded-xl border border-black/10 px-3 py-3 text-sm font-normal"/></label>
@@ -283,13 +283,13 @@ export function MyPostsPage() {
                 <label className="block text-sm font-black">وەسفی ورد<textarea value={content} onChange={(e) => setContent(e.target.value)} maxLength={12000} className="mt-2 min-h-28 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/></label>
                 <div>
                   <h3 className="font-black">ڕەنگ × قەبارە · کۆگا و نرخ</h3>
-                  <p className="mt-1 text-xs leading-5 text-black/45">هەر تێکەڵەیەک بە جیا ڕەنگ، قەبارە، کۆگا و نرخ هەیە. کۆگای ٠ لە پۆستی کڕین نیشان نادرێت. تێکەڵەی کۆن ناسڕدرێتەوە؛ بۆ پاراستنی مێژووی داواکاری، تەنها کۆگاکەی دەخرێتە سفر.</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--shakh-muted)]">هەر تێکەڵەیەک بە جیا ڕەنگ، قەبارە، کۆگا و نرخ هەیە. کۆگای ٠ لە پۆستی کڕین نیشان نادرێت. تێکەڵەی کۆن ناسڕدرێتەوە؛ بۆ پاراستنی مێژووی داواکاری، تەنها کۆگاکەی دەخرێتە سفر.</p>
                   {variants.length === 0 ? <p className="mt-3 rounded-xl bg-amber-500/10 p-3 text-sm font-bold text-amber-700">هیچ تێکەڵەیەک تۆمار نەکراوە؛ یەکێک زیاد بکە.</p> : (
                     <div className="mt-3 space-y-3">
                       {variants.map((variant) => (
-                        <div key={variant.draftKey} className="rounded-2xl border border-black/[0.06] bg-[var(--shakh-bg)] p-3">
+                        <div key={variant.draftKey} className="rounded-2xl border border-[var(--shakh-border)] bg-[var(--shakh-bg)] p-3">
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <span className="flex items-center gap-2 text-xs font-black text-black/45"><span className="size-4 rounded-full border border-black/15" style={{backgroundColor:variant.color_hex}} />{variant.stock_quantity > 0 ? 'بەردەست' : 'ناچالاک / کۆگا ٠'}</span>
+                            <span className="flex items-center gap-2 text-xs font-black text-[var(--shakh-muted)]"><span className="size-4 rounded-full border border-black/15" style={{backgroundColor:variant.color_hex}} />{variant.stock_quantity > 0 ? 'بەردەست' : 'ناچالاک / کۆگا ٠'}</span>
                             {variant.stock_quantity > 0 ? <button type="button" onClick={() => setVariants((current) => current.map((item) => item.draftKey === variant.draftKey ? {...item, stock_quantity: 0} : item))} className="rounded-lg border border-red-500/20 bg-white px-3 py-1.5 text-xs font-black text-red-600">ڕاگرتنی ئەم تێکەڵەیە</button> : null}
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
