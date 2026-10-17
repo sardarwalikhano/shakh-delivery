@@ -180,7 +180,7 @@ export function PostDetailPage() {
     : (selectedElectronicsImagePath || selectedVariant?.image_path || images[0]?.storage_path);
   useEffect(() => { setImageLoadError(false); }, [currentImage]);
 
-  if (loading) return <div className="grid min-h-[65dvh] place-items-center"><div className="text-sm font-bold text-black/45">بارکردنی وردەکاریی پۆست...</div></div>;
+  if (loading) return <div className="grid min-h-[65dvh] place-items-center"><div className="text-sm font-bold text-[var(--shakh-muted)]">بارکردنی وردەکاریی پۆست...</div></div>;
   if (!post) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><h1 className="text-2xl font-black">پۆست نەدۆزرایەوە</h1>{error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}<Link className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white" to="/posts">گەڕانەوە بۆ پۆستەکان</Link></div>;
 
   const isApparel = post.category === 'fashion';
@@ -390,7 +390,7 @@ ${share.title || post.title}
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <Link to="/posts" className="inline-flex items-center gap-2 text-sm font-black text-black/45 hover:text-black"><ArrowRight size={17} /> گەڕانەوە بۆ پۆستەکان</Link>
+        <Link to="/posts" className="inline-flex items-center gap-2 text-sm font-black text-[var(--shakh-muted)] hover:text-black"><ArrowRight size={17} /> گەڕانەوە بۆ پۆستەکان</Link>
 
         {canEditPost || canDeletePost ? (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -413,7 +413,7 @@ ${share.title || post.title}
             {configuredShareReward > 0 && (post.category === 'food' || post.category === 'fashion' || post.category === 'electronics') ? (
               <div className="mt-2 space-y-1">
                 <p className="text-sm font-bold leading-7 text-[var(--shakh-navy)]">📈 هەرچەندە ژمارەی فرۆشتنە تەواوبووەکان لە ڕێگەی لینکە تایبەتەکەتەوە زیاتر بێت، کۆی قازانجی تۆش زیاتر دەبێت؛ بۆ هەر داواکارییەکی شایستە {configuredShareReward.toLocaleString('en-US')} د.ع خەڵات وەردەگریت.</p>
-                <p className="text-xs leading-6 text-black/45">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی شێرکەر. خاوەنی پۆست خەڵاتی شێرکردنی پۆستی خۆی وەرناگرێت؛ خەڵات تەنها بۆ کەسی شێرکەرە کە لینکی تایبەتی دروستکراوی هەیە.</p>
+                <p className="text-xs leading-6 text-[var(--shakh-muted)]">خەڵات دوای گەیاندن و پشتڕاستبوونەوەی پارەدان دەچێتە باڵانسی شێرکەر. خاوەنی پۆست خەڵاتی شێرکردنی پۆستی خۆی وەرناگرێت؛ خەڵات تەنها بۆ کەسی شێرکەرە کە لینکی تایبەتی دروستکراوی هەیە.</p>
               </div>
             ) : null}
           </div>
@@ -424,8 +424,8 @@ ${share.title || post.title}
         <PostDeliveryZonePanel post={post} canEdit={canEditPost} onSaved={setPost} />
 
         {isEditing ? (
-          <form onSubmit={saveEdits} className="mt-5 space-y-4 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 shadow-sm sm:p-6">
-            <div><h2 className="text-xl font-black">دەستکاری زانیاریی پۆست</h2><p className="mt-1 text-sm leading-6 text-black/45">کاتەگۆری و مێژووی پۆست هەمان دەمێنن؛ تەنها خانەکانت دەستکاری دەکەیت.</p></div>
+          <form onSubmit={saveEdits} className="mt-5 space-y-4 rounded-[1.4rem] border border-[var(--shakh-blue)]/20 bg-white p-4 shadow-sm sm:p-6">
+            <div><h2 className="text-xl font-black">دەستکاری زانیاریی پۆست</h2><p className="mt-1 text-sm leading-6 text-[var(--shakh-muted)]">کاتەگۆری و مێژووی پۆست هەمان دەمێنن؛ تەنها خانەکانت دەستکاری دەکەیت.</p></div>
             {editError ? <div role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{editError}</div> : null}
             <label className="block text-sm font-black">ناونیشان
               <input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={180} required disabled={savingEdit} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal"/>
@@ -490,7 +490,7 @@ ${share.title || post.title}
         ) : null}
 
         <div className="mt-5 grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
-          <div className="rounded-[30px] border border-black/[0.06] bg-white p-3 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-5">
+          <div className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-white p-3 shadow-[var(--shakh-shadow-md)] sm:p-5">
             <div className="overflow-hidden rounded-[24px] bg-[var(--shakh-bg)]">
               {currentImage && !imageLoadError ? (
                 <img
@@ -509,16 +509,16 @@ ${share.title || post.title}
               )}
             </div>
             {ownsPost ? (
-              <section className="mt-5 rounded-2xl border border-black/[0.06] bg-white p-4">
+              <section className="mt-5 rounded-2xl border border-[var(--shakh-border)] bg-white p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-black">وێنەکانی پۆست</h2>
-                  <span className="text-xs font-bold text-black/40">{images.length}/{MAX_POST_IMAGES} وێنە تۆمارکراوە</span>
+                  <span className="text-xs font-bold text-[var(--shakh-muted)]">{images.length}/{MAX_POST_IMAGES} وێنە تۆمارکراوە</span>
                 </div>
                 {imageSaveMessage ? <div role="status" className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm font-bold text-emerald-700">{imageSaveMessage}</div> : null}
                 {imageSaveError ? <div role="alert" className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm font-bold text-red-700">{imageSaveError}</div> : null}
                 {isEditing ? (
                   <div className="mt-3 space-y-3">
-                    <p className="text-xs leading-6 text-black/45">{isElectronics && typeof post.category_details?.color_image_paths === 'string' && post.category_details.color_image_paths.trim()
+                    <p className="text-xs leading-6 text-[var(--shakh-muted)]">{isElectronics && typeof post.category_details?.color_image_paths === 'string' && post.category_details.color_image_paths.trim()
                       ? `وێنەکان لە ڕیزی هەڵبژاردنتدا بە ڕەنگەکان دەبەسترێن: ${electronicsColorValues.map((value) => ELECTRONICS_COLOR_LABELS[value] ?? value).join('، ')}. لانیکەم ${electronicsColorValues.length} وێنە هەڵبژێرە و وێنەکان لە هەمان ڕیزدا دابنێ.`
                       : 'ئەگەر وێنەی نوێ هەڵبژێریت، ئەوانەی پێشوو جێگرتەوە دەبن. ئەگەر ناتەوێت وێنەکان بگۆڕیت، ئەم بەشە بەتاڵ بهێڵە.'}</p>
                     <ImageUploadField
@@ -534,31 +534,31 @@ ${share.title || post.title}
                     </button>
                   </div>
                 ) : (
-                  <p className="mt-2 text-xs leading-6 text-black/45">بۆ زیادکردن یان جێگرتنەوەی وێنەکان، «دەستکاری پۆست» هەڵبژێرە.</p>
+                  <p className="mt-2 text-xs leading-6 text-[var(--shakh-muted)]">بۆ زیادکردن یان جێگرتنەوەی وێنەکان، «دەستکاری پۆست» هەڵبژێرە.</p>
                 )}
               </section>
             ) : null}
 
-            {images.length > 1 || isVehicle ? <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={image.storage_path} className="min-w-0"><button type="button" onClick={() => setActiveImageIndex(index)} className={`block w-full overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && (selectedElectronicsImageIndex === index || selectedVariant?.image_path === image.storage_path))) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>{isVehicle && image.alt_ku ? <div className="mt-1 text-center text-xs font-bold text-black/45">{image.alt_ku}</div> : null}</div>)}</div> : null}
+            {images.length > 1 || isVehicle ? <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image, index) => <div key={image.storage_path} className="min-w-0"><button type="button" onClick={() => setActiveImageIndex(index)} className={`block w-full overflow-hidden rounded-xl border-2 ${(activeImageIndex === index || (activeImageIndex < 0 && (selectedElectronicsImageIndex === index || selectedVariant?.image_path === image.storage_path))) ? 'border-[var(--shakh-orange)]' : 'border-transparent'}`}><img src={getPostImageUrl(image.storage_path)} alt={image.alt_ku ?? post.title} className="aspect-square w-full object-cover" loading="lazy" /></button>{isVehicle && image.alt_ku ? <div className="mt-1 text-center text-xs font-bold text-[var(--shakh-muted)]">{image.alt_ku}</div> : null}</div>)}</div> : null}
           </div>
 
-          <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_55px_rgba(16,22,35,.05)] sm:p-8">
+          <div className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-white p-5 shadow-[var(--shakh-shadow-md)] sm:p-8">
             <div className="flex flex-wrap items-center gap-2 text-xs font-black">
               <span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1.5 text-[var(--shakh-orange)]">{postCategoryLabels[post.category]}</span>
-              <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-black/45">{postRoleLabels[post.publisher_role]}</span>
+              <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-[var(--shakh-muted)]">{postRoleLabels[post.publisher_role]}</span>
               {discount > 0 ? <span className="rounded-full bg-red-500/10 px-3 py-1.5 text-red-600">{discount}٪ داشکاندن</span> : null}
             </div>
             <h1 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">{post.title}</h1>
-            {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-black/45">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
-            {(isApparel || isElectronics) && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-black/45"><Tag size={15} />{post.brand}</div> : null}
+            {isApparel && post.apparel_type ? <div className="mt-2 text-sm font-bold text-[var(--shakh-muted)]">{apparelTypeLabels[post.apparel_type] ?? post.apparel_type}</div> : null}
+            {(isApparel || isElectronics) && post.brand ? <div className="mt-2 flex items-center gap-2 text-sm font-bold text-[var(--shakh-muted)]"><Tag size={15} />{post.brand}</div> : null}
             {isApparel && post.item_condition ? <div className="mt-2 flex flex-wrap gap-2 text-xs font-black"><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">دۆخ: {post.item_condition === 'new' ? 'نوێ' : 'بەکارهاتوو'}</span>{post.apparel_audience ? <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5">{APPAREL_AUDIENCE_LABELS[post.apparel_audience] ?? 'هەمووان'}</span> : null}</div> : null}
             <p className="mt-4 whitespace-pre-wrap leading-8 text-black/60">{post.content || 'وەسفی زیاتر بۆ ئەم پۆستە دانەنراوە.'}</p>
 
             <div className="mt-6 flex flex-wrap items-end gap-3">
-              <div className="text-3xl font-black tabular-nums">{finalPrice.toLocaleString('en-US')} <span className="text-sm text-black/40">{currencyLabel}</span></div>
+              <div className="text-3xl font-black tabular-nums">{finalPrice.toLocaleString('en-US')} <span className="text-sm text-[var(--shakh-muted)]">{currencyLabel}</span></div>
               {discount > 0 ? <div className="pb-1 text-sm text-black/35 line-through">{basePrice.toLocaleString('en-US')} {currencyLabel}</div> : null}
               {vehicleListing?.price_negotiable === true ? <span className="pb-1 text-xs font-bold text-emerald-700">نرخ جێگۆڕکێی تێدایە</span> : null}
-              {vehicleListing?.price_negotiable === null ? <span className="pb-1 text-xs font-bold text-black/40">جێگۆڕکێی نرخ: نازانراوە</span> : null}
+              {vehicleListing?.price_negotiable === null ? <span className="pb-1 text-xs font-bold text-[var(--shakh-muted)]">جێگۆڕکێی نرخ: نازانراوە</span> : null}
               {selectedVariant?.price_iqd != null ? <span className="pb-1 text-xs font-bold text-[var(--shakh-blue)]">نرخی تایبەتی ئەم ڕەنگ/قەبارەیە</span> : null}
             </div>
 
@@ -586,20 +586,20 @@ ${share.title || post.title}
                         );
                       })}
                     </div>
-                    <p className="mt-2 text-xs leading-5 text-black/45">وێنەی سەرەکی بەپێی ڕەنگی هەڵبژێردراو دەگۆڕێت؛ ڕەنگەکە لە داواکاریی کڕینیشدا تۆمار دەکرێت.</p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--shakh-muted)]">وێنەی سەرەکی بەپێی ڕەنگی هەڵبژێردراو دەگۆڕێت؛ ڕەنگەکە لە داواکاریی کڕینیشدا تۆمار دەکرێت.</p>
                   </div>
                 ) : null}
                 {electronicsSpecs.length ? (
                   <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                     {electronicsSpecs.map((detail) => (
                       <div key={detail.key} className="rounded-xl bg-white p-3">
-                        <dt className="text-xs font-bold text-black/45">{detail.label}</dt>
+                        <dt className="text-xs font-bold text-[var(--shakh-muted)]">{detail.label}</dt>
                         <dd className="mt-1 break-words text-sm font-black">{detail.value}</dd>
                       </div>
                     ))}
                   </dl>
                 ) : (
-                  <p className="mt-2 text-sm leading-6 text-black/45">وردەکاریی تەکنیکی بۆ ئەم پۆستە بەردەست نییە.</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">وردەکاریی تەکنیکی بۆ ئەم پۆستە بەردەست نییە.</p>
                 )}
               </section>
             ) : null}
@@ -611,36 +611,36 @@ ${share.title || post.title}
                   <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                     {supermarketSpecs.map((detail) => (
                       <div key={detail.key} className="rounded-xl bg-white p-3">
-                        <dt className="text-xs font-bold text-black/45">{detail.label}</dt>
+                        <dt className="text-xs font-bold text-[var(--shakh-muted)]">{detail.label}</dt>
                         <dd className="mt-1 break-words text-sm font-black">{detail.value}</dd>
                       </div>
                     ))}
                   </dl>
                 ) : (
-                  <p className="mt-2 text-sm leading-6 text-black/45">وردەکاریی زیادە بۆ ئەم کاڵایە تۆمار نەکراوە.</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">وردەکاریی زیادە بۆ ئەم کاڵایە تۆمار نەکراوە.</p>
                 )}
               </section>
             ) : null}
 
             {isApparel ? <div className="mt-7 space-y-6">
               <div>
-                <div className="flex items-center justify-between gap-3"><h2 className="font-black">ڕەنگ</h2><span className="text-xs font-bold text-black/40">{colors.length} ڕەنگی تۆمارکراو</span></div>
+                <div className="flex items-center justify-between gap-3"><h2 className="font-black">ڕەنگ</h2><span className="text-xs font-bold text-[var(--shakh-muted)]">{colors.length} ڕەنگی تۆمارکراو</span></div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {colors.map((color) => {
                     const active = color.hex.toLowerCase() === chosenColor.toLowerCase();
                     const quantity = variants.filter((variant) => variant.color_hex.toLowerCase() === color.hex.toLowerCase()).reduce((sum, variant) => sum + variant.stock_quantity, 0);
-                    return <button key={color.hex} type="button" onClick={() => { setSelectedColor(color.hex); setSelectedSize(''); setActiveImageIndex(-1); }} className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm font-black ${active ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}><span className="size-5 rounded-full border border-black/15" style={{ backgroundColor: color.hex }} />{color.name}<span className="text-[10px] text-black/40">({quantity})</span></button>;
+                    return <button key={color.hex} type="button" onClick={() => { setSelectedColor(color.hex); setSelectedSize(''); setActiveImageIndex(-1); }} className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm font-black ${active ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}><span className="size-5 rounded-full border border-black/15" style={{ backgroundColor: color.hex }} />{color.name}<span className="text-[10px] text-[var(--shakh-muted)]">({quantity})</span></button>;
                   })}
                 </div>
               </div>
               <div>
-                <div className="flex items-center justify-between gap-3"><h2 className="font-black">قەبارە</h2><span className="text-xs font-bold text-black/40">تەنها قەبارە تۆمارکراوەکان</span></div>
+                <div className="flex items-center justify-between gap-3"><h2 className="font-black">قەبارە</h2><span className="text-xs font-bold text-[var(--shakh-muted)]">تەنها قەبارە تۆمارکراوەکان</span></div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {sizesForColor.map((variant) => <button key={variant.id} type="button" disabled={variant.stock_quantity <= 0} onClick={() => { setSelectedSize(variant.size_label); setActiveImageIndex(-1); }} className={`min-w-14 rounded-xl border px-4 py-2.5 text-sm font-black disabled:cursor-not-allowed disabled:opacity-35 ${selectedVariant?.id === variant.id ? 'border-[var(--shakh-blue)] bg-[var(--shakh-blue)]/8 text-[var(--shakh-blue)]' : 'border-black/10'}`}>{variant.size_label}</button>)}
                 </div>
               </div>
               {selectedVariant ? <div className={`flex items-center gap-3 rounded-2xl p-4 text-sm font-bold ${selectedVariant.stock_quantity > 0 ? 'bg-emerald-500/8 text-emerald-700' : 'bg-red-500/8 text-red-700'}`}><span className="grid size-9 place-items-center rounded-xl bg-white/70"><Check size={17} /></span><span>{selectedVariant.stock_quantity > 0 ? `${selectedVariant.stock_quantity} دانە لەم ڕەنگ و قەبارەیە بەردەستە` : 'ئەم تێکەڵەی ڕەنگ و قەبارەیە بەردەست نییە'}</span></div> : <div className="rounded-2xl bg-red-500/8 p-4 text-sm font-bold text-red-700">هیچ قەبارەیەک بۆ ئەم ڕەنگە تۆمار نەکراوە.</div>}
-              <div className="rounded-2xl bg-[var(--shakh-bg)] p-4 text-xs leading-6 text-black/50">
+              <div className="rounded-2xl bg-[var(--shakh-bg)] p-4 text-xs leading-6 text-[var(--shakh-muted)]">
                 {post.material ? <div>ماددە: <span className="font-bold text-black/70">{post.material}</span></div> : null}
                 {post.country_of_origin ? <div>وڵاتی دروستکردن: <span className="font-bold text-black/70">{post.country_of_origin}</span></div> : null}
                 {post.season ? <div>وەرز: <span className="font-bold text-black/70">{post.season === 'summer' ? 'هاوین' : post.season === 'winter' ? 'زستان' : 'هەموو وەرزەکان'}</span></div> : null}
@@ -653,9 +653,9 @@ ${share.title || post.title}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
             {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
 
-            {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
-              <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>
-              <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">بارودۆخی کۆگا</div><div className="mt-1 flex items-center gap-2 font-black"><Warehouse size={17} />{isApparel ? `${colorStock} دانە لەم ڕەنگە` : 'پۆستی چالاک'}</div></div>
+            {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-[var(--shakh-border)] pt-5 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-[var(--shakh-muted)]">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>
+              <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-[var(--shakh-muted)]">بارودۆخی کۆگا</div><div className="mt-1 flex items-center gap-2 font-black"><Warehouse size={17} />{isApparel ? `${colorStock} دانە لەم ڕەنگە` : 'پۆستی چالاک'}</div></div>
             </div> : null}
             <Link to="/posts" className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">گەڕانەوە بۆ هەموو پۆستەکان</Link>
           </div>
