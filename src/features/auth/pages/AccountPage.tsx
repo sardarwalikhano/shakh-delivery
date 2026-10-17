@@ -137,21 +137,21 @@ export function AccountPage() {
         <div className="space-y-6">
           <div className="space-y-3">
             <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
-              <div className="text-xs font-bold text-black/40">ئیمەیڵ</div>
+              <div className="text-xs font-bold text-[var(--shakh-muted)]">ئیمەیڵ</div>
               <div className="mt-1 break-all font-bold" dir="ltr">{user?.email ?? '—'}</div>
             </div>
             <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
-              <div className="text-xs font-bold text-black/40">Role ـە چالاکەکان</div>
+              <div className="text-xs font-bold text-[var(--shakh-muted)]">Role ـە چالاکەکان</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {roles.length ? roles.map((item) => <span key={item} className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-black/65">{roleLabelsKu[item]}</span>) : <span>{role ?? '—'}</span>}
               </div>
             </div>
-            <div className="border-t border-black/[0.07] pt-5">
+            <div className="border-t border-[var(--shakh-border)] pt-5">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={18} className="text-[var(--shakh-orange)]" />
                 <h2 className="font-black">داواکردنی Role</h2>
               </div>
-              <p className="mt-2 text-sm leading-7 text-black/45">Role ـێک هەڵبژێرە. داواکارییەکە بۆ Super Admin دەنێردرێت و تەنها دوای ڤەریفای هەموو permission ـەکانی ئەو Role ـە چالاک دەبن.</p>
+              <p className="mt-2 text-sm leading-7 text-[var(--shakh-muted)]">Role ـێک هەڵبژێرە. داواکارییەکە بۆ Super Admin دەنێردرێت و تەنها دوای ڤەریفای هەموو permission ـەکانی ئەو Role ـە چالاک دەبن.</p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <select className="min-h-12 flex-1 rounded-2xl border border-black/10 bg-white px-4 text-sm font-bold outline-none focus:border-[var(--shakh-blue)]" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value)} disabled={roleBusy || requestableRoles.length === 0}>
                   <option value="">Role هەڵبژێرە</option>
@@ -165,26 +165,26 @@ export function AccountPage() {
               {roleSuccess ? <div className="mt-3"><AuthSuccess>{roleSuccess}</AuthSuccess></div> : null}
               <div className="mt-4 space-y-2">
                 {roleRequests.slice(0, 6).map((item) => (
-                  <div key={item.id} className="rounded-2xl border border-black/[0.06] bg-white p-4">
+                  <div key={item.id} className="rounded-2xl border border-[var(--shakh-border)] bg-white p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <span className="font-black">{roleLabelsKu[item.requested_role]}</span>
                       {roleStatus(item.status)}
                     </div>
-                    {item.review_note ? <p className="mt-2 text-xs leading-6 text-black/45">تێبینی: {item.review_note}</p> : null}
+                    {item.review_note ? <p className="mt-2 text-xs leading-6 text-[var(--shakh-muted)]">تێبینی: {item.review_note}</p> : null}
                   </div>
                 ))}
-                {roleRequests.length === 0 ? <div className="rounded-2xl bg-white p-4 text-xs font-bold text-black/40">هێشتا هیچ داواکارییەکی Role نییە.</div> : null}
+                {roleRequests.length === 0 ? <div className="rounded-2xl bg-white p-4 text-xs font-bold text-[var(--shakh-muted)]">هێشتا هیچ داواکارییەکی Role نییە.</div> : null}
               </div>
             </div>
             <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
-              <div className="text-xs font-bold text-black/40">دۆخی پشتڕاستکردنەوە</div>
+              <div className="text-xs font-bold text-[var(--shakh-muted)]">دۆخی پشتڕاستکردنەوە</div>
               <div className="mt-1 font-bold">{user?.email_confirmed_at ? 'پشتڕاستکراوە' : 'پشتڕاست نەکراوەتەوە'}</div>
             </div>
           </div>
 
-          <div className="border-t border-black/[0.07] pt-6">
+          <div className="border-t border-[var(--shakh-border)] pt-6">
             <h2 className="text-lg font-black">گۆڕینی وشەی نهێنی</h2>
-            <p className="mt-2 text-sm leading-6 text-black/45">وشەی نهێنیی ئێستا بنووسە، پاشان وشەی نوێ دابنێ. دوای گۆڕان، session ـەکان داخراون و پێویستە دووبارە بچیتە ژوورەوە.</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">وشەی نهێنیی ئێستا بنووسە، پاشان وشەی نوێ دابنێ. دوای گۆڕان، session ـەکان داخراون و پێویستە دووبارە بچیتە ژوورەوە.</p>
             <form className="mt-5 space-y-5" onSubmit={onChangePassword} noValidate>
               <AuthFeedback error={error} />
               {success ? <AuthSuccess>وشەی نهێنی نوێکرایەوە.</AuthSuccess> : null}
@@ -196,11 +196,11 @@ export function AccountPage() {
             </form>
           </div>
 
-          <section className="border-t border-black/[0.07] pt-6">
+          <section className="border-t border-[var(--shakh-border)] pt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black">پۆستەکانی من</h2>
-                <p className="mt-1 text-sm leading-6 text-black/45">پۆستە چالاکەکانت لە Supabase دەخوێندرێنەوە؛ گۆڕانکارییەکان بە شێوەی ڕاستەوخۆ نوێ دەبنەوە.</p>
+                <p className="mt-1 text-sm leading-6 text-[var(--shakh-muted)]">پۆستە چالاکەکانت لە Supabase دەخوێندرێنەوە؛ گۆڕانکارییەکان بە شێوەی ڕاستەوخۆ نوێ دەبنەوە.</p>
               </div>
               {roles.some((item) => item !== 'customer') || role === 'customer' ? (
                 <Link to="/dashboard/posts/new" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--shakh-navy)] px-4 py-2 text-xs font-black text-white">پۆستی نوێ</Link>
@@ -209,18 +209,18 @@ export function AccountPage() {
 
             {myPostsError ? <div className="mt-4"><AuthFeedback error={myPostsError} /></div> : null}
             {myPostsLoading ? (
-              <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-5 text-center text-sm font-bold text-black/40">بارکردنی پۆستەکان...</div>
+              <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-5 text-center text-sm font-bold text-[var(--shakh-muted)]">بارکردنی پۆستەکان...</div>
             ) : null}
             {!myPostsLoading && !myPostsError && myPosts.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-black/10 bg-[var(--shakh-bg)] p-5 text-center">
-                <p className="text-sm font-bold text-black/45">هێشتا هیچ پۆستێکی چالاکت نییە.</p>
+                <p className="text-sm font-bold text-[var(--shakh-muted)]">هێشتا هیچ پۆستێکی چالاکت نییە.</p>
                 <Link to="/dashboard/posts/new" className="mt-3 inline-flex text-sm font-black text-[var(--shakh-blue)]">یەکەم پۆستت بڵاو بکەرەوە ←</Link>
               </div>
             ) : null}
             {!myPostsLoading && myPosts.length > 0 ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {myPosts.map((post) => (
-                  <Link key={post.id} to={`/posts/${post.id}`} className="group overflow-hidden rounded-2xl border border-black/[0.07] bg-white transition hover:border-[var(--shakh-orange)]/40">
+                  <Link key={post.id} to={`/posts/${post.id}`} className="group overflow-hidden rounded-2xl border border-[var(--shakh-border)] bg-white transition hover:border-[var(--shakh-orange)]/40">
                     {post.images?.[0]?.storage_path ? (
                       <img src={getPostImageUrl(post.images[0].storage_path)} alt={post.title} className="aspect-[16/9] w-full bg-[var(--shakh-bg)] object-cover" loading="lazy" />
                     ) : null}
@@ -230,8 +230,8 @@ export function AccountPage() {
                         <span className="text-[10px] font-bold text-black/35">{postRoleLabels[post.publisher_role]}</span>
                       </div>
                       <h3 className="mt-3 line-clamp-2 font-black group-hover:text-[var(--shakh-blue)]">{post.title}</h3>
-                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-black/[0.06] pt-3">
-                        <span className="text-xs text-black/40">{post.location || 'شوێن دیاری نەکراوە'}</span>
+                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--shakh-border)] pt-3">
+                        <span className="text-xs text-[var(--shakh-muted)]">{post.location || 'شوێن دیاری نەکراوە'}</span>
                         <span className="text-sm font-black text-[var(--shakh-navy)]">{post.price_iqd != null ? Number(post.price_iqd).toLocaleString('en-US') + ' د.ع' : 'نرخ دیاری نەکراوە'}</span>
                       </div>
                       <div className="mt-2 text-xs font-black text-[var(--shakh-blue)]">بینینی پۆست ←</div>
