@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
 import type { PaymentMethod, CheckoutResult } from './types';
+import { readableDeliveryError } from '@/features/posts/deliveryZones';
 
 export async function createCheckout(input: {
   deliveryAddress: string;
@@ -17,6 +18,6 @@ export async function createCheckout(input: {
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
   });
-  if (error) throw error;
+  if (error) throw new Error(readableDeliveryError(error.message));
   return data as CheckoutResult;
 }
