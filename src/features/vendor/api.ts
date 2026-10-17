@@ -16,6 +16,9 @@ export type VendorStore = {
   description_ku: string | null;
   description_ar: string | null;
   description_en: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
+  delivery_radius_km: number;
   status: 'pending' | 'active' | 'suspended' | 'closed';
 };
 
@@ -103,14 +106,14 @@ export async function getVendorStores(userId: string, role: AppRole | AppRole[] 
   if (!isVendorRole(role)) return [];
   const { data, error } = await supabase
     .from('stores')
-    .select('id,owner_id,name_ku,name_ar,name_en,slug,logo_url,cover_url,description_ku,description_ar,description_en,status')
+    .select('id,owner_id,name_ku,name_ar,name_en,slug,logo_url,cover_url,description_ku,description_ar,description_en,delivery_latitude,delivery_longitude,delivery_radius_km,status')
     .eq('owner_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as VendorStore[];
 }
 
-export async function createVendorStore(userId: string, input: Pick<VendorStore, 'name_ku' | 'name_ar' | 'name_en' | 'slug'> & Partial<Pick<VendorStore, 'description_ku' | 'description_ar' | 'description_en'>>): Promise<VendorStore> {
+export async function createVendorStore(userId: string, input: Pick<VendorStore, 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'delivery_latitude' | 'delivery_longitude' | 'delivery_radius_km'> & Partial<Pick<VendorStore, 'description_ku' | 'description_ar' | 'description_en'>>): Promise<VendorStore> {
   const { data, error } = await supabase
     .from('stores')
     .insert({ ...input, owner_id: userId, status: 'pending' })
@@ -120,7 +123,7 @@ export async function createVendorStore(userId: string, input: Pick<VendorStore,
   return data as VendorStore;
 }
 
-export async function updateVendorStore(userId: string, storeId: string, input: Partial<Pick<VendorStore, 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'logo_url' | 'cover_url' | 'description_ku' | 'description_ar' | 'description_en'>>): Promise<VendorStore> {
+export async function updateVendorStore(userId: string, storeId: string, input: Partial<Pick<VendorStore, 'name_ku' | 'name_ar' | 'name_en' | 'slug' | 'logo_url' | 'cover_url' | 'description_ku' | 'description_ar' | 'description_en' | 'delivery_latitude' | 'delivery_longitude' | 'delivery_radius_km'>>): Promise<VendorStore> {
   const { data, error } = await supabase
     .from('stores')
     .update(input)
