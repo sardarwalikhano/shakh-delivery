@@ -137,7 +137,10 @@ export function CreatePostPage() {
         ?? roleTargets[0]?.category
         ?? '';
     if (role !== nextRole) setRole(nextRole);
-    if (category !== nextCategory) setCategory(nextCategory);
+    if (category !== nextCategory) {
+      setCategory(nextCategory);
+      setDeliveryRadiusKm(nextCategory === 'food' ? 5 : 15);
+    }
   }, [category, preferredRole, role, roles, targets]);
 
   const availableSizes = useMemo(() => sizeOptionsFor(apparelType), [apparelType]);
