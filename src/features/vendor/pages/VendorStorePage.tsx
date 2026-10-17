@@ -67,7 +67,7 @@ export function VendorStorePage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[30px] border border-black/[0.06] bg-white p-6 shadow-[0_14px_45px_rgba(16,22,35,.04)] sm:p-8">
+      <section className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-white p-6 shadow-[var(--shakh-shadow-sm)] sm:p-8">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-blue)]/10 text-[var(--shakh-blue)]"><Store size={22} /></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">Vendor workspace</div><h1 className="text-2xl font-black">فرۆشگا</h1></div></div>
           <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white"><Plus size={17} /> فرۆشگای نوێ</button>
@@ -80,20 +80,20 @@ export function VendorStorePage() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-        <section className="rounded-[30px] border border-black/[0.06] bg-white p-4 shadow-[0_14px_45px_rgba(16,22,35,.04)]">
+        <section className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-white p-4 shadow-[var(--shakh-shadow-sm)]">
           <div className="px-2 py-2 text-sm font-black">فرۆشگاکانی تۆ</div>
           <div className="mt-2 space-y-2">
-            {loading ? <div className="p-5 text-sm font-bold text-black/40">بارکردن...</div> : stores.length === 0 ? <div className="rounded-2xl bg-[var(--shakh-bg)] p-5 text-sm leading-7 text-black/45">هێشتا فرۆشگات نییە. لە لایەنی ڕاست یەکەم فرۆشگا دروست بکە.</div> : stores.map((store) => (
+            {loading ? <div className="p-5 text-sm font-bold text-[var(--shakh-muted)]">بارکردن...</div> : stores.length === 0 ? <div className="rounded-2xl bg-[var(--shakh-bg)] p-5 text-sm leading-7 text-[var(--shakh-muted)]">هێشتا فرۆشگات نییە. لە لایەنی ڕاست یەکەم فرۆشگا دروست بکە.</div> : stores.map((store) => (
               <button key={store.id} onClick={() => loadStore(store)} className={`w-full rounded-2xl p-4 text-start transition ${selected === store.id ? 'bg-[var(--shakh-navy)] text-white' : 'bg-[var(--shakh-bg)] hover:bg-black/[0.05]'}`}>
-                <div className="flex items-center justify-between gap-3"><span className="truncate font-black">{store.name_ku}</span><span className={`rounded-full px-2 py-1 text-[10px] font-black ${selected === store.id ? 'bg-white/10 text-white' : 'bg-white text-black/50'}`}>{statusLabel(store.status)}</span></div>
+                <div className="flex items-center justify-between gap-3"><span className="truncate font-black">{store.name_ku}</span><span className={`rounded-full px-2 py-1 text-[10px] font-black ${selected === store.id ? 'bg-white/10 text-white' : 'bg-white text-[var(--shakh-muted)]'}`}>{statusLabel(store.status)}</span></div>
                 <div className={`mt-1 truncate text-xs ${selected === store.id ? 'text-white/45' : 'text-black/35'}`}>{store.slug}</div>
               </button>
             ))}
           </div>
         </section>
 
-        <section className="rounded-[30px] border border-black/[0.06] bg-white p-6 shadow-[0_14px_45px_rgba(16,22,35,.04)] sm:p-8">
-          <div><div className="text-xs font-black text-[var(--shakh-orange)]">{selected ? 'دەستکاری' : 'دروستکردن'}</div><h2 className="mt-1 text-xl font-black">زانیاری فرۆشگا</h2><p className="mt-2 text-sm leading-6 text-black/45">دۆخی فرۆشگا لەلایەن بەڕێوەبەرەوە کنترل دەکرێت؛ vendor ناتوانێت خۆی `active` بکا.</p></div>
+        <section className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-white p-6 shadow-[var(--shakh-shadow-sm)] sm:p-8">
+          <div><div className="text-xs font-black text-[var(--shakh-orange)]">{selected ? 'دەستکاری' : 'دروستکردن'}</div><h2 className="mt-1 text-xl font-black">زانیاری فرۆشگا</h2><p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">دۆخی فرۆشگا لەلایەن بەڕێوەبەرەوە کنترل دەکرێت؛ vendor ناتوانێت خۆی `active` بکا.</p></div>
           <div className="mt-7 grid gap-4 md:grid-cols-2">
             <Field label="ناوی کوردی" value={form.name_ku} onChange={(v) => setForm({ ...form, name_ku: v })} dir="rtl" />
             <Field label="ناوی عەرەبی" value={form.name_ar} onChange={(v) => setForm({ ...form, name_ar: v })} dir="rtl" />
@@ -104,11 +104,11 @@ export function VendorStorePage() {
           <section className="mt-5 space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-bg)] p-4">
             <div>
               <h3 className="text-sm font-black">زۆنی گەیاندنی فرۆشگا</h3>
-              <p className="mt-1 text-xs leading-6 text-black/50">خواردن بە ٥ کم و فرۆشگای مارکێت و بەرهەمەکانی تر بە ١٥ کم دەستپێدەکەن. ئەم زۆنە بۆ هەموو بەرهەمەکانی ئەم فرۆشگایە جێبەجێ دەبێت.</p>
+              <p className="mt-1 text-xs leading-6 text-[var(--shakh-muted)]">خواردن بە ٥ کم و فرۆشگای مارکێت و بەرهەمەکانی تر بە ١٥ کم دەستپێدەکەن. ئەم زۆنە بۆ هەموو بەرهەمەکانی ئەم فرۆشگایە جێبەجێ دەبێت.</p>
             </div>
             <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی بنەڕەتی فرۆشگا" description="GPS ـی شوێنی فرۆشگا/چێشتخانە وەربگرە." />
             <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-3">
-              <div><div className="text-sm font-black">مەودای گەیاندن</div><div className="mt-1 text-xs text-black/45">١ تا ١٠٠ کیلۆمەتر</div></div>
+              <div><div className="text-sm font-black">مەودای گەیاندن</div><div className="mt-1 text-xs text-[var(--shakh-muted)]">١ تا ١٠٠ کیلۆمەتر</div></div>
               <div className="flex items-center gap-3">
                 <button type="button" aria-label="کەمکردنەوەی مەودا" disabled={saving || deliveryRadiusKm <= 1} onClick={() => setDeliveryRadiusKm((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Minus size={16}/></button>
                 <span className="min-w-16 text-center text-lg font-black tabular-nums">{deliveryRadiusKm} کم</span>
@@ -127,5 +127,5 @@ export function VendorStorePage() {
 function Field({ label, value, onChange, dir }: { label: string; value: string; onChange: (value: string) => void; dir?: 'ltr' | 'rtl' }) {
   return <label><span className="text-xs font-black text-black/55">{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} dir={dir} className="mt-2 h-12 w-full rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 text-sm font-bold outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10" /></label>;
 }
-function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) { return <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="flex items-center gap-2 text-xs font-bold text-black/40">{icon}{label}</div><div className="mt-2 text-xl font-black">{value}</div></div>; }
+function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) { return <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="flex items-center gap-2 text-xs font-bold text-[var(--shakh-muted)]">{icon}{label}</div><div className="mt-2 text-xl font-black">{value}</div></div>; }
 function statusLabel(status: VendorStore['status']) { return status === 'active' ? 'چالاک' : status === 'pending' ? 'چاوەڕوان' : status === 'suspended' ? 'راگیراو' : 'داخراو'; }

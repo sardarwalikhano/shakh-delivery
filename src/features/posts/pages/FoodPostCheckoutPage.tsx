@@ -75,17 +75,17 @@ export function FoodPostCheckoutPage() {
   return (
     <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <Link to="/cart" className="inline-flex items-center gap-2 text-sm font-black text-black/45"><ArrowLeft size={17}/> گەڕانەوە بۆ سەلە</Link>
+        <Link to="/cart" className="inline-flex items-center gap-2 text-sm font-black text-[var(--shakh-muted)]"><ArrowLeft size={17}/> گەڕانەوە بۆ سەلە</Link>
         <div className="mt-5 flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><MapPin size={20}/></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">داواکاریی چێشتخانە</div><h1 className="text-3xl font-black">تەواوکردنی داواکاری</h1></div></div>
-        {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : null}
+        {loading ? <div className="mt-6 rounded-[1.5rem] bg-white p-10 text-center text-sm font-bold text-[var(--shakh-muted)]">بارکردن...</div> : null}
         {orders.length > 0 ? (
-          <div className="mt-6 rounded-[28px] bg-white p-6 text-center shadow-sm">
+          <div className="mt-6 rounded-[1.5rem] bg-white p-6 text-center shadow-sm">
             <PackageCheck size={42} className="mx-auto text-emerald-600"/>
             <h2 className="mt-3 text-2xl font-black">داواکارییەکەت تۆمارکرا</h2>
-            <p className="mt-2 text-sm leading-6 text-black/50">وەسڵی داواکاری بۆ چێشتخانە نێردرا. کۆی پارەی داواکاری بۆ تۆ و کاپتن لەم وەسڵەدا دیارە:</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">وەسڵی داواکاری بۆ چێشتخانە نێردرا. کۆی پارەی داواکاری بۆ تۆ و کاپتن لەم وەسڵەدا دیارە:</p>
             <div className="mt-5 space-y-3 text-start">
               {orders.map((order) => <article key={order.id} className="rounded-2xl border border-black/5 bg-[var(--shakh-bg)] p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-black">{order.post_title} × {order.quantity}</div><div className="mt-1 text-xs font-bold text-black/45" dir="ltr">{order.order_number}</div></div><span className="text-sm font-black">{Number(order.line_total_iqd).toLocaleString('en-US')} د.ع</span></div>
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="font-black">{order.post_title} × {order.quantity}</div><div className="mt-1 text-xs font-bold text-[var(--shakh-muted)]" dir="ltr">{order.order_number}</div></div><span className="text-sm font-black">{Number(order.line_total_iqd).toLocaleString('en-US')} د.ع</span></div>
                 <div className="mt-3 space-y-2 border-t border-black/5 pt-3 text-sm">
                   <ReceiptLine label="کۆی خواردن" value={order.line_total_iqd} />
                   <ReceiptLine label="کرێی گەیاندن" value={order.delivery_fee_iqd} />
@@ -97,11 +97,11 @@ export function FoodPostCheckoutPage() {
             <Link to="/post-orders" className="mt-5 inline-flex rounded-xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">بینینی داواکارییەکان</Link>
           </div>
         ) : !loading && items.length === 0 ? (
-          <div className="mt-6 rounded-[28px] bg-white p-10 text-center"><h2 className="text-xl font-black">سەلەی چێشتخانە بەتاڵە</h2><Link to="/posts" className="mt-4 inline-flex rounded-xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">گەڕان لە خواردنەکان</Link></div>
+          <div className="mt-6 rounded-[1.5rem] bg-white p-10 text-center"><h2 className="text-xl font-black">سەلەی چێشتخانە بەتاڵە</h2><Link to="/posts" className="mt-4 inline-flex rounded-xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">گەڕان لە خواردنەکان</Link></div>
         ) : !loading ? (
           <form onSubmit={submit} className="mt-6 grid gap-5 lg:grid-cols-[1fr_340px]">
             <div className="space-y-4">
-              <section className="rounded-[28px] bg-white p-5 shadow-sm">
+              <section className="rounded-[1.5rem] bg-white p-5 shadow-sm">
                 <h2 className="flex items-center gap-2 text-lg font-black"><MapPin size={18}/> زانیاریی گەیاندن</h2>
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">ژمارەی مۆبایل *</span><input required type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-xl border border-black/10 p-3" placeholder="+9647501234567" dir="ltr"/></label>
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">شار *</span><input required minLength={2} maxLength={100} value={city} onChange={(event) => setCity(event.target.value)} className="w-full rounded-xl border border-black/10 p-3" placeholder="هەولێر"/></label>
@@ -109,7 +109,7 @@ export function FoodPostCheckoutPage() {
                 <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی GPS ـی گەیاندن" description="مەودای گەیاندن بە پێی هەر خواردنێک جیاوازە. GPS ـی تۆ پێش تۆمارکردنی ئۆردەر لەگەڵ هەموو زۆنەکان بەراورد دەکرێت." />
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">تێبینی بۆ چێشتخانە</span><textarea maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} className="min-h-20 w-full rounded-xl border border-black/10 p-3" placeholder="ئارەزوومەندانە"/></label>
               </section>
-              <section className="rounded-[28px] bg-white p-5 shadow-sm">
+              <section className="rounded-[1.5rem] bg-white p-5 shadow-sm">
                 <h2 className="text-lg font-black">شێوازی پارەدان</h2>
                 <div className="mt-3 grid gap-3">
                   <label className="flex items-center gap-3 rounded-2xl border border-black/10 p-4"><input type="radio" name="food-payment" checked={paymentMethod==='cash_on_delivery'} onChange={()=>setPaymentMethod('cash_on_delivery')}/><Banknote size={18}/><span className="text-sm font-black">پارە لە کاتی گەیاندن</span></label>
@@ -119,11 +119,11 @@ export function FoodPostCheckoutPage() {
               {error ? <div role="alert" className="rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
               {unavailable ? <div role="alert" className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800">پۆستێک لە سەلەدا بەردەست نییە. بگەڕێوە بۆ سەلە و لایببە.</div> : null}
             </div>
-            <aside className="h-fit rounded-[28px] bg-white p-5 shadow-sm lg:sticky lg:top-24">
+            <aside className="h-fit rounded-[1.5rem] bg-white p-5 shadow-sm lg:sticky lg:top-24">
               <h2 className="text-lg font-black">کورتەی داواکاری</h2>
               <div className="mt-4 space-y-3">{items.map((item) => <div key={item.id} className="flex justify-between gap-3 text-sm"><span className="font-bold">{item.post?.title ?? 'خواردن'} × {item.quantity}</span><span className="shrink-0 font-black">{(itemPrice(item)*item.quantity).toLocaleString('en-US')} د.ع</span></div>)}</div>
               <div className="mt-4 flex justify-between border-t border-black/5 pt-4"><span className="font-black">کۆی خواردن</span><span className="font-black">{subtotal.toLocaleString('en-US')} د.ع</span></div>
-              <p className="mt-2 text-xs leading-5 text-black/40">کرێی گەیاندن و کرێی پلاتفۆرم بە پێی شار لە server هەژمار دەکرێت.</p>
+              <p className="mt-2 text-xs leading-5 text-[var(--shakh-muted)]">کرێی گەیاندن و کرێی پلاتفۆرم بە پێی شار لە server هەژمار دەکرێت.</p>
               <button disabled={busy || unavailable} className="mt-5 w-full rounded-2xl bg-[var(--shakh-navy)] px-5 py-4 text-sm font-black text-white disabled:opacity-50">{busy ? 'تۆمارکردن...' : 'داواکاریی خواردن تۆمار بکە'}</button>
             </aside>
           </form>

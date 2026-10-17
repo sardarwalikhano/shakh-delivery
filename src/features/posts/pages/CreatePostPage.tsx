@@ -507,7 +507,7 @@ export function CreatePostPage() {
     }
   };
 
-  if (loading) return <AuthPageShell><div className="mx-auto max-w-xl text-center text-sm font-bold text-black/50">پشکنینی دەسەڵاتی پۆستکردن...</div></AuthPageShell>;
+  if (loading) return <AuthPageShell><div className="mx-auto max-w-xl text-center text-sm font-bold text-[var(--shakh-muted)]">پشکنینی دەسەڵاتی پۆستکردن...</div></AuthPageShell>;
 
   if (!targets.length) {
     return <AuthPageShell><AuthCard title="پۆستکردن بەردەست نییە" description="ئەم هەژمارە هیچ Role ـێکی ڕێگەپێدراو بۆ پۆستکردنی نییە."><AuthFeedback error="هیچ category ـێکت بۆ پۆستکردن نییە." /></AuthCard></AuthPageShell>;
@@ -540,7 +540,7 @@ export function CreatePostPage() {
                 />
                 <span className="shrink-0 text-sm font-black">د.ع</span>
               </div>
-              <p className="text-xs leading-6 text-black/50">
+              <p className="text-xs leading-6 text-[var(--shakh-muted)]">
                 ٠ واتە خەڵات ناچالاکە. ئەگەر بڕێک دابنێیت، ئەو کەسەی لینکی تایبەتی خۆی شێر دەکات ئەگەر کڕیار لەو لینکەوە داوا بکات، دوای گەیاندن و پشتڕاستبوونەوەی پارەدان بڕە دیاریکراوەکە وەردەگرێت. خەڵات بۆ هەر داواکارییەکە، نەک بۆ هەر دانەیەک، هەژمار دەکرێت.
               </p>
             </section>
@@ -572,13 +572,13 @@ export function CreatePostPage() {
           <section className="space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-blue)]/[0.035] p-4">
             <div>
               <h2 className="text-base font-black">یەکەم: زۆنی گەیاندن دیاری بکە</h2>
-              <p className="mt-1 text-xs leading-6 text-black/50">مەودا بە کیلۆمەترە و لە ناوەندی ئەم شوێنەوە هەژمار دەکرێت. بۆ خواردن ٥ کم و بۆ بازاڕ و بەرهەمەکانی تر ١٥ کم دەستپێکە؛ دەتوانیت بە + و − بگۆڕیت.</p>
+              <p className="mt-1 text-xs leading-6 text-[var(--shakh-muted)]">مەودا بە کیلۆمەترە و لە ناوەندی ئەم شوێنەوە هەژمار دەکرێت. بۆ خواردن ٥ کم و بۆ بازاڕ و بەرهەمەکانی تر ١٥ کم دەستپێکە؛ دەتوانیت بە + و − بگۆڕیت.</p>
             </div>
             <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی بنەڕەتی گەیاندنی پۆستەکە" description="لە شوێنی چێشتخانە، فرۆشگا یان ئەو شوێنەوە GPS وەربگرە کە کاڵاکە لێیەوە دەنێردرێت." />
             <div className="flex items-center justify-between gap-3 rounded-xl bg-white p-3">
               <div>
                 <div className="text-sm font-black">مەودای گەیاندن</div>
-                <div className="mt-1 text-xs text-black/45">لە ١ تا ١٠٠ کیلۆمەتر</div>
+                <div className="mt-1 text-xs text-[var(--shakh-muted)]">لە ١ تا ١٠٠ کیلۆمەتر</div>
               </div>
               <div className="flex items-center gap-3">
                 <button type="button" aria-label="کەمکردنەوەی مەودای گەیاندن" disabled={busy || deliveryRadiusKm <= 1} onClick={() => setDeliveryRadiusKm((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-xl border border-black/10 disabled:opacity-30"><Minus size={16}/></button>
@@ -617,10 +617,10 @@ export function CreatePostPage() {
           />
 
           {category === 'fashion' ? (
-            <section className="space-y-5 rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-4 sm:p-6">
+            <section className="space-y-5 rounded-[1.4rem] border border-[var(--shakh-orange)]/20 bg-white p-4 sm:p-6">
               <div>
                 <h2 className="text-xl font-black">زانیاریی جل‌وبەرگ</h2>
-                <p className="mt-1 text-sm leading-6 text-black/45">تەنها ڕەنگ و قەبارەی ڕاستەقینەی بەردەست هەڵبژێرە. تۆمارکردن لە Supabase پاشەکەوت و دواتر بڵاو دەکرێتەوە.</p>
+                <p className="mt-1 text-sm leading-6 text-[var(--shakh-muted)]">تەنها ڕەنگ و قەبارەی ڕاستەقینەی بەردەست هەڵبژێرە. تۆمارکردن لە Supabase پاشەکەوت و دواتر بڵاو دەکرێتەوە.</p>
               </div>
 
               <Field label="١. جۆری بەرهەم">
@@ -716,12 +716,12 @@ export function CreatePostPage() {
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <h3 className="font-black">٥. کۆگا: ڕەنگ × قەبارە</h3>
-                    <p className="mt-1 text-xs leading-6 text-black/45">بۆ هەر تێکەڵەیەک کۆگا و نرخی جیاواز دابنێ. نرخی بەتاڵ واتە نرخی سەرەکی.</p>
+                    <p className="mt-1 text-xs leading-6 text-[var(--shakh-muted)]">بۆ هەر تێکەڵەیەک کۆگا و نرخی جیاواز دابنێ. نرخی بەتاڵ واتە نرخی سەرەکی.</p>
                   </div>
                   <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm font-black text-emerald-700">کۆی دانەکان: {totalStock.toLocaleString('en-US')}</div>
                 </div>
                 {!combinations.length ? (
-                  <div className="mt-3 rounded-2xl border border-dashed border-black/15 p-5 text-sm font-bold text-black/45">سەرەتا ڕەنگ و قەبارە هەڵبژێرە بۆ دروستبوونی خشتەی کۆگا.</div>
+                  <div className="mt-3 rounded-2xl border border-dashed border-black/15 p-5 text-sm font-bold text-[var(--shakh-muted)]">سەرەتا ڕەنگ و قەبارە هەڵبژێرە بۆ دروستبوونی خشتەی کۆگا.</div>
                 ) : (
                   <div className="mt-3 space-y-3">
                     {combinations.map((item) => {
@@ -766,18 +766,18 @@ export function CreatePostPage() {
                   <input className={inputClass} type="number" min="0" max="99" step="1" value={discountPercent} onChange={(event) => setDiscountPercent(event.target.value)} />
                 </Field>
                 <div className="rounded-2xl bg-[var(--shakh-bg)] p-4">
-                  <div className="text-xs font-bold text-black/40">نرخی پێشبینیکراو دوای داشکاندن</div>
-                  <div className="mt-1 text-xl font-black">{price.trim() && Number(price.replace(/,/g, '')) > 0 ? Math.round(Number(price.replace(/,/g, '')) * (100 - Math.min(99, Math.max(0, Number(discountPercent) || 0))) / 100).toLocaleString('en-US') : '—'} <span className="text-xs text-black/40">د.ع</span></div>
+                  <div className="text-xs font-bold text-[var(--shakh-muted)]">نرخی پێشبینیکراو دوای داشکاندن</div>
+                  <div className="mt-1 text-xl font-black">{price.trim() && Number(price.replace(/,/g, '')) > 0 ? Math.round(Number(price.replace(/,/g, '')) * (100 - Math.min(99, Math.max(0, Number(discountPercent) || 0))) / 100).toLocaleString('en-US') : '—'} <span className="text-xs text-[var(--shakh-muted)]">د.ع</span></div>
                 </div>
               </div>
             </section>
           ) : null}
 
           {category === 'supermarket' ? (
-            <section className="space-y-5 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
+            <section className="space-y-5 rounded-[1.4rem] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
               <div>
                 <h2 className="text-xl font-black">وردەکاریی کاڵای سوپەرمارکێت</h2>
-                <p className="mt-1 text-sm leading-6 text-black/45">زانیارییەکانی پێکهاتە، خۆراک و بەرواری بەرهەم تەنها ئەگەر لەسەر پاکێت یان بەڵگەی بەرهەم نووسراون پڕیان بکەرەوە.</p>
+                <p className="mt-1 text-sm leading-6 text-[var(--shakh-muted)]">زانیارییەکانی پێکهاتە، خۆراک و بەرواری بەرهەم تەنها ئەگەر لەسەر پاکێت یان بەڵگەی بەرهەم نووسراون پڕیان بکەرەوە.</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {getCategoryDetailFields('supermarket').map((field) => {
@@ -807,10 +807,10 @@ export function CreatePostPage() {
           ) : null}
 
           {category === 'electronics' ? (
-            <section className="space-y-5 rounded-[26px] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
+            <section className="space-y-5 rounded-[1.4rem] border border-[var(--shakh-blue)]/20 bg-white p-4 sm:p-6">
               <div>
                 <h2 className="text-xl font-black">زانیاریی ئەلیکترۆنیات</h2>
-                <p className="mt-1 text-sm leading-6 text-black/45">بڕاند، جۆری ئامێر، ڕەنگ، بیرگە، RAM و کۆگای بەردەست دیاری بکە. بۆ مۆبایل، تابلێت، لاپتۆپ و دیسکتۆپ RAM و Storage پێویستن.</p>
+                <p className="mt-1 text-sm leading-6 text-[var(--shakh-muted)]">بڕاند، جۆری ئامێر، ڕەنگ، بیرگە، RAM و کۆگای بەردەست دیاری بکە. بۆ مۆبایل، تابلێت، لاپتۆپ و دیسکتۆپ RAM و Storage پێویستن.</p>
               </div>
               <Field label="بڕاند / کۆمپانیا *">
                 <input className={inputClass} required value={brand} onChange={(event) => setBrand(event.target.value)} maxLength={120} placeholder="وەک Apple، Samsung، Lenovo، Dell" />
@@ -870,7 +870,7 @@ export function CreatePostPage() {
                                         disabled={busy}
                                         onChange={(event) => handleElectronicsColorImageChange(colorValue, event.currentTarget.files?.[0])}
                                       />
-                                      <span className="mt-1 block break-all text-[11px] leading-5 text-black/45">{selectedFile?.name ?? 'هیچ وێنەیەک هەڵنەبژێردراوە'}</span>
+                                      <span className="mt-1 block break-all text-[11px] leading-5 text-[var(--shakh-muted)]">{selectedFile?.name ?? 'هیچ وێنەیەک هەڵنەبژێردراوە'}</span>
                                     </label>
                                   </div>
                                 );
@@ -947,43 +947,43 @@ export function CreatePostPage() {
             <section className="space-y-3 rounded-2xl border border-[var(--shakh-blue)]/20 bg-[var(--shakh-blue)]/[0.04] p-4" aria-live="polite">
               <h2 className="text-lg font-black">پێداچوونەوە پێش بڵاوکردنەوە</h2>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
-                <div className="rounded-xl bg-white p-3"><span className="text-black/45">ناوی کاڵا:</span><strong className="ms-1">{title || '—'}</strong></div>
-                <div className="rounded-xl bg-white p-3"><span className="text-black/45">نرخی سەرەکی:</span><strong className="ms-1">{price ? Number(price.replace(/,/g, '')).toLocaleString('en-US') + ' د.ع' : '—'}</strong></div>
-                <div className="rounded-xl bg-white p-3"><span className="text-black/45">شوێنی فرۆشیار:</span><strong className="ms-1">{location.trim() || 'دیاری نەکراوە'}</strong></div>
-                <div className="rounded-xl bg-white p-3"><span className="text-black/45">وێنەکان:</span><strong className="ms-1">{images.length} وێنە · {images.reduce((sum, image) => sum + image.size, 0) > 0 ? (images.reduce((sum, image) => sum + image.size, 0) / 1024 / 1024).toFixed(2) + ' MB' : '—'}</strong></div>
-                <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">وەسف:</span><p className="mt-1 whitespace-pre-wrap break-words leading-6">{content.trim() || 'وەسف دانەنراوە.'}</p></div>
+                <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">ناوی کاڵا:</span><strong className="ms-1">{title || '—'}</strong></div>
+                <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">نرخی سەرەکی:</span><strong className="ms-1">{price ? Number(price.replace(/,/g, '')).toLocaleString('en-US') + ' د.ع' : '—'}</strong></div>
+                <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">شوێنی فرۆشیار:</span><strong className="ms-1">{location.trim() || 'دیاری نەکراوە'}</strong></div>
+                <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">وێنەکان:</span><strong className="ms-1">{images.length} وێنە · {images.reduce((sum, image) => sum + image.size, 0) > 0 ? (images.reduce((sum, image) => sum + image.size, 0) / 1024 / 1024).toFixed(2) + ' MB' : '—'}</strong></div>
+                <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-[var(--shakh-muted)]">وەسف:</span><p className="mt-1 whitespace-pre-wrap break-words leading-6">{content.trim() || 'وەسف دانەنراوە.'}</p></div>
                 {category === 'fashion' ? (
                   <>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">جۆری بەرهەم:</span><strong className="ms-1">{apparelTypes.find((item) => item.value === apparelType)?.label ?? apparelType}</strong></div>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">براند:</span><strong className="ms-1">{brand.trim() || 'دیاری نەکراوە'}</strong></div>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">ماددە / وڵات:</span><strong className="ms-1">{material.trim() || 'نەزانراوە'} · {countryOfOrigin.trim() || 'نەزانراوە'}</strong></div>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">وەرز:</span><strong className="ms-1">{season === 'summer' ? 'هاوین' : season === 'winter' ? 'زستان' : 'هەموو وەرزەکان'}</strong></div>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">دۆخ / بۆ کێیە:</span><strong className="ms-1">{itemCondition === 'new' ? 'نوێ' : 'بەکارهاتوو'} · {({men:'پیاوان',women:'ئافرەتان',kids:'منداڵان',all:'هەمووان'} as Record<ApparelAudience,string>)[apparelAudience]}</strong></div>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">داشکاندن:</span><strong className="ms-1">{Number(discountPercent || 0)}٪</strong></div>
-                    <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">ڕەنگەکان:</span><div className="mt-2 flex flex-wrap gap-2">{colors.map((color) => <span key={color.hex} className="inline-flex items-center gap-2 rounded-full border border-black/10 px-3 py-1"><span className="size-4 rounded-full border border-black/10" style={{backgroundColor:color.hex}}/>{color.name}</span>)}</div></div>
-                    <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">قەبارەکان:</span><div className="mt-2 flex flex-wrap gap-2">{sizes.map((size) => <span key={size} className="rounded-lg border border-black/10 px-3 py-1 font-black">{size}</span>)}</div></div>
-                    <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">تێکەڵەی کۆگا و نرخ:</span><div className="mt-2 space-y-2">{combinations.filter((item) => variantDrafts[item.key]?.enabled).map((item) => {
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">جۆری بەرهەم:</span><strong className="ms-1">{apparelTypes.find((item) => item.value === apparelType)?.label ?? apparelType}</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">براند:</span><strong className="ms-1">{brand.trim() || 'دیاری نەکراوە'}</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">ماددە / وڵات:</span><strong className="ms-1">{material.trim() || 'نەزانراوە'} · {countryOfOrigin.trim() || 'نەزانراوە'}</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">وەرز:</span><strong className="ms-1">{season === 'summer' ? 'هاوین' : season === 'winter' ? 'زستان' : 'هەموو وەرزەکان'}</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">دۆخ / بۆ کێیە:</span><strong className="ms-1">{itemCondition === 'new' ? 'نوێ' : 'بەکارهاتوو'} · {({men:'پیاوان',women:'ئافرەتان',kids:'منداڵان',all:'هەمووان'} as Record<ApparelAudience,string>)[apparelAudience]}</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">داشکاندن:</span><strong className="ms-1">{Number(discountPercent || 0)}٪</strong></div>
+                    <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-[var(--shakh-muted)]">ڕەنگەکان:</span><div className="mt-2 flex flex-wrap gap-2">{colors.map((color) => <span key={color.hex} className="inline-flex items-center gap-2 rounded-full border border-black/10 px-3 py-1"><span className="size-4 rounded-full border border-black/10" style={{backgroundColor:color.hex}}/>{color.name}</span>)}</div></div>
+                    <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-[var(--shakh-muted)]">قەبارەکان:</span><div className="mt-2 flex flex-wrap gap-2">{sizes.map((size) => <span key={size} className="rounded-lg border border-black/10 px-3 py-1 font-black">{size}</span>)}</div></div>
+                    <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-[var(--shakh-muted)]">تێکەڵەی کۆگا و نرخ:</span><div className="mt-2 space-y-2">{combinations.filter((item) => variantDrafts[item.key]?.enabled).map((item) => {
                       const draft = variantDrafts[item.key] ?? { enabled: false, stock: '', price: '', imageIndex: '' };
                       const rowPrice = draft.price.trim() ? Number(draft.price.replace(/,/g, '')) : Number(price.replace(/,/g, ''));
                       const rowDiscount = Number(discountPercent || 0);
                       const finalPrice = Math.round(rowPrice * (100 - rowDiscount) / 100);
                       const imageIndex = draft.imageIndex === '' ? -1 : Number(draft.imageIndex);
-                      return <div key={item.key} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--shakh-bg)] p-3"><span className="flex items-center gap-2 font-bold"><span className="size-4 rounded-full border border-black/10" style={{backgroundColor:item.color.hex}}/>{item.color.name} / {item.size}</span><span className="text-xs text-black/55">{Number(draft.stock || 0)} دانە</span><span className="text-xs font-black">{Number.isFinite(finalPrice) && finalPrice > 0 ? finalPrice.toLocaleString('en-US') + ' د.ع دوای داشکاندن' : 'نرخ پێویستە'}</span><span className="text-[11px] text-black/40">{imageIndex >= 0 ? 'وێنەی ' + (imageIndex + 1) : 'وێنەی گشتی'}</span></div>;
+                      return <div key={item.key} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--shakh-bg)] p-3"><span className="flex items-center gap-2 font-bold"><span className="size-4 rounded-full border border-black/10" style={{backgroundColor:item.color.hex}}/>{item.color.name} / {item.size}</span><span className="text-xs text-black/55">{Number(draft.stock || 0)} دانە</span><span className="text-xs font-black">{Number.isFinite(finalPrice) && finalPrice > 0 ? finalPrice.toLocaleString('en-US') + ' د.ع دوای داشکاندن' : 'نرخ پێویستە'}</span><span className="text-[11px] text-[var(--shakh-muted)]">{imageIndex >= 0 ? 'وێنەی ' + (imageIndex + 1) : 'وێنەی گشتی'}</span></div>;
                     })}</div></div>
                   </>
                 ) : null}
                 {category === 'electronics' ? (
                   <>
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">بڕاند:</span><strong className="ms-1">{brand.trim() || '—'}</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">بڕاند:</span><strong className="ms-1">{brand.trim() || '—'}</strong></div>
                     {getVisibleCategoryDetails('electronics', electronicsDetails).map((detail) => (
-                      <div key={detail.key} className="rounded-xl bg-white p-3"><span className="text-black/45">{detail.label}:</span><strong className="ms-1 break-words">{detail.value}</strong></div>
+                      <div key={detail.key} className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">{detail.label}:</span><strong className="ms-1 break-words">{detail.value}</strong></div>
                     ))}
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">خەڵاتی شێرکردن:</span><strong className="ms-1">{Number(referralRewardIqd || 0).toLocaleString('en-US')} د.ع بۆ هەر فرۆشتنێکی تەواوبوو</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-[var(--shakh-muted)]">خەڵاتی شێرکردن:</span><strong className="ms-1">{Number(referralRewardIqd || 0).toLocaleString('en-US')} د.ع بۆ هەر فرۆشتنێکی تەواوبوو</strong></div>
                   </>
                 ) : null}
-                <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">وێنەکان بە ڕیز:</span><div className="mt-2 space-y-1">{images.map((image, index) => <div key={image.name + image.size + image.lastModified + index} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="font-bold">وێنەی {index + 1}: {image.name}</span><span className="text-black/40">{(image.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی سەرەکی' : ''}</span></div>)}</div></div>
+                <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-[var(--shakh-muted)]">وێنەکان بە ڕیز:</span><div className="mt-2 space-y-1">{images.map((image, index) => <div key={image.name + image.size + image.lastModified + index} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="font-bold">وێنەی {index + 1}: {image.name}</span><span className="text-[var(--shakh-muted)]">{(image.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی سەرەکی' : ''}</span></div>)}</div></div>
               </div>
-              <p className="text-xs leading-6 text-black/50">بڵاوکردنەوە داتاکە لە Supabase پاشەکەوت دەکات؛ کڕین و کۆگا لە database پشتڕاست دەکرێنەوە.</p>
+              <p className="text-xs leading-6 text-[var(--shakh-muted)]">بڵاوکردنەوە داتاکە لە Supabase پاشەکەوت دەکات؛ کڕین و کۆگا لە database پشتڕاست دەکرێنەوە.</p>
               <button type="button" onClick={() => setReviewing(false)} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
             </section>
           ) : null}

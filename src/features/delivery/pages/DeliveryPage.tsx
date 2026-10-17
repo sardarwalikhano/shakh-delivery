@@ -191,14 +191,14 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
         {!loading && !foodOrders.some((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')) ? <Empty text="مێژووی داواکاریی خواردن بەتاڵە." /> : null}
       </section> : null}
       <section className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
-        <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_60px_rgba(16,22,35,.05)] sm:p-7">
+        <div className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-white p-5 shadow-[0_18px_60px_rgba(16,22,35,.05)] sm:p-7">
           <div className="flex items-center justify-between gap-4">
             <div><div className="text-xs font-black text-[var(--shakh-orange)]">Active delivery</div><h2 className="mt-1 text-xl font-black">گەیاندنی ئێستا</h2></div>
             <Truck className="text-[var(--shakh-orange)]" />
           </div>
           {loading ? <Empty text="بارکردن..." /> : active ? <ActiveDelivery delivery={active} busy={busyId === active.id} canAdvance={canAdvance} onAdvance={() => void advance(active)} onLocate={() => void locate(active)} /> : <Empty text="هیچ گەیاندنێکی چالاک نییە." />}
         </div>
-        <div className="rounded-[30px] border border-black/[0.06] bg-[var(--shakh-navy)] p-5 text-white shadow-[0_18px_60px_rgba(11,18,32,.12)] sm:p-7">
+        <div className="rounded-[1.65rem] border border-[var(--shakh-border)] bg-[var(--shakh-navy)] p-5 text-white shadow-[0_18px_60px_rgba(11,18,32,.12)] sm:p-7">
           <div className="text-xs font-black text-white/45">Today</div>
           <div className="mt-2 text-3xl font-black">{deliveries.filter((d) => d.status === 'delivered').length.toLocaleString('en-US')}</div>
           <div className="mt-1 text-sm font-bold text-white/60">گەیاندنی تەواو</div>
@@ -265,7 +265,7 @@ function ActiveDelivery({ delivery, busy, canAdvance, onAdvance, onLocate }: { d
   const order = delivery.order;
   return (
     <div className="mt-6 space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><span className={`rounded-full px-3 py-1.5 text-xs font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span><span className="font-mono text-xs font-bold text-black/40" dir="ltr">{order?.order_number ?? delivery.order_id}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><span className={`rounded-full px-3 py-1.5 text-xs font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span><span className="font-mono text-xs font-bold text-[var(--shakh-muted)]" dir="ltr">{order?.order_number ?? delivery.order_id}</span></div>
       <div className="rounded-3xl bg-[var(--shakh-bg)] p-5">
         <div className="flex items-start gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-[var(--shakh-navy)] shadow-sm"><MapPin size={19} /></div><div className="min-w-0"><div className="text-xs font-bold text-black/35">شوێنی گەیاندن</div><div className="mt-1 font-black leading-7">{order?.delivery_address ?? '—'}</div></div></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2"><MiniInfo label="فرۆشگا" value={order?.store?.name_ku ?? '—'} /><MiniInfo label="کۆی داواکاری" value={`${Number(order?.total_iqd ?? 0).toLocaleString('en-US')} IQD`} /></div>
@@ -278,12 +278,12 @@ function ActiveDelivery({ delivery, busy, canAdvance, onAdvance, onLocate }: { d
 }
 
 function DispatchRow({ delivery, captains, selectedCaptain, busy, onSelect, onAssign }: { delivery: Delivery; captains: Captain[]; selectedCaptain: string; busy: boolean; onSelect: (value: string) => void; onAssign: () => void }) {
-  return <article className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:p-6"><div className="flex flex-col gap-5 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{delivery.order?.order_number}</span></div><div className="mt-2 font-black">{delivery.order?.store?.name_ku ?? '—'}</div><div className="mt-1 truncate text-sm font-bold text-black/45">{delivery.order?.delivery_address ?? '—'}</div></div><div className="flex flex-col gap-2 sm:flex-row sm:items-center"><div className="relative min-w-64"><select value={selectedCaptain} onChange={(e) => onSelect(e.target.value)} className="h-12 w-full appearance-none rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 pe-10 text-sm font-black outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10"><option value="">Captain هەڵبژێرە</option>{captains.map((captain) => <option key={captain.id} value={captain.id}>{captain.full_name || captain.phone || captain.id}</option>)}</select><ChevronDown className="pointer-events-none absolute end-3 top-3.5 text-black/30" size={17} /></div><button disabled={!selectedCaptain || busy || delivery.status === 'delivered' || delivery.status === 'cancelled'} onClick={onAssign} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 text-sm font-black text-white disabled:opacity-35"><UserRound size={17} />{busy ? '...' : 'سپاردن'}</button></div></div></article>;
+  return <article className="rounded-[1.5rem] border border-[var(--shakh-border)] bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-6"><div className="flex flex-col gap-5 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{delivery.order?.order_number}</span></div><div className="mt-2 font-black">{delivery.order?.store?.name_ku ?? '—'}</div><div className="mt-1 truncate text-sm font-bold text-[var(--shakh-muted)]">{delivery.order?.delivery_address ?? '—'}</div></div><div className="flex flex-col gap-2 sm:flex-row sm:items-center"><div className="relative min-w-64"><select value={selectedCaptain} onChange={(e) => onSelect(e.target.value)} className="h-12 w-full appearance-none rounded-2xl border border-black/10 bg-[var(--shakh-bg)] px-4 pe-10 text-sm font-black outline-none focus:ring-4 focus:ring-[var(--shakh-blue)]/10"><option value="">Captain هەڵبژێرە</option>{captains.map((captain) => <option key={captain.id} value={captain.id}>{captain.full_name || captain.phone || captain.id}</option>)}</select><ChevronDown className="pointer-events-none absolute end-3 top-3.5 text-black/30" size={17} /></div><button disabled={!selectedCaptain || busy || delivery.status === 'delivered' || delivery.status === 'cancelled'} onClick={onAssign} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 text-sm font-black text-white disabled:opacity-35"><UserRound size={17} />{busy ? '...' : 'سپاردن'}</button></div></div></article>;
 }
 
 function OfferRow({ delivery, busy, onClaim }: { delivery: Delivery; busy: boolean; onClaim: () => void }) {
   return (
-    <article className="rounded-[28px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:p-6">
+    <article className="rounded-[1.5rem] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -291,7 +291,7 @@ function OfferRow({ delivery, busy, onClaim }: { delivery: Delivery; busy: boole
             <span className="font-mono text-xs font-bold text-black/35" dir="ltr">{delivery.order?.order_number}</span>
           </div>
           <div className="mt-2 font-black">{delivery.order?.store?.name_ku ?? '—'}</div>
-          <div className="mt-1 truncate text-sm font-bold text-black/45">{delivery.order?.delivery_address ?? '—'}</div>
+          <div className="mt-1 truncate text-sm font-bold text-[var(--shakh-muted)]">{delivery.order?.delivery_address ?? '—'}</div>
           <div className="mt-2 text-xs font-bold text-black/35">کۆی داواکاری: {Number(delivery.order?.total_iqd ?? 0).toLocaleString('en-US')} IQD</div>
         </div>
         <button disabled={busy} onClick={onClaim} className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40">
@@ -302,10 +302,10 @@ function OfferRow({ delivery, busy, onClaim }: { delivery: Delivery; busy: boole
   );
 }
 
-function DeliveryRow({ delivery }: { delivery: Delivery }) { return <article className="rounded-2xl border border-black/[0.06] bg-white p-4"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-bg)]"><Truck size={18} /></div><div className="min-w-0"><div className="truncate font-black">{delivery.order?.store?.name_ku ?? '—'}</div><div className="mt-0.5 truncate text-xs font-bold text-black/35" dir="ltr">{delivery.order?.order_number}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span></div></article>; }
+function DeliveryRow({ delivery }: { delivery: Delivery }) { return <article className="rounded-2xl border border-[var(--shakh-border)] bg-white p-4"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-bg)]"><Truck size={18} /></div><div className="min-w-0"><div className="truncate font-black">{delivery.order?.store?.name_ku ?? '—'}</div><div className="mt-0.5 truncate text-xs font-bold text-black/35" dir="ltr">{delivery.order?.order_number}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${statusTone[delivery.status]}`}>{statusLabel[delivery.status]}</span></div></article>; }
 
 function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: FoodPostOrder; busy: boolean; onAction?: () => void; actionLabel?: string }) {
-  return <article className="rounded-[28px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:p-6">
+  return <article className="rounded-[1.5rem] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-[var(--shakh-shadow-sm)] sm:p-6">
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[11px] font-black text-[var(--shakh-orange)]">چێشتخانە · {foodDeliveryStatusLabel[order.delivery_status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{order.order_number}</span></div>
@@ -317,7 +317,7 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
           <FoodAmount label="کرێی پلاتفۆرم" amount={order.platform_fee_iqd} />
           <FoodAmount label="ئەو بڕەی لە کڕیار وەردەگریت" amount={order.total_iqd} strong />
         </div>
-        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
+        <div className="mt-2 text-xs font-bold text-[var(--shakh-muted)]">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
       </div>
       {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy ? 'چاوەڕوانبە...' : actionLabel}</button> : null}
     </div>
@@ -329,11 +329,11 @@ function FoodAmount({ label, amount, strong = false }: { label: string; amount: 
 }
 
 function DeliveryLayout({ eyebrow, title, subtitle, onRefresh, refreshing, children }: { eyebrow: string; title: string; subtitle: string; onRefresh: () => void; refreshing: boolean; children: React.ReactNode }) {
-  return <div className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb]"><div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8"><header className="rounded-[32px] bg-[var(--shakh-navy)] p-6 text-white shadow-[0_22px_70px_rgba(11,18,32,.14)] sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="text-xs font-black text-[var(--shakh-orange)]">{eyebrow}</div><h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{title}</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-white/55">{subtitle}</p></div><button onClick={onRefresh} disabled={refreshing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white disabled:opacity-50"><RefreshCw className={refreshing ? 'animate-spin' : ''} size={17} />نوێکردنەوە</button></div></header>{children}</div></div>;
+  return <div className="min-h-[calc(100dvh-4rem)] bg-transparent"><div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8"><header className="rounded-[32px] bg-[var(--shakh-navy)] p-6 text-white shadow-[0_22px_70px_rgba(11,18,32,.14)] sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><div className="text-xs font-black text-[var(--shakh-orange)]">{eyebrow}</div><h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{title}</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-white/55">{subtitle}</p></div><button onClick={onRefresh} disabled={refreshing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-black text-white disabled:opacity-50"><RefreshCw className={refreshing ? 'animate-spin' : ''} size={17} />نوێکردنەوە</button></div></header>{children}</div></div>;
 }
 function Notice({ text }: { text: string }) { return <div className="flex items-start gap-3 rounded-2xl bg-[var(--shakh-orange)]/10 px-4 py-3 text-sm font-bold leading-6 text-[var(--shakh-orange)]"><CircleAlert className="mt-0.5 shrink-0" size={17} />{text}</div>; }
-function Empty({ text }: { text: string }) { return <div className="grid min-h-40 place-items-center rounded-3xl border border-dashed border-black/10 bg-[var(--shakh-bg)] p-6 text-center text-sm font-bold leading-7 text-black/40">{text}</div>; }
+function Empty({ text }: { text: string }) { return <div className="grid min-h-40 place-items-center rounded-3xl border border-dashed border-black/10 bg-[var(--shakh-bg)] p-6 text-center text-sm font-bold leading-7 text-[var(--shakh-muted)]">{text}</div>; }
 function Stat({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-white/5 p-4"><div className="text-xs font-bold text-white/40">{label}</div><div className="mt-1 text-xl font-black">{value}</div></div>; }
-function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="rounded-3xl border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)]"><div className="flex items-center gap-2 text-xs font-black text-black/40">{icon}{label}</div><div className="mt-2 text-2xl font-black">{value.toLocaleString('en-US')}</div></div>; }
+function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="rounded-3xl border border-[var(--shakh-border)] bg-white p-5 shadow-[var(--shakh-shadow-sm)]"><div className="flex items-center gap-2 text-xs font-black text-[var(--shakh-muted)]">{icon}{label}</div><div className="mt-2 text-2xl font-black">{value.toLocaleString('en-US')}</div></div>; }
 function MiniInfo({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-white p-4"><div className="text-[11px] font-bold text-black/35">{label}</div><div className="mt-1 truncate text-sm font-black">{value}</div></div>; }
 

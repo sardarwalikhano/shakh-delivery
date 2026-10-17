@@ -48,21 +48,21 @@ export function DashboardLayout() {
 
   const renderNavigation = (mobile = false) => (
     <>
-      <div className="rounded-[24px] bg-[var(--shakh-navy)] p-4 text-white shadow-[0_14px_38px_rgba(11,18,32,.12)]">
+      <div className="rounded-[22px] bg-[var(--shakh-navy)] p-4 text-white shadow-[0_10px_24px_rgba(16,34,61,.14)] ring-1 ring-white/5">
         <div className="flex items-center gap-3">
-          <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-lg font-black">S</div>
+          <div className="grid size-11 shrink-0 place-items-center rounded-[15px] border border-white/10 bg-white/[0.08] text-lg font-black">S</div>
           <div className="min-w-0">
             <div className="truncate font-black">SHAKH Delivery</div>
-            <div className="mt-0.5 truncate text-xs text-white/50">{displayRole ? roleLabelsKu[displayRole] ?? displayRole : '...'}</div>
+            <div className="mt-0.5 truncate text-xs font-medium text-white/55">{displayRole ? roleLabelsKu[displayRole] ?? displayRole : '...'}</div>
           </div>
           {mobile ? <button type="button" onClick={() => setMenuOpen(false)} className="ms-auto grid size-10 place-items-center rounded-xl text-white/75 hover:bg-white/10" aria-label="داخستنی مینۆ"><X size={20} /></button> : null}
         </div>
         {user?.email ? <div className="mt-3 truncate text-xs text-white/60" dir="ltr">{user.email}</div> : null}
       </div>
-      <nav className="mt-4 space-y-1" aria-label="Dashboard navigation">
+      <nav className="mt-5 space-y-1.5" aria-label="Dashboard navigation">
         {visibleItems.map((item) => (
           <NavLink key={item.href} to={item.href} end={item.href === '/dashboard'} onClick={() => setMenuOpen(false)}
-            className={({ isActive }) => `group flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-bold transition ${isActive ? 'bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]' : 'text-black/60 hover:bg-black/[0.04] hover:text-black'}`}>
+            className={({ isActive }) => `group flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${isActive ? 'border-[var(--shakh-blue)]/10 bg-[var(--shakh-blue)]/[0.07] text-[var(--shakh-blue)] shadow-[inset_-3px_0_0_var(--shakh-blue)]' : 'border-transparent text-[var(--shakh-muted)] hover:border-[var(--shakh-border)] hover:bg-[var(--shakh-surface-soft)] hover:text-[var(--shakh-ink)]'}`}>
             <item.icon size={18} strokeWidth={2.2} />
             <span className="min-w-0 flex-1">{item.label}</span>
             <ChevronLeft className="opacity-40" size={15} />
@@ -73,22 +73,22 @@ export function DashboardLayout() {
   );
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb]">
+    <div className="min-h-[calc(100dvh-4rem)] bg-[var(--shakh-bg)]">
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1600px]">
-        <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-72 shrink-0 self-start overflow-y-auto border-e border-black/[0.06] bg-white p-4 lg:block lg:p-5">
+        <aside className="sticky top-[72px] hidden h-[calc(100dvh-72px)] w-[17.5rem] shrink-0 self-start overflow-y-auto border-e border-[var(--shakh-border)] bg-white p-4 lg:block lg:p-5">
           {renderNavigation()}
         </aside>
         {menuOpen ? (
           <div className="fixed inset-0 z-50 lg:hidden">
             <button type="button" className="absolute inset-0 bg-black/45" onClick={() => setMenuOpen(false)} aria-label="داخستنی مینۆ" />
-            <aside id="dashboard-mobile-menu" role="dialog" aria-modal="true" aria-label="پێڕستی داشبۆرد" className="absolute inset-y-0 end-0 w-[min(86vw,20rem)] overflow-y-auto bg-white p-4 shadow-2xl">
+            <aside id="dashboard-mobile-menu" role="dialog" aria-modal="true" aria-label="پێڕستی داشبۆرد" className="absolute inset-y-0 end-0 w-[min(86vw,20rem)] overflow-y-auto border-s border-[var(--shakh-border)] bg-white p-4 shadow-2xl">
               {renderNavigation(true)}
             </aside>
           </div>
         ) : null}
-        <div className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-6xl">
-            <button type="button" onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="dashboard-mobile-menu" className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold shadow-sm ring-1 ring-black/5 lg:hidden">
+        <div className="min-w-0 flex-1 p-3 sm:p-5 lg:p-7">
+          <div className="mx-auto max-w-[1320px]">
+            <button type="button" onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="dashboard-mobile-menu" className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--shakh-border)] bg-white px-4 text-sm font-bold text-[var(--shakh-ink)] shadow-[var(--shakh-shadow-sm)] lg:hidden">
               <Menu size={18} /> مینۆی داشبۆرد
             </button>
             <Outlet />

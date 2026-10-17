@@ -55,21 +55,21 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
   };
 
   return (
-    <article className="group overflow-hidden rounded-[26px] border border-black/[0.06] bg-white shadow-[0_10px_30px_rgba(16,22,35,.035)] transition hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(16,22,35,.09)]">
-      <div className="relative aspect-[4/4.5] overflow-hidden bg-[var(--shakh-bg)]">
+    <article className="group flex min-w-0 flex-col overflow-hidden rounded-[1.4rem] border border-[var(--shakh-border)] bg-white shadow-[var(--shakh-shadow-sm)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--shakh-blue)]/20 hover:shadow-[var(--shakh-shadow-md)]">
+      <div className="relative aspect-[4/4] overflow-hidden bg-[var(--shakh-surface-soft)]">
         <Link to={`/product/${product.slug}`} className="absolute inset-0" aria-label={product.name_ku}>
           {product.images[0] ? (
-            <img src={getProductImageUrl(product.images[0].storage_path)} alt={product.images[0].alt_ku ?? product.name_ku} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" />
+            <img src={getProductImageUrl(product.images[0].storage_path)} alt={product.images[0].alt_ku ?? product.name_ku} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" loading="lazy" />
           ) : (
-            <div className="grid h-full place-items-center px-6 text-center">
-              <span className="text-xs font-bold text-black/25">وێنەی بەرهەم بەردەست نییە</span>
+            <div className="grid h-full place-items-center px-5 text-center">
+              <span className="text-xs font-bold text-[var(--shakh-muted)]">وێنەی بەرهەم بەردەست نییە</span>
             </div>
           )}
         </Link>
-        <div className="absolute start-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black shadow-sm">
+        <div className="absolute start-3 top-3 max-w-[65%] truncate rounded-full border border-white/70 bg-white/95 px-2.5 py-1 text-[10px] font-black text-[var(--shakh-ink)] shadow-sm backdrop-blur">
           {product.category?.name_ku ?? 'بازاڕ'}
         </div>
-        <button onClick={toggleWishlist} className={`absolute end-3 top-3 grid size-10 place-items-center rounded-full border border-white/80 bg-white/90 shadow-sm transition ${wishlisted ? 'text-[var(--shakh-orange)]' : 'text-black/55 hover:text-[var(--shakh-orange)]'}`} aria-label={wishlisted ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'}>
+        <button onClick={toggleWishlist} className={`absolute end-3 top-3 grid size-10 place-items-center rounded-full border border-white/80 bg-white/95 shadow-sm backdrop-blur transition ${wishlisted ? 'text-[var(--shakh-orange)]' : 'text-[var(--shakh-muted)] hover:text-[var(--shakh-orange)]'}`} aria-label={wishlisted ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'}>
           <Heart size={18} fill={wishlisted ? 'currentColor' : 'none'} />
         </button>
         {showProductDiscount ? (
@@ -79,25 +79,25 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
         ) : null}
       </div>
 
-      <div className="p-4">
+      <div className="flex flex-1 flex-col p-3.5 sm:p-4">
         <Link to={`/product/${product.slug}`} className="block">
-          <h3 className="line-clamp-2 min-h-12 text-sm font-black leading-6 text-[var(--shakh-ink)]">{product.name_ku}</h3>
+          <h3 className="line-clamp-2 min-h-12 text-sm font-black leading-6 text-[var(--shakh-ink)] transition-colors group-hover:text-[var(--shakh-blue)]">{product.name_ku}</h3>
         </Link>
-        {product.brand ? <div className="mt-1 text-xs font-bold text-black/45">{product.brand}</div> : null}
-        {formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count) ? <div className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count)}</div> : null}
-        {restaurant ? <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-black/45"><span className="rounded-full bg-[var(--shakh-bg)] px-2 py-1">{restaurantMenuCategoryLabels[restaurant.menu_category] ?? 'خواردن'}</span><span>{restaurant.prep_time_minutes} خولەک</span></div> : null}
-        <div className={`mt-2 text-[11px] font-bold ${soldOut ? 'text-red-600' : 'text-black/40'}`}>{restaurant ? (restaurantAvailable ? 'بەردەستە بۆ داواکردن' : 'لە ئێستادا بەردەست نییە') : expired ? 'بەسەرچووە' : soldOut ? 'کۆگا بەتاڵە' : hasVariants && !variantPrices.length ? 'هیچ وەشانێکی بەردەست نییە' : `${effectiveStock.toLocaleString('en-US')} دانە بەردەستە`}</div>
+        {product.brand ? <div className="mt-1 text-xs font-bold text-[var(--shakh-muted)]">{product.brand}</div> : null}
+        {formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count) ? <div className="mt-2 inline-flex w-fit rounded-lg bg-[var(--shakh-blue)]/[0.07] px-2 py-1 text-xs font-bold text-[var(--shakh-blue)]">{formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count)}</div> : null}
+        {restaurant ? <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-[var(--shakh-muted)]"><span className="rounded-full bg-[var(--shakh-bg)] px-2 py-1">{restaurantMenuCategoryLabels[restaurant.menu_category] ?? 'خواردن'}</span><span>{restaurant.prep_time_minutes} خولەک</span></div> : null}
+        <div className={`mt-2 text-[11px] font-bold ${soldOut ? 'text-red-600' : 'text-[var(--shakh-muted)]'}`}>{restaurant ? (restaurantAvailable ? 'بەردەستە بۆ داواکردن' : 'لە ئێستادا بەردەست نییە') : expired ? 'بەسەرچووە' : soldOut ? 'کۆگا بەتاڵە' : hasVariants && !variantPrices.length ? 'هیچ وەشانێکی بەردەست نییە' : `${effectiveStock.toLocaleString('en-US')} دانە بەردەستە`}</div>
         {product.store ? (
-          <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-black/40">
+          <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--shakh-muted)]">
             <Store size={13} /> <span className="truncate">{product.store.name_ku}</span>
           </div>
         ) : null}
-        <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--shakh-border)] pt-3.5">
           <div>
-            <div className="text-base font-black tabular-nums">{showVariantPriceRange ? `لە ${displayPrice.toLocaleString('en-US')} تا ${displayPriceMax.toLocaleString('en-US')}` : hasVariants && !variantPrices.length ? product.base_price_iqd.toLocaleString('en-US') : displayPrice.toLocaleString('en-US')} <span className="text-xs text-black/40">د.ع</span></div>
-            {showProductDiscount && !showVariantPriceRange && product.compare_at_price_iqd ? <div className="mt-0.5 text-xs text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
+            <div className="text-base font-black tabular-nums text-[var(--shakh-ink)]">{showVariantPriceRange ? `لە ${displayPrice.toLocaleString('en-US')} تا ${displayPriceMax.toLocaleString('en-US')}` : hasVariants && !variantPrices.length ? product.base_price_iqd.toLocaleString('en-US') : displayPrice.toLocaleString('en-US')} <span className="text-xs text-[var(--shakh-muted)]">د.ع</span></div>
+            {showProductDiscount && !showVariantPriceRange && product.compare_at_price_iqd ? <div className="mt-0.5 text-xs text-[var(--shakh-muted)] line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
           </div>
-          <button disabled={soldOut} onClick={add} className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30" aria-label="زیادکردن بۆ سەبەتە">
+          <button disabled={soldOut} onClick={add} className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-navy)] text-white transition hover:bg-[var(--shakh-blue)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:size-11" aria-label="زیادکردن بۆ سەبەتە">
             {soldOut ? <span className="text-[10px] font-black">نەماوە</span> : <Plus size={20} />}
           </button>
         </div>

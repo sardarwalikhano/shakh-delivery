@@ -307,7 +307,7 @@ export function ReferralWalletPage() {
 
   return (
     <section className="min-h-[calc(100dvh-8rem)] space-y-6 bg-[var(--shakh-bg)] py-6" dir="rtl">
-      <header className="rounded-[28px] bg-[var(--shakh-navy)] p-5 text-white shadow-[0_18px_50px_rgba(11,18,32,.12)] sm:p-7">
+      <header className="rounded-[1.5rem] bg-[var(--shakh-navy)] p-5 text-white shadow-[0_18px_50px_rgba(11,18,32,.12)] sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="text-xs font-black text-[var(--shakh-orange)]">SHAKH · Share and earn</div>
@@ -329,10 +329,10 @@ export function ReferralWalletPage() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(330px,.8fr)]">
-        <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-[1.4rem] border border-[var(--shakh-border)] bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center gap-2"><ArrowDownToLine size={20} className="text-[var(--shakh-orange)]"/><h2 className="text-lg font-black">داوای ڕاکێشانی باڵانس</h2></div>
-          <p className="mt-2 text-sm leading-6 text-black/50">داواکردن هەموو باڵانسی بەردەستت قفڵ دەکات تا ئەدمین پشکنینی بکات. ئەگەر داواکاری ڕەت بکرێتەوە، باڵانسەکە دەگەڕێتەوە؛ ئەگەر پارە بدرێت، باڵانسی بەردەست بۆ ئەو بڕە سفر دەبێت. بڕی داواکراو لە باڵانس دەردەچێت تا تیمی دارایی پشکنینی بکات؛ ئەگەر ڕەت بکرێتەوە، پارەکە دەگەڕێتەوە.</p>
-          <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/45">بڕی ئێستا بۆ داواکردن</div><div className="mt-1 text-2xl font-black tabular-nums">{formatIQD(available)}</div></div>
+          <p className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">داواکردن هەموو باڵانسی بەردەستت قفڵ دەکات تا ئەدمین پشکنینی بکات. ئەگەر داواکاری ڕەت بکرێتەوە، باڵانسەکە دەگەڕێتەوە؛ ئەگەر پارە بدرێت، باڵانسی بەردەست بۆ ئەو بڕە سفر دەبێت. بڕی داواکراو لە باڵانس دەردەچێت تا تیمی دارایی پشکنینی بکات؛ ئەگەر ڕەت بکرێتەوە، پارەکە دەگەڕێتەوە.</p>
+          <div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-[var(--shakh-muted)]">بڕی ئێستا بۆ داواکردن</div><div className="mt-1 text-2xl font-black tabular-nums">{formatIQD(available)}</div></div>
 
           <form className="mt-5 space-y-4" onSubmit={requestWithdrawal}>
             <label className="block text-sm font-black">ناوی خاوەنی هەژمار
@@ -350,16 +350,16 @@ export function ReferralWalletPage() {
               <textarea maxLength={1000} value={withdrawalNote} onChange={(event) => setWithdrawalNote(event.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-black/10 p-3 text-sm font-normal" placeholder="وردەکاریی زیاتر"/>
             </label>
             <button type="submit" disabled={busy || loading || available <= 0} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white disabled:opacity-40"><ArrowDownToLine size={17}/>{busy ? 'ناردن...' : 'داوای ڕاکێشانی هەموو باڵانس'}</button>
-            <p className="text-xs leading-5 text-black/40">پارەدان لەم قۆناغەدا بە دەستی تیمی دارایی تۆمار دەکرێت؛ هیچ گەیت‌وەی بانکی یان مۆبایلی خۆکار نەبەستراوە.</p>
+            <p className="text-xs leading-5 text-[var(--shakh-muted)]">پارەدان لەم قۆناغەدا بە دەستی تیمی دارایی تۆمار دەکرێت؛ هیچ گەیت‌وەی بانکی یان مۆبایلی خۆکار نەبەستراوە.</p>
           </form>
         </section>
 
-        <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-[1.4rem] border border-[var(--shakh-border)] bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center gap-2"><Banknote size={20} className="text-[var(--shakh-blue)]"/><h2 className="text-lg font-black">مێژووی داوای ڕاکێشان</h2></div>
           <div className="mt-4 space-y-3">
-            {myWithdrawals.map((item) => <article key={item.id} className="rounded-2xl border border-black/[0.06] bg-[var(--shakh-bg)] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-black">{formatIQD(item.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{payoutLabels[item.payout_method] ?? item.payout_method} · {formatDate(item.requested_at)}</div></div><span className={'rounded-full px-2.5 py-1 text-[10px] font-black ' + statusTone(item.status)}>{withdrawalStatusLabels[item.status]}</span></div>
-              <div className="mt-2 break-words text-xs leading-5 text-black/50">{item.account_holder_name} · {item.payout_account}</div>
+            {myWithdrawals.map((item) => <article key={item.id} className="rounded-2xl border border-[var(--shakh-border)] bg-[var(--shakh-bg)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-black">{formatIQD(item.amount_iqd)}</div><div className="mt-1 text-xs text-[var(--shakh-muted)]">{payoutLabels[item.payout_method] ?? item.payout_method} · {formatDate(item.requested_at)}</div></div><span className={'rounded-full px-2.5 py-1 text-[10px] font-black ' + statusTone(item.status)}>{withdrawalStatusLabels[item.status]}</span></div>
+              <div className="mt-2 break-words text-xs leading-5 text-[var(--shakh-muted)]">{item.account_holder_name} · {item.payout_account}</div>
               {item.admin_note ? <div className="mt-2 text-xs leading-5 text-black/60">تێبینی دارایی: {item.admin_note}</div> : null}
               {item.paid_at ? <div className="mt-2 text-[11px] text-emerald-800">پارەدراوە: {formatDate(item.paid_at)}</div> : null}
             </article>)}
@@ -368,23 +368,23 @@ export function ReferralWalletPage() {
         </section>
       </div>
 
-      <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
+      <section className="rounded-[1.4rem] border border-[var(--shakh-border)] bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-2"><Gift size={20} className="text-[var(--shakh-orange)]"/><h2 className="text-lg font-black">مێژووی خەڵاتەکان</h2></div>
-        <p className="mt-1 text-xs leading-5 text-black/45">هەر خەڵاتێک بە داواکارییەک دەبەسترێتەوە. خەڵاتی هەڵوەشاوە یان داواکاریی هێشتا تەواونەبوو ناچێتە باڵانسی بەردەست.</p>
+        <p className="mt-1 text-xs leading-5 text-[var(--shakh-muted)]">هەر خەڵاتێک بە داواکارییەک دەبەسترێتەوە. خەڵاتی هەڵوەشاوە یان داواکاریی هێشتا تەواونەبوو ناچێتە باڵانسی بەردەست.</p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[650px] text-sm">
-            <thead><tr className="border-b border-black/10 text-start text-xs text-black/45"><th className="p-3 text-start">بەروار</th><th className="p-3 text-start">جۆری داواکاری</th><th className="p-3 text-start">خەڵات</th><th className="p-3 text-start">دۆخ</th><th className="p-3 text-start">ID داواکاری</th></tr></thead>
-            <tbody>{(snapshot.rewards ?? []).map((reward) => <tr key={reward.id} className="border-b border-black/[0.05]"><td className="p-3 text-xs text-black/55">{formatDate(reward.created_at)}</td><td className="p-3 font-bold">{reward.order_type === 'food' ? 'خواردن' : 'جل‌وبەرگ'}</td><td className="p-3 font-black">{formatIQD(reward.reward_iqd)}</td><td className="p-3"><span className={'rounded-full px-2 py-1 text-[10px] font-black ' + statusTone(reward.status)}>{reward.status === 'pending' ? 'چاوەڕوانی' : reward.status === 'available' ? 'بەردەست' : 'هەڵوەشاوە'}</span></td><td className="p-3 font-mono text-[10px] text-black/45" dir="ltr">{reward.order_id}</td></tr>)}</tbody>
+            <thead><tr className="border-b border-black/10 text-start text-xs text-[var(--shakh-muted)]"><th className="p-3 text-start">بەروار</th><th className="p-3 text-start">جۆری داواکاری</th><th className="p-3 text-start">خەڵات</th><th className="p-3 text-start">دۆخ</th><th className="p-3 text-start">ID داواکاری</th></tr></thead>
+            <tbody>{(snapshot.rewards ?? []).map((reward) => <tr key={reward.id} className="border-b border-black/[0.05]"><td className="p-3 text-xs text-black/55">{formatDate(reward.created_at)}</td><td className="p-3 font-bold">{reward.order_type === 'food' ? 'خواردن' : 'جل‌وبەرگ'}</td><td className="p-3 font-black">{formatIQD(reward.reward_iqd)}</td><td className="p-3"><span className={'rounded-full px-2 py-1 text-[10px] font-black ' + statusTone(reward.status)}>{reward.status === 'pending' ? 'چاوەڕوانی' : reward.status === 'available' ? 'بەردەست' : 'هەڵوەشاوە'}</span></td><td className="p-3 font-mono text-[10px] text-[var(--shakh-muted)]" dir="ltr">{reward.order_id}</td></tr>)}</tbody>
           </table>
         </div>
         {!loading && snapshot.rewards.length === 0 ? <Empty text="هێشتا هیچ خەڵاتێک بەدەست نەهاتووە."/> : null}
       </section>
 
-      <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
+      <section className="rounded-[1.4rem] border border-[var(--shakh-border)] bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-2"><WalletCards size={20} className="text-[var(--shakh-blue)]"/><h2 className="text-lg font-black">جووڵەکانی باڵانس</h2></div>
         <div className="mt-4 space-y-2">
           {recentTransactions.map((item, index) => <div key={item.id ?? item.reference_id + item.transaction_type + index} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3">
-            <div className="min-w-0 flex-1"><div className="font-bold">{transactionLabels[item.transaction_type] ?? item.description_ku}</div><div className="mt-1 text-[11px] text-black/40">{item.description_ku} · {formatDate(item.created_at)}</div></div>
+            <div className="min-w-0 flex-1"><div className="font-bold">{transactionLabels[item.transaction_type] ?? item.description_ku}</div><div className="mt-1 text-[11px] text-[var(--shakh-muted)]">{item.description_ku} · {formatDate(item.created_at)}</div></div>
             <strong className={'text-sm tabular-nums ' + (amount(item.amount_iqd) < 0 ? 'text-red-600' : 'text-emerald-700')}>{amount(item.amount_iqd)>0?'+':''}{formatIQD(item.amount_iqd)}</strong>
           </div>)}
           {!loading && recentTransactions.length === 0 ? <Empty text="هێشتا جووڵەیەکی باڵانس نییە."/> : null}
@@ -392,12 +392,12 @@ export function ReferralWalletPage() {
       </section>
 
       {canManageWithdrawals ? (
-        <section className="rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-sm sm:p-6">
+        <section className="rounded-[1.4rem] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center gap-2"><BadgeCheck size={20} className="text-[var(--shakh-orange)]"/><h2 className="text-lg font-black">بەڕێوەبردنی داواکارییەکانی ڕاکێشان · دارایی</h2></div>
-          <p className="mt-1 text-xs leading-5 text-black/45">پێش نیشانکردنی «پارەدرا»، پارەکە بەڕاستی لە ڕێگای دەرەکی بۆ بەکارهێنەر بنێرە. دوگمەکە تەنها دۆخی سیستەم تۆمار دەکات.</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--shakh-muted)]">پێش نیشانکردنی «پارەدرا»، پارەکە بەڕاستی لە ڕێگای دەرەکی بۆ بەکارهێنەر بنێرە. دوگمەکە تەنها دۆخی سیستەم تۆمار دەکات.</p>
           <div className="mt-4 space-y-3">
-            {adminRequests.map((request) => <article key={request.id} className="rounded-2xl border border-black/[0.07] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold text-black/45" dir="ltr">{request.user_id}</div><div className="mt-1 text-lg font-black">{formatIQD(request.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{payoutLabels[request.payout_method] ?? request.payout_method} · {formatDate(request.requested_at)}</div></div><span className={'rounded-full px-2.5 py-1 text-[10px] font-black ' + statusTone(request.status)}>{withdrawalStatusLabels[request.status]}</span></div>
+            {adminRequests.map((request) => <article key={request.id} className="rounded-2xl border border-[var(--shakh-border)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold text-[var(--shakh-muted)]" dir="ltr">{request.user_id}</div><div className="mt-1 text-lg font-black">{formatIQD(request.amount_iqd)}</div><div className="mt-1 text-xs text-[var(--shakh-muted)]">{payoutLabels[request.payout_method] ?? request.payout_method} · {formatDate(request.requested_at)}</div></div><span className={'rounded-full px-2.5 py-1 text-[10px] font-black ' + statusTone(request.status)}>{withdrawalStatusLabels[request.status]}</span></div>
               <div className="mt-3 rounded-xl bg-[var(--shakh-bg)] p-3 text-sm"><div><strong>خاوەنی هەژمار: </strong>{request.account_holder_name}</div><div className="mt-1 break-words"><strong>هەژمار: </strong>{request.payout_account}</div>{request.note ? <div className="mt-1"><strong>تێبینی: </strong>{request.note}</div> : null}</div>
               <textarea value={adminNote[request.id] ?? ''} onChange={(event) => setAdminNote((current) => ({ ...current, [request.id]: event.target.value }))} maxLength={2000} className="mt-3 min-h-16 w-full rounded-xl border border-black/10 p-3 text-sm" placeholder="تێبینی بۆ بەکارهێنەر (ئارەزوومەندانە)"/>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -414,12 +414,12 @@ export function ReferralWalletPage() {
 }
 
 function WalletStat({ label, value, icon, emphasized = false }: { label: string; value: string; icon: React.ReactNode; emphasized?: boolean }) {
-  return <div className={'rounded-2xl border p-4 ' + (emphasized ? 'border-[var(--shakh-orange)]/20 bg-white shadow-sm' : 'border-black/[0.06] bg-white')}>
-    <div className="flex items-center gap-2 text-xs font-black text-black/45">{icon}{label}</div>
+  return <div className={'rounded-2xl border p-4 ' + (emphasized ? 'border-[var(--shakh-orange)]/20 bg-white shadow-sm' : 'border-[var(--shakh-border)] bg-white')}>
+    <div className="flex items-center gap-2 text-xs font-black text-[var(--shakh-muted)]">{icon}{label}</div>
     <div className={'mt-2 text-xl font-black tabular-nums ' + (emphasized ? 'text-[var(--shakh-orange)]' : 'text-[var(--shakh-navy)]')}>{value}</div>
   </div>;
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="rounded-xl border border-dashed border-black/10 p-5 text-center text-sm font-bold text-black/40">{text}</div>;
+  return <div className="rounded-xl border border-dashed border-black/10 p-5 text-center text-sm font-bold text-[var(--shakh-muted)]">{text}</div>;
 }
