@@ -80,6 +80,8 @@ export async function checkoutFoodPostCart(input: {
   deliveryCity: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  deliveryLatitude: number;
+  deliveryLongitude: number;
 }): Promise<FoodPostOrderResult[]> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) throw new Error('پێویستە سەرەتا بچیتە ژوورەوە.');
@@ -91,7 +93,7 @@ export async function checkoutFoodPostCart(input: {
     if (shareLinkId) shareLinks[item.post_id] = shareLinkId;
   }
 
-  const { data, error } = await supabase.rpc('checkout_food_post_cart_with_share', {
+  const { data, error } = await supabase.rpc('checkout_food_post_cart_with_delivery_zone', {
     p_delivery_address: input.deliveryAddress,
     p_buyer_phone: input.buyerPhone,
     p_delivery_city: input.deliveryCity,
@@ -99,6 +101,8 @@ export async function checkoutFoodPostCart(input: {
     p_payment_method: input.paymentMethod,
     p_share_links: shareLinks,
     p_use_share_balance: false,
+    p_delivery_lat: input.deliveryLatitude,
+    p_delivery_lng: input.deliveryLongitude,
   });
   if (error) throw new Error(error.message);
   const result = data as { orders?: FoodPostOrderResult[] } | null;
