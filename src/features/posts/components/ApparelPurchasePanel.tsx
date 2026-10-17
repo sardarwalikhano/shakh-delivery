@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import type { ApparelVariant, Post } from '../types';
 import { createApparelPostOrder } from '../apparelOrders';
 import { getPostShareToken } from '../shareRewards';
+import { BuyerDeliveryLocationField, type DeliveryCoordinates } from './BuyerDeliveryLocationField';
 
 type Props = { post: Post; variant: ApparelVariant };
 
@@ -24,6 +25,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<DeliveryCoordinates | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     if (city.trim().length < 2) { setError('شاری گەیاندن پێویستە.'); return; }
     const phoneError = validatePhone(phone);
     if (phoneError) { setError(phoneError); return; }
+    if (!deliveryCoordinates) { setError('پێش داواکردن، شوێنی GPS دیاری بکە.'); return; }
 
     setBusy(true);
     try {
@@ -72,6 +75,8 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
         customerNote: note,
         paymentMethod,
         shareLinkId: getPostShareToken(post.id),
+        deliveryLatitude: deliveryCoordinates.latitude,
+        deliveryLongitude: deliveryCoordinates.longitude,
       });
       requestId.current = null;
       navigate('/post-orders', { replace: true, state: { orderCreated: true } });
@@ -107,6 +112,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
       ) : (
         <form onSubmit={submit} className="space-y-3 border-t border-black/10 pt-4">
           <label className="block"><span className="mb-2 block text-sm font-black"><MapPin size={15} className="me-1 inline" />ناونیشانی گەیاندن *</span><textarea required minLength={5} maxLength={1000} value={address} onChange={(event) => setAddress(event.target.value)} className="min-h-24 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="شار، گەڕەک، شەقام و ژمارەی خانوو" /></label>
+          <BuyerDeliveryLocationField coordinates={deliveryCoordinates} onChange={setDeliveryCoordinates} disabled={busy} />
           <label className="block"><span className="mb-2 block text-sm font-black">شاری گەیاندن *</span><input required minLength={2} maxLength={100} value={city} onChange={(event) => setCity(event.target.value)} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="هەولێر" /></label>
           <label className="block"><span className="mb-2 block text-sm font-black">ژمارەی مۆبایل *</span><input required type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="+9647501234567" dir="ltr" /></label>
           <label className="block"><span className="mb-2 block text-sm font-black">تێبینی (ئارەزوومەندانە)</span><textarea maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} className="min-h-16 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm" placeholder="تێبینی بۆ فرۆشیار" /></label>
