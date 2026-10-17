@@ -3,7 +3,7 @@ import type { VehicleListingRecord } from './vehicleTypes';
 import type { CategoryDetails } from '@/lib/catalog/categoryDetails';
 
 export type PostCategory =
-  | 'general' | 'food' | 'fashion' | 'electronics' | 'home_living'
+  | 'general' | 'food' | 'fashion' | 'electronics' | 'supermarket' | 'home_living'
   | 'beauty' | 'kids' | 'online_stores' | 'cars' | 'umrah' | 'delivery';
 
 export type ApparelType =
