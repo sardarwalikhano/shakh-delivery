@@ -16,7 +16,7 @@ export function VendorStorePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState({ name_ku: '', name_ar: '', name_en: '', slug: '', description_ku: '' });
   const [deliveryPoint, setDeliveryPoint] = useState<DeliveryPoint | null>(null);
-  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(15);
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(() => roles.includes('restaurant_vendor') ? 5 : 15);
   const defaultDeliveryRadiusKm = roles.includes('restaurant_vendor') ? 5 : 15;
 
   const refresh = async () => {
@@ -26,6 +26,7 @@ export function VendorStorePage() {
   };
 
   useEffect(() => { void refresh(); }, [user, roles]);
+  useEffect(() => { if (!selected) setDeliveryRadiusKm(defaultDeliveryRadiusKm); }, [defaultDeliveryRadiusKm, selected]);
 
   const loadStore = (store: VendorStore) => {
     setSelected(store.id);
