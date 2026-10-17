@@ -82,7 +82,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
       requestId.current = null;
       navigate('/post-orders', { replace: true, state: { orderCreated: true } });
     } catch (nextError) {
-      setError(readableDeliveryError(errorMessage(nextError, 'تۆمارکردنی داواکاری سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.'));
+      setError(readableDeliveryError(errorMessage(nextError, 'تۆمارکردنی داواکاری سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.')));
     } finally {
       setBusy(false);
     }
