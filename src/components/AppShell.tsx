@@ -39,36 +39,36 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-dvh bg-[var(--shakh-bg)] text-[var(--shakh-ink)]">
-      <header className="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-[var(--shakh-border)]/80 bg-white/90 shadow-[0_2px_12px_rgba(16,34,61,.025)] backdrop-blur-xl">
+        <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-3 px-3 sm:h-[72px] sm:px-6">
           <button type="button" onClick={() => setMobileMenuOpen(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-black/65 hover:bg-black/[0.05] lg:hidden" aria-label="کردنەوەی مینۆ" aria-expanded={mobileMenuOpen}>
             <Menu size={21} />
           </button>
           <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex min-w-0 items-center gap-2" aria-label="SHAKH Delivery home">
-            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-sm font-black text-white shadow-lg shadow-black/10">S</span>
+            <span className="grid size-10 shrink-0 place-items-center rounded-[15px] bg-[var(--shakh-navy)] text-sm font-black text-white shadow-[0_5px_14px_rgba(16,34,61,.2)] ring-1 ring-white/10">S</span>
             <div className="min-w-0 leading-tight">
-              <div className="truncate text-sm font-black tracking-wide">SHAKH</div>
-              <div className="truncate text-[11px] text-black/45">Delivery</div>
+              <div className="truncate text-sm font-black tracking-[.08em]">SHAKH</div>
+              <div className="truncate text-[11px] font-medium text-[var(--shakh-muted)]">Delivery</div>
             </div>
           </Link>
 
-          <nav className="ms-auto flex items-center gap-1" aria-label="Main navigation">
-            <Link className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-black/60 hover:bg-black/[0.04] sm:inline-flex" to="/search">گەڕان</Link>
-            {isAuthenticated && hasPermission("posts.create") ? <Link className="hidden rounded-xl px-3 py-2 text-sm font-black text-[var(--shakh-orange)] hover:bg-[var(--shakh-orange)]/10 md:inline-flex" to="/dashboard/posts/new">پۆستی نوێ</Link> : null}
-            <Link className="rounded-xl p-2 text-black/60 hover:bg-black/[0.04]" to="/search" aria-label="گەڕان"><Search size={20} /></Link>
+          <nav className="ms-auto flex items-center gap-1 sm:gap-1.5" aria-label="Main navigation">
+            <Link className="hidden rounded-xl px-3 py-2 text-sm font-bold text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)] sm:inline-flex" to="/search">گەڕان</Link>
+            {isAuthenticated && hasPermission("posts.create") ? <Link className="hidden rounded-xl bg-[var(--shakh-orange)]/10 px-3.5 py-2 text-sm font-black text-[var(--shakh-orange)] transition hover:bg-[var(--shakh-orange)]/15 md:inline-flex" to="/dashboard/posts/new">پۆستی نوێ</Link> : null}
+            <Link className="grid size-10 place-items-center rounded-xl text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)]" to="/search" aria-label="گەڕان"><Search size={20} /></Link>
             {isAuthenticated ? (
               <>
-                <Link className="relative rounded-xl p-2 text-black/60 hover:bg-black/[0.04]" to="/notifications" aria-label="ئاگادارکردنەوەکان">
+                <Link className="relative grid size-10 place-items-center rounded-xl text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)]" to="/notifications" aria-label="ئاگادارکردنەوەکان">
                   <Bell size={20} />
                   {unreadCount > 0 ? <span className="absolute -end-0.5 -top-0.5 min-w-4 rounded-full bg-[var(--shakh-orange)] px-1 text-center text-[9px] font-black leading-4 text-white">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
                 </Link>
-                <Link className="hidden rounded-xl p-2 text-black/60 hover:bg-black/[0.04] sm:inline-flex" to="/wishlist" aria-label="دڵخوازەکان"><Heart size={20} /></Link>
-                <Link className="rounded-xl p-2 text-black/60 hover:bg-black/[0.04]" to="/cart" aria-label="سەبەتە"><ShoppingBag size={20} /></Link>
-                <Link className="hidden max-w-40 truncate rounded-xl px-3 py-2 text-xs font-bold text-black/55 hover:bg-black/[0.04] lg:inline-flex" to="/account" dir="ltr">{user?.email}</Link>
-                <button className="hidden rounded-xl p-2 text-black/60 hover:bg-black/[0.04] sm:inline-flex" onClick={() => void onLogout()} aria-label="دەرچوون"><LogOut size={19} /></button>
+                <Link className="hidden size-10 items-center justify-center rounded-xl text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)] sm:inline-flex" to="/wishlist" aria-label="دڵخوازەکان"><Heart size={20} /></Link>
+                <Link className="grid size-10 place-items-center rounded-xl text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)]" to="/cart" aria-label="سەبەتە"><ShoppingBag size={20} /></Link>
+                <Link className="hidden max-w-44 truncate rounded-xl border border-[var(--shakh-border)] px-3 py-2 text-xs font-bold text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] lg:inline-flex" to="/account" dir="ltr">{user?.email}</Link>
+                <button className="hidden size-10 items-center justify-center rounded-xl text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)] sm:inline-flex" onClick={() => void onLogout()} aria-label="دەرچوون"><LogOut size={19} /></button>
               </>
             ) : (
-              <Link className="rounded-xl p-2 text-black/60 hover:bg-black/[0.04]" to="/login" aria-label="چوونە ژوورەوە"><UserRound size={20} /></Link>
+              <Link className="grid size-10 place-items-center rounded-xl text-[var(--shakh-muted)] transition hover:bg-[var(--shakh-bg)] hover:text-[var(--shakh-ink)]" to="/login" aria-label="چوونە ژوورەوە"><UserRound size={20} /></Link>
             )}
           </nav>
         </div>
@@ -77,10 +77,10 @@ export function AppShell({ children }: AppShellProps) {
       {mobileMenuOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button type="button" className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" onClick={() => setMobileMenuOpen(false)} aria-label="داخستنی مینۆ" />
-          <aside role="dialog" aria-modal="true" aria-label="مینۆی سەرەکی" className="absolute inset-y-0 start-0 flex w-[min(88vw,22rem)] flex-col overflow-y-auto bg-white p-4 shadow-2xl">
+          <aside role="dialog" aria-modal="true" aria-label="مینۆی سەرەکی" className="absolute inset-y-0 start-0 flex w-[min(88vw,22rem)] flex-col overflow-y-auto border-e border-[var(--shakh-border)] bg-white p-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-black/5 pb-4">
               <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-2xl bg-[var(--shakh-navy)] font-black text-white">S</span>
+                <span className="grid size-11 place-items-center rounded-[15px] bg-[var(--shakh-navy)] font-black text-white shadow-[0_5px_14px_rgba(16,34,61,.18)]">S</span>
                 <span><span className="block font-black">SHAKH</span><span className="block text-xs text-black/45">Delivery</span></span>
               </Link>
               <button type="button" onClick={() => setMobileMenuOpen(false)} className="grid size-10 place-items-center rounded-xl hover:bg-black/5" aria-label="داخستن"><X size={20} /></button>
@@ -104,11 +104,11 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       ) : null}
 
-      <main>{children}</main>
+      <main className="min-h-[calc(100dvh-12rem)]">{children}</main>
 
-      <footer className="border-t border-black/5 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 text-sm text-black/45 sm:px-6">
-          <div className="font-black text-black/70">SHAKH Delivery</div>
+      <footer className="mt-6 border-t border-[var(--shakh-border)] bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-8 text-sm text-[var(--shakh-muted)] sm:px-6 sm:py-10">
+          <div className="font-black text-[var(--shakh-ink)]">SHAKH Delivery</div>
           <div className="mt-2">پلاتفۆڕمی Kurdish-first ـی SHAKH Delivery؛ data و دەسەڵاتەکان لە Supabase ـی تایبەتی ئەم پڕۆژەیەن.</div>
         </div>
       </footer>
