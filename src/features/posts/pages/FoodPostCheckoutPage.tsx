@@ -73,7 +73,7 @@ export function FoodPostCheckoutPage() {
   };
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
+    <section className="shakh-page py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <Link to="/cart" className="inline-flex items-center gap-2 text-sm font-black text-black/45"><ArrowLeft size={17}/> گەڕانەوە بۆ سەلە</Link>
         <div className="mt-5 flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><MapPin size={20}/></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">داواکاریی چێشتخانە</div><h1 className="text-3xl font-black">تەواوکردنی داواکاری</h1></div></div>

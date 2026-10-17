@@ -48,9 +48,9 @@ export function DashboardLayout() {
 
   const renderNavigation = (mobile = false) => (
     <>
-      <div className="rounded-[24px] bg-[var(--shakh-navy)] p-4 text-white shadow-[0_14px_38px_rgba(11,18,32,.12)]">
+      <div className="shakh-dashboard__brand p-4 text-white">
         <div className="flex items-center gap-3">
-          <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-lg font-black">S</div>
+          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)] text-lg font-black text-[var(--shakh-navy)]">S</div>
           <div className="min-w-0">
             <div className="truncate font-black">SHAKH Delivery</div>
             <div className="mt-0.5 truncate text-xs text-white/50">{displayRole ? roleLabelsKu[displayRole] ?? displayRole : '...'}</div>
@@ -62,7 +62,7 @@ export function DashboardLayout() {
       <nav className="mt-4 space-y-1" aria-label="Dashboard navigation">
         {visibleItems.map((item) => (
           <NavLink key={item.href} to={item.href} end={item.href === '/dashboard'} onClick={() => setMenuOpen(false)}
-            className={({ isActive }) => `group flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-bold transition ${isActive ? 'bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]' : 'text-black/60 hover:bg-black/[0.04] hover:text-black'}`}>
+            className={({ isActive }) => `shakh-dashboard__navlink group flex items-center gap-3 px-3.5 py-2.5 text-sm font-bold ${isActive ? 'text-[var(--shakh-orange)]' : 'text-black/60 hover:bg-black/[0.035] hover:text-[var(--shakh-ink)]'}`}>
             <item.icon size={18} strokeWidth={2.2} />
             <span className="min-w-0 flex-1">{item.label}</span>
             <ChevronLeft className="opacity-40" size={15} />
@@ -73,9 +73,9 @@ export function DashboardLayout() {
   );
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb]">
+    <div className="shakh-dashboard min-h-[calc(100dvh-4rem)]">
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1600px]">
-        <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-72 shrink-0 self-start overflow-y-auto border-e border-black/[0.06] bg-white p-4 lg:block lg:p-5">
+        <aside className="shakh-dashboard__sidebar sticky top-16 hidden h-[calc(100dvh-4rem)] w-72 shrink-0 self-start overflow-y-auto p-4 lg:block lg:p-5">
           {renderNavigation()}
         </aside>
         {menuOpen ? (

@@ -388,7 +388,7 @@ ${share.title || post.title}
   };
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-10">
+    <section className="shakh-page py-6 sm:py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <Link to="/posts" className="inline-flex items-center gap-2 text-sm font-black text-black/45 hover:text-black"><ArrowRight size={17} /> گەڕانەوە بۆ پۆستەکان</Link>
 

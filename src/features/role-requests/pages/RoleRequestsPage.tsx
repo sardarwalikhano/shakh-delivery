@@ -50,7 +50,7 @@ export function RoleRequestsPage() {
   };
 
   return (
-    <section className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb] p-4 sm:p-6 lg:p-8">
+    <section className="shakh-page p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <header className="rounded-[30px] bg-[var(--shakh-navy)] p-6 text-white shadow-[0_18px_60px_rgba(11,18,32,.12)] sm:p-8">
           <div className="flex items-start gap-4">

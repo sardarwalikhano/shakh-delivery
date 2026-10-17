@@ -55,8 +55,8 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
   };
 
   return (
-    <article className="group overflow-hidden rounded-[26px] border border-black/[0.06] bg-white shadow-[0_10px_30px_rgba(16,22,35,.035)] transition hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(16,22,35,.09)]">
-      <div className="relative aspect-[4/4.5] overflow-hidden bg-[var(--shakh-bg)]">
+    <article className="shakh-product-card group">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[var(--shakh-bg)]">
         <Link to={`/product/${product.slug}`} className="absolute inset-0" aria-label={product.name_ku}>
           {product.images[0] ? (
             <img src={getProductImageUrl(product.images[0].storage_path)} alt={product.images[0].alt_ku ?? product.name_ku} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" />
@@ -79,9 +79,9 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
         ) : null}
       </div>
 
-      <div className="p-4">
+      <div className="p-3.5 sm:p-4">
         <Link to={`/product/${product.slug}`} className="block">
-          <h3 className="line-clamp-2 min-h-12 text-sm font-black leading-6 text-[var(--shakh-ink)]">{product.name_ku}</h3>
+          <h3 className="line-clamp-2 min-h-11 text-sm font-extrabold leading-6 text-[var(--shakh-ink)]">{product.name_ku}</h3>
         </Link>
         {product.brand ? <div className="mt-1 text-xs font-bold text-black/45">{product.brand}</div> : null}
         {formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count) ? <div className="mt-2 text-xs font-bold text-[var(--shakh-blue)]">{formatSupermarketQuantity(product.quantity_value, product.quantity_unit, product.package_count)}</div> : null}
@@ -97,7 +97,7 @@ export function ProductCard({ product, wishlisted = false, onToggleWishlist, onA
             <div className="text-base font-black tabular-nums">{showVariantPriceRange ? `لە ${displayPrice.toLocaleString('en-US')} تا ${displayPriceMax.toLocaleString('en-US')}` : hasVariants && !variantPrices.length ? product.base_price_iqd.toLocaleString('en-US') : displayPrice.toLocaleString('en-US')} <span className="text-xs text-black/40">د.ع</span></div>
             {showProductDiscount && !showVariantPriceRange && product.compare_at_price_iqd ? <div className="mt-0.5 text-xs text-black/35 line-through">{product.compare_at_price_iqd.toLocaleString('en-US')} د.ع</div> : null}
           </div>
-          <button disabled={soldOut} onClick={add} className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30" aria-label="زیادکردن بۆ سەبەتە">
+          <button disabled={soldOut} onClick={add} className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-navy)] text-white shadow-sm transition hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/30" aria-label="زیادکردن بۆ سەبەتە">
             {soldOut ? <span className="text-[10px] font-black">نەماوە</span> : <Plus size={20} />}
           </button>
         </div>

@@ -39,13 +39,13 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-dvh bg-[var(--shakh-bg)] text-[var(--shakh-ink)]">
-      <header className="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+      <header className="shakh-topbar sticky top-0 z-40">
+        <div className="shakh-topbar__inner mx-auto flex max-w-7xl items-center gap-3 px-4 sm:px-6">
           <button type="button" onClick={() => setMobileMenuOpen(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-black/65 hover:bg-black/[0.05] lg:hidden" aria-label="کردنەوەی مینۆ" aria-expanded={mobileMenuOpen}>
             <Menu size={21} />
           </button>
           <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex min-w-0 items-center gap-2" aria-label="SHAKH Delivery home">
-            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-sm font-black text-white shadow-lg shadow-black/10">S</span>
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)] text-sm font-black text-[var(--shakh-navy)] shadow-sm">S</span>
             <div className="min-w-0 leading-tight">
               <div className="truncate text-sm font-black tracking-wide">SHAKH</div>
               <div className="truncate text-[11px] text-black/45">Delivery</div>
@@ -104,10 +104,10 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       ) : null}
 
-      <main>{children}</main>
+      <main className="shakh-main">{children}</main>
 
-      <footer className="border-t border-black/5 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 text-sm text-black/45 sm:px-6">
+      <footer className="shakh-footer">
+        <div className="mx-auto max-w-7xl px-4 py-8 text-sm leading-7 text-black/45 sm:px-6 sm:py-10">
           <div className="font-black text-black/70">SHAKH Delivery</div>
           <div className="mt-2">پلاتفۆڕمی Kurdish-first ـی SHAKH Delivery؛ data و دەسەڵاتەکان لە Supabase ـی تایبەتی ئەم پڕۆژەیەن.</div>
         </div>

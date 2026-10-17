@@ -67,7 +67,7 @@ export function NotificationsPage() {
   });
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10">
+    <section className="shakh-page py-7 sm:py-10">
       <div className="mx-auto max-w-4xl px-4 sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
