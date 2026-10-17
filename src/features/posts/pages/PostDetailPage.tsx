@@ -185,8 +185,10 @@ export function PostDetailPage() {
 
   const isApparel = post.category === 'fashion';
   const isElectronics = post.category === 'electronics';
+  const isSupermarket = post.category === 'supermarket';
   const isVehicle = post.category === 'cars';
   const electronicsSpecs = isElectronics ? getVisibleCategoryDetails('electronics', post.category_details) : [];
+  const supermarketSpecs = isSupermarket ? getVisibleCategoryDetails('supermarket', post.category_details) : [];
   const vehicleListing = isVehicle ? singleVehicleListing(post.vehicle_listing) : null;
   const basePrice = vehicleListing
     ? Number(vehicleListing.price_amount)
@@ -598,6 +600,24 @@ ${share.title || post.title}
                   </dl>
                 ) : (
                   <p className="mt-2 text-sm leading-6 text-black/45">وردەکاریی تەکنیکی بۆ ئەم پۆستە بەردەست نییە.</p>
+                )}
+              </section>
+            ) : null}
+
+            {isSupermarket ? (
+              <section className="mt-6 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-bg)] p-4">
+                <h2 className="text-lg font-black">وردەکاریی کاڵای سوپەرمارکێت</h2>
+                {supermarketSpecs.length ? (
+                  <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {supermarketSpecs.map((detail) => (
+                      <div key={detail.key} className="rounded-xl bg-white p-3">
+                        <dt className="text-xs font-bold text-black/45">{detail.label}</dt>
+                        <dd className="mt-1 break-words text-sm font-black">{detail.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-black/45">وردەکاریی زیادە بۆ ئەم کاڵایە تۆمار نەکراوە.</p>
                 )}
               </section>
             ) : null}
