@@ -123,6 +123,65 @@ before insert or update of delivery_latitude, delivery_longitude, delivery_radiu
 on public.posts
 for each row execute function private.guard_post_delivery_zone();
 
+create or replace function public.set_post_delivery_zone(
+  p_post_id uuid,
+  p_latitude numeric,
+  p_longitude numeric,
+  p_radius_km numeric
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_user_id uuid := (select auth.uid());
+  v_post public.posts%rowtype;
+begin
+  if v_user_id is null then
+    raise exception using errcode='42501', message='Authentication required';
+  end if;
+  if p_post_id is null then
+    raise exception using errcode='22023', message='Post ID is required';
+  end if;
+  if p_latitude is null or p_latitude < -90 or p_latitude > 90
+    or p_longitude is null or p_longitude < -180 or p_longitude > 180 then
+    raise exception using errcode='22023', message='Invalid delivery GPS coordinates';
+  end if;
+  if p_radius_km is null or p_radius_km < 1 or p_radius_km > 100
+    or p_radius_km <> trunc(p_radius_km) then
+    raise exception using errcode='22023', message='Delivery radius must be a whole number from 1 to 100 km';
+  end if;
+
+  select p.* into v_post
+  from public.posts p
+  where p.id = p_post_id
+    and p.status <> 'deleted'::public.post_status
+    and (p.author_id = v_user_id or (select private.has_permission('posts.manage')))
+  for update;
+
+  if not found then
+    raise exception using errcode='42501', message='You cannot configure this post delivery zone';
+  end if;
+
+  update public.posts p
+  set delivery_latitude = round(p_latitude, 6),
+      delivery_longitude = round(p_longitude, 6),
+      delivery_radius_km = p_radius_km,
+      updated_at = now()
+  where p.id = p_post_id;
+
+  return jsonb_build_object(
+    'post_id', p_post_id,
+    'delivery_latitude', round(p_latitude, 6),
+    'delivery_longitude', round(p_longitude, 6),
+    'delivery_radius_km', p_radius_km
+  );
+end;
+$function$;
+revoke all on function public.set_post_delivery_zone(uuid,numeric,numeric,numeric) from public, anon;
+grant execute on function public.set_post_delivery_zone(uuid,numeric,numeric,numeric) to authenticated;
+
 create or replace function private.enforce_store_delivery_zone()
 returns trigger
 language plpgsql
