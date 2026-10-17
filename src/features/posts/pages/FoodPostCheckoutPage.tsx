@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { getMyProfilePhone, updateMyPhone, validatePhone } from '@/lib/auth/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getFoodPostCart, checkoutFoodPostCart, type FoodPostCartItem, type FoodPostOrderResult } from '../foodPostCart';
+import { BuyerDeliveryLocationField, type DeliveryCoordinates } from '../components/BuyerDeliveryLocationField';
 
 function itemPrice(item: FoodPostCartItem): number {
   const base = Number(item.post?.price_iqd ?? 0);
@@ -25,6 +26,7 @@ export function FoodPostCheckoutPage() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [note, setNote] = useState('');
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<DeliveryCoordinates | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'mobile_cash'>('cash_on_delivery');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export function FoodPostCheckoutPage() {
     event.preventDefault();
     setError(null);
     if (!address.trim() || !city.trim()) { setError('ناونیشان و شار پێویستن.'); return; }
+    if (!deliveryCoordinates) { setError('پێش داواکردنی خواردن، شوێنی GPS دیاری بکە.'); return; }
     const phoneError = validatePhone(phone);
     if (phoneError) { setError(phoneError); return; }
     if (unavailable) { setError('خواردنێک لە سەلەدا چیتر بۆ داواکردن بەردەست نییە. تکایە لایببە.'); return; }
@@ -57,6 +60,8 @@ export function FoodPostCheckoutPage() {
         deliveryCity: city,
         customerNote: note,
         paymentMethod,
+        deliveryLatitude: deliveryCoordinates.latitude,
+        deliveryLongitude: deliveryCoordinates.longitude,
       }));
       setItems([]);
     } catch (nextError) {
@@ -100,6 +105,7 @@ export function FoodPostCheckoutPage() {
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">ژمارەی مۆبایل *</span><input required type="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-xl border border-black/10 p-3" placeholder="+9647501234567" dir="ltr"/></label>
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">شار *</span><input required minLength={2} maxLength={100} value={city} onChange={(event) => setCity(event.target.value)} className="w-full rounded-xl border border-black/10 p-3" placeholder="هەولێر"/></label>
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">ناونیشانی تەواو *</span><textarea required minLength={5} maxLength={1000} value={address} onChange={(event) => setAddress(event.target.value)} className="min-h-24 w-full rounded-xl border border-black/10 p-3" placeholder="گەڕەک، شەقام و نیشانەی نزیک"/></label>
+                <div className="mt-4"><BuyerDeliveryLocationField coordinates={deliveryCoordinates} onChange={setDeliveryCoordinates} disabled={busy} /></div>
                 <label className="mt-4 block"><span className="mb-2 block text-sm font-black">تێبینی بۆ چێشتخانە</span><textarea maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} className="min-h-20 w-full rounded-xl border border-black/10 p-3" placeholder="ئارەزوومەندانە"/></label>
               </section>
               <section className="rounded-[28px] bg-white p-5 shadow-sm">
