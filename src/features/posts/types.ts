@@ -60,6 +60,8 @@ export type Post = {
   share_reward_iqd: number;
   category_details: CategoryDetails;
   location: string | null;
+  delivery_radius_km: number;
+  delivery_zone_required: boolean;
   status: PostStatus;
   apparel_type: ApparelType | null;
   brand: string | null;
