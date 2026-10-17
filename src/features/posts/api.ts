@@ -41,6 +41,9 @@ export async function createPost(input: {
   brand?: string | null;
   categoryDetails?: CategoryDetails;
   location?: string | null;
+  deliveryLatitude: number;
+  deliveryLongitude: number;
+  deliveryRadiusKm: number;
   itemCondition?: ApparelCondition;
   apparelAudience?: ApparelAudience;
   images?: File[];
@@ -52,6 +55,13 @@ export async function createPost(input: {
 
   const user = userData.user;
   const title = input.title.trim();
+  if (!Number.isFinite(input.deliveryLatitude) || input.deliveryLatitude < -90 || input.deliveryLatitude > 90
+    || !Number.isFinite(input.deliveryLongitude) || input.deliveryLongitude < -180 || input.deliveryLongitude > 180) {
+    throw new Error('پێش پۆستکردن شوێنی GPS دیاری بکە.');
+  }
+  if (!Number.isInteger(input.deliveryRadiusKm) || input.deliveryRadiusKm < 1 || input.deliveryRadiusKm > 100) {
+    throw new Error('مەودای گەیاندن دەبێت لە ١ تا ١٠٠ کیلۆمەتر بێت.');
+  }
   const isApparelPost = input.category === 'fashion';
   const isVehiclePost = input.category === 'cars';
   const isElectronicsPost = input.category === 'electronics';
@@ -168,6 +178,9 @@ export async function createPost(input: {
         category_details: electronicsDetailsResult.values,
       } : {}),
       location: input.vehicle ? input.vehicle.details.location.trim() : (input.location?.trim() || null),
+      delivery_latitude: input.deliveryLatitude,
+      delivery_longitude: input.deliveryLongitude,
+      delivery_radius_km: input.deliveryRadiusKm,
       status: needsStagedPublish ? 'archived' : 'active',
       ...(input.apparel ? {
         apparel_type: input.apparel.apparel_type,
