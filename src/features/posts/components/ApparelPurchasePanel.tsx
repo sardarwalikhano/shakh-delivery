@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import type { ApparelVariant, Post } from '../types';
 import { createApparelPostOrder } from '../apparelOrders';
 import { getPostShareToken } from '../shareRewards';
+import { DeliveryPointPicker } from './DeliveryPointPicker';
+import { isWithinDeliveryZone, readableDeliveryError, saveMyDeliveryPoint, type DeliveryPoint } from '../deliveryZones';
 
 type Props = { post: Post; variant: ApparelVariant };
 
@@ -21,6 +23,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
   const [quantity, setQuantity] = useState(1);
   const [showCheckout, setShowCheckout] = useState(false);
   const [address, setAddress] = useState('');
+  const [deliveryPoint, setDeliveryPoint] = useState<DeliveryPoint | null>(null);
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
@@ -55,12 +58,15 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
     if (quantity < 1 || quantity > variant.stock_quantity) { setError('ژمارەی داواکراو لە کۆگای بەردەست زیاترە.'); return; }
     if (!address.trim()) { setError('ناونیشانی گەیاندن پێویستە.'); return; }
     if (city.trim().length < 2) { setError('شاری گەیاندن پێویستە.'); return; }
+    if (!deliveryPoint) { setError('تکایە شوێنی GPS ـی گەیاندنت دیاری بکە.'); return; }
+    if (!isWithinDeliveryZone(post.delivery_latitude, post.delivery_longitude, post.delivery_radius_km, deliveryPoint)) { setError('بۆ ئێرە بەردەست نییە؛ شوێنی تۆ لە دەرەوەی زۆنی گەیاندنی ئەم پۆستەیە.'); return; }
     const phoneError = validatePhone(phone);
     if (phoneError) { setError(phoneError); return; }
 
     setBusy(true);
     try {
       await updateMyPhone(phone);
+      await saveMyDeliveryPoint(deliveryPoint);
       if (!requestId.current) requestId.current = crypto.randomUUID();
       await createApparelPostOrder({
         requestId: requestId.current,
@@ -76,7 +82,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
       requestId.current = null;
       navigate('/post-orders', { replace: true, state: { orderCreated: true } });
     } catch (nextError) {
-      setError(errorMessage(nextError, 'تۆمارکردنی داواکاری سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.'));
+      setError(readableDeliveryError(errorMessage(nextError, 'تۆمارکردنی داواکاری سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.'));
     } finally {
       setBusy(false);
     }
@@ -108,6 +114,7 @@ export function ApparelPurchasePanel({ post, variant }: Props) {
         <form onSubmit={submit} className="space-y-3 border-t border-black/10 pt-4">
           <label className="block"><span className="mb-2 block text-sm font-black"><MapPin size={15} className="me-1 inline" />ناونیشانی گەیاندن *</span><textarea required minLength={5} maxLength={1000} value={address} onChange={(event) => setAddress(event.target.value)} className="min-h-24 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="شار، گەڕەک، شەقام و ژمارەی خانوو" /></label>
           <label className="block"><span className="mb-2 block text-sm font-black">شاری گەیاندن *</span><input required minLength={2} maxLength={100} value={city} onChange={(event) => setCity(event.target.value)} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="هەولێر" /></label>
+          <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی GPS ـی گەیاندن" description={`مەودای گەیاندنی ئەم پۆستە ${post.delivery_radius_km} کم ـە. لە دەرەوەی ئەم زۆنە ئۆردەر وەرناگیرێت.`} />
           <label className="block"><span className="mb-2 block text-sm font-black">ژمارەی مۆبایل *</span><input required type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm outline-none focus:border-[var(--shakh-blue)]" placeholder="+9647501234567" dir="ltr" /></label>
           <label className="block"><span className="mb-2 block text-sm font-black">تێبینی (ئارەزوومەندانە)</span><textarea maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} className="min-h-16 w-full rounded-2xl border border-black/10 bg-white p-3 text-sm" placeholder="تێبینی بۆ فرۆشیار" /></label>
           <div className="grid gap-2 sm:grid-cols-2">
