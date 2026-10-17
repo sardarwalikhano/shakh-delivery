@@ -147,10 +147,11 @@ begin
   end if;
 
   insert into public.electronics_post_orders(
-    request_id,buyer_id,seller_id,post_id,post_title,post_category,brand,product_details,quantity,
+    order_number,request_id,buyer_id,seller_id,post_id,post_title,post_category,brand,product_details,quantity,
     unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,
     delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_link_id,share_reward_iqd
   ) values (
+    upper(left(v_post.category::text,2))||'-'||to_char(now(),'YYYYMMDD')||'-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,8)),
     p_request_id,v_buyer_id,v_post.author_id,p_post_id,v_post.title,v_post.category,
     coalesce(nullif(btrim(v_post.brand),''),v_post.category::text),coalesce(v_post.category_details,'{}'::jsonb),p_quantity,
     v_price,v_line_total,btrim(p_delivery_address),btrim(p_buyer_phone),nullif(btrim(p_customer_note),''),
