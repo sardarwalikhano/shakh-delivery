@@ -73,7 +73,7 @@ export function NotificationsPage() {
           <div>
             <div className="text-xs font-black text-[var(--shakh-orange)]">Notifications</div>
             <h1 className="mt-1 text-3xl font-black">ئاگادارکردنەوەکان</h1>
-            <p className="mt-2 text-sm font-bold leading-7 text-black/45">ئاگادارکردنەوە تایبەتەکانت وەک {roleLabel} لە ئۆردەر، گەیاندن و پارەدان.</p>
+            <p className="mt-2 text-sm font-bold leading-7 text-[var(--shakh-muted)]">ئاگادارکردنەوە تایبەتەکانت وەک {roleLabel} لە ئۆردەر، گەیاندن و پارەدان.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button disabled={pushBusy} onClick={() => void toggleBrowserPush()} className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 text-xs font-black text-black/60 hover:bg-black/[0.03] disabled:opacity-50">
@@ -91,18 +91,18 @@ export function NotificationsPage() {
         </div>
 
 
-        {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : visibleNotifications.length === 0 ? (
-          <div className="mt-6 rounded-[30px] border border-dashed border-black/10 bg-white p-12 text-center">
+        {loading ? <div className="mt-6 rounded-[1.5rem] bg-white p-10 text-center text-sm font-bold text-[var(--shakh-muted)]">بارکردن...</div> : visibleNotifications.length === 0 ? (
+          <div className="mt-6 rounded-[1.65rem] border border-dashed border-black/10 bg-white p-12 text-center">
             <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]"><Bell size={23} /></div>
             <h2 className="mt-5 text-xl font-black">هێشتا هیچ ئاگادارکردنەوەیەک نییە</h2>
-            <p className="mt-2 text-sm leading-7 text-black/45">کاتێک داواکاری یان گەیاندنێک بگۆڕێت، لێرەدا بە شێوەی ڕاستەوخۆ دەردەکەوێت.</p>
+            <p className="mt-2 text-sm leading-7 text-[var(--shakh-muted)]">کاتێک داواکاری یان گەیاندنێک بگۆڕێت، لێرەدا بە شێوەی ڕاستەوخۆ دەردەکەوێت.</p>
           </div>
         ) : (
           <div className="mt-6 space-y-3">
             {visibleNotifications.map((notification) => {
               const Icon = iconByType[notification.type] ?? Bell;
               const content = (
-                <div className={`rounded-[26px] border bg-white p-4 shadow-[0_12px_35px_rgba(16,22,35,.035)] transition sm:p-5 ${notification.read_at ? 'border-black/[0.05]' : 'border-[var(--shakh-orange)]/25 bg-[var(--shakh-orange)]/[0.035]'}`}>
+                <div className={`rounded-[1.4rem] border bg-white p-4 shadow-[var(--shakh-shadow-sm)] transition sm:p-5 ${notification.read_at ? 'border-black/[0.05]' : 'border-[var(--shakh-orange)]/25 bg-[var(--shakh-orange)]/[0.035]'}`}>
                   <div className="flex items-start gap-3">
                     <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><Icon size={18} /></div>
                     <div className="min-w-0 flex-1">
@@ -126,7 +126,7 @@ export function NotificationsPage() {
           </div>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-4 rounded-3xl border border-black/[0.05] bg-white p-4 text-xs font-bold text-black/45">
+        <div className="mt-8 flex items-center justify-between gap-4 rounded-3xl border border-black/[0.05] bg-white p-4 text-xs font-bold text-[var(--shakh-muted)]">
           <span className="flex items-center gap-2"><Clock3 size={15} /> {visibleNotifications.length.toLocaleString('en-US')} ئاگادارکردنەوە نیشان دەدرێت.</span>
           <button onClick={() => void refresh()} className="font-black text-[var(--shakh-blue)]">نوێکردنەوە</button>
         </div>
