@@ -88,7 +88,7 @@ export function ElectronicsPurchasePanel({ post, selectedColor }: Props) {
       requestId.current = null;
       navigate('/post-orders', { replace: true, state: { orderCreated: true } });
     } catch (nextError) {
-      setError(readableDeliveryError(getErrorMessage(nextError, 'تۆمارکردنی داواکاریی ئەلیکترۆنیات سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.'));
+      setError(readableDeliveryError(getErrorMessage(nextError, 'تۆمارکردنی داواکاریی ئەلیکترۆنیات سەرکەوتوو نەبوو. تکایە دووبارە هەوڵ بدەوە.')));
     } finally {
       setBusy(false);
     }
