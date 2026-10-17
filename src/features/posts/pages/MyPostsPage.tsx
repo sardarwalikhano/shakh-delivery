@@ -224,7 +224,7 @@ export function MyPostsPage() {
   };
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
+    <section className="shakh-page py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH · Post management</div><h1 className="mt-1 text-3xl font-black">بەڕێوەبردنی پۆستەکان</h1><p className="mt-2 text-sm leading-6 text-black/50">{isSuperAdmin ? 'سوپەر ئەدمین دەتوانێت پۆست و هەموو کاتەگۆرییەکان ببینێت و بەڕێوەیان ببات.' : 'تەنها کاتەگۆرییە پەیوەندیدارەکان بە ڕۆڵەکەت لێرە پیشان دەدرێن؛ ئۆتۆمبێل لەگەڵ کاتەگۆریی تایبەت بە ڕۆڵەکەت دەبێت.'} پۆستەکانی جل‌وبەرگ لێرە دەستکاریی وردی کۆگا و قەبارەیان هەیە.</p></div>

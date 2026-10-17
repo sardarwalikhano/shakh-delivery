@@ -14,12 +14,12 @@ type Props = {
 
 export function ProductGrid({ products, loading, emptyTitle = 'هیچ بەرهەمێک نەدۆزرایەوە', emptyText = 'بەرهەمی چالاک لەم بەشەدا نییە.', wishlistIds = new Set(), onToggleWishlist, onAdd }: Props) {
   if (loading) {
-    return <div className="grid min-h-80 place-items-center rounded-[30px] border border-dashed border-black/10 bg-white"><LoaderCircle className="animate-spin text-[var(--shakh-blue)]" size={28} /></div>;
+    return <div className="shakh-empty-state"><LoaderCircle className="animate-spin text-[var(--shakh-blue)]" size={28} /></div>;
   }
 
   if (!products.length) {
     return (
-      <div className="grid min-h-80 place-items-center rounded-[30px] border border-dashed border-black/10 bg-white px-6 text-center">
+      <div className="shakh-empty-state">
         <div>
           <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--shakh-bg)] text-black/35"><SearchX size={24} /></div>
           <h3 className="mt-4 text-lg font-black">{emptyTitle}</h3>

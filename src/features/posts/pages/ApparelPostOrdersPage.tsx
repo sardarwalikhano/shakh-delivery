@@ -83,7 +83,7 @@ export function ApparelPostOrdersPage() {
 
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
+    <section className="shakh-page py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH Post orders</div><h1 className="mt-1 text-3xl font-black">داواکارییەکانی پۆست</h1><p className="mt-2 text-sm leading-6 text-black/50">داواکاریی پۆستەکانی جل‌وبەرگ، خواردن و ئەلیکترۆنیات لێرە بەڕێوەدەچن.</p></div><button type="button" onClick={() => void refresh()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><RefreshCw size={16}/> نوێکردنەوە</button></div>
         {location.state?.orderCreated ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">داواکارییەکەت تۆمارکرا؛ فرۆشیار دەتوانێت پەسەندی بکات.</div> : null}

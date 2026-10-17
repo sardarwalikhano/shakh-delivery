@@ -306,7 +306,7 @@ export function ReferralWalletPage() {
   };
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] space-y-6 bg-[var(--shakh-bg)] py-6" dir="rtl">
+    <section className="shakh-page space-y-6 py-6" dir="rtl">
       <header className="rounded-[28px] bg-[var(--shakh-navy)] p-5 text-white shadow-[0_18px_50px_rgba(11,18,32,.12)] sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

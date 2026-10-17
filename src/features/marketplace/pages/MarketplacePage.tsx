@@ -193,31 +193,31 @@ export function MarketplacePage() {
   const showPostSection = Boolean(user && (postsLoading || postError || visiblePosts.length > 0));
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-6 sm:py-8">
+    <section className="shakh-page py-6 sm:py-9">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="rounded-[30px] bg-[var(--shakh-navy)] p-5 text-white shadow-[0_24px_70px_rgba(11,18,32,.12)] sm:p-8">
+        <div className="shakh-market-hero p-5 text-white sm:p-8 lg:p-10">
           <div className="max-w-3xl">
-            <div className="text-xs font-black uppercase tracking-[.18em] text-white/45">SHAKH MARKET</div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">چی دەگەڕێیت؟</h1>
-            <form onSubmit={applySearch} className="mt-6 flex max-w-2xl items-center gap-2 rounded-[20px] bg-white p-2 shadow-lg">
+            <div className="text-xs font-black uppercase tracking-[.16em] text-orange-300">SHAKH MARKET</div>
+            <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">چی دەگەڕێیت؟</h1>
+            <form onSubmit={applySearch} className="shakh-search-box mt-6 flex max-w-2xl items-center gap-2 p-2">
               <Search className="ms-2 shrink-0 text-black/35" size={20} />
               <input value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm text-black outline-none" placeholder="بەرهەم، براند، فرۆشگا..." aria-label="گەڕانی بەرهەم و پۆست" />
-              <button className="rounded-2xl bg-[var(--shakh-orange)] px-4 py-3 text-sm font-black text-white">گەڕان</button>
+              <button className="min-h-11 rounded-xl bg-[var(--shakh-orange)] px-4 py-2.5 text-sm font-black text-white transition hover:bg-orange-600">گەڕان</button>
             </form>
           </div>
         </div>
 
         <div className="mt-5 overflow-x-auto pb-1">
           <div className="flex min-w-max gap-2">
-            <button onClick={() => setCategory('')} className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${!categorySlug ? 'bg-[var(--shakh-navy)] text-white' : 'bg-white text-black/60 ring-1 ring-black/[0.05]'}`}><SlidersHorizontal size={17} /> هەموو</button>
-            {categoryOptions.map((category) => <button key={category.id} onClick={() => setCategory(category.slug)} className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition ${categorySlug === category.slug ? 'bg-[var(--shakh-orange)] text-white' : 'bg-white text-black/60 ring-1 ring-black/[0.05]'}`}><CategoryIcon iconKey={category.icon_key} size={17} /> {category.name_ku}</button>)}
+            <button onClick={() => setCategory('')} className="shakh-chip flex items-center gap-2 px-4 py-2.5 text-sm font-extrabold" aria-pressed={!categorySlug}><SlidersHorizontal size={17} /> هەموو</button>
+            {categoryOptions.map((category) => <button key={category.id} onClick={() => setCategory(category.slug)} className="shakh-chip flex items-center gap-2 px-4 py-2.5 text-sm font-extrabold" aria-pressed={categorySlug === category.slug}><CategoryIcon iconKey={category.icon_key} size={17} /> {category.name_ku}</button>)}
           </div>
         </div>
 
         {showPostSection ? (
           <section className="mt-8">
             <div className="flex items-end justify-between gap-3">
-              <div><p className="text-xs font-black text-[var(--shakh-blue)]">SHAKH POSTS</p><h2 className="mt-1 text-2xl font-black">{selectedCategoryLabel === 'بازاڕ' ? 'پۆستە نوێ و چالاکەکان' : 'پۆستەکانی ' + selectedCategoryLabel}</h2></div>
+              <div><p className="text-xs font-black text-[var(--shakh-blue)]">SHAKH POSTS</p><h2 className="shakh-page-title mt-1">{selectedCategoryLabel === 'بازاڕ' ? 'پۆستە نوێ و چالاکەکان' : 'پۆستەکانی ' + selectedCategoryLabel}</h2></div>
               <span className="text-xs font-bold text-black/35">{visiblePosts.length} پۆست</span>
             </div>
             {postError ? <div role="alert" className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-50 p-4 text-sm font-bold text-amber-800">{postError}</div> : null}
@@ -225,7 +225,7 @@ export function MarketplacePage() {
             {!postsLoading && !postError && visiblePosts.length ? (
               <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                 {visiblePosts.map((post) => (
-                  <Link key={post.id} to={`/posts/${post.id}`} className="group min-w-0 overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_6px_20px_rgba(16,22,35,.035)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(16,22,35,.08)]">
+                  <Link key={post.id} to={`/posts/${post.id}`} className="shakh-product-card group min-w-0">
                     {post.images?.[0]?.storage_path ? <img src={getPostImageUrl(post.images[0].storage_path)} alt={post.title} className="aspect-[3/2] w-full bg-[var(--shakh-bg)] object-cover" loading="lazy" /> : null}
                     <div className="p-3 sm:p-4">
                       <div className="flex items-center justify-between gap-1.5 text-[10px] font-black sm:text-[11px]">
@@ -248,8 +248,8 @@ export function MarketplacePage() {
           </section>
         ) : null}
 
-        <div className="mt-8 flex items-end justify-between gap-3">
-          <div><p className="text-xs font-black text-[var(--shakh-blue)]">{selectedCategoryLabel}</p><h2 className="mt-1 text-2xl font-black">{query ? `ئەنجامی گەڕان بۆ «${query}»` : 'بەرهەمە نوێ و چالاکەکان'}</h2></div>
+        <div className="mt-9 flex items-end justify-between gap-3">
+          <div><p className="text-xs font-black text-[var(--shakh-blue)]">{selectedCategoryLabel}</p><h2 className="shakh-page-title mt-1">{query ? `ئەنجامی گەڕان بۆ «${query}»` : 'بەرهەمە نوێ و چالاکەکان'}</h2></div>
           <div className="hidden text-xs font-bold text-black/35 sm:block">{products.length} بەرهەم</div>
         </div>
 

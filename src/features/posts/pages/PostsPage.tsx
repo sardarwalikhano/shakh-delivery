@@ -111,7 +111,7 @@ export function PostsPage() {
   const categories = useMemo(() => Object.keys(postCategoryLabels) as PostCategory[], []);
 
   return (
-    <section className="min-h-[calc(100dvh-4rem)] bg-[#f5f7fb] px-4 py-6 sm:px-6 lg:py-8">
+    <section className="shakh-page px-4 py-6 sm:px-6 lg:py-8">
       <div className="mx-auto max-w-6xl space-y-5">
         <header className="rounded-[30px] bg-[var(--shakh-orange)] p-6 text-white shadow-[0_18px_60px_rgba(255,122,26,.18)] sm:p-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">

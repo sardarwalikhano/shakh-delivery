@@ -96,7 +96,7 @@ export function CheckoutPage() {
   };
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10">
+    <section className="shakh-page py-7 sm:py-10">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Link to="/cart" className="inline-flex items-center gap-2 text-sm font-black text-black/45 hover:text-black">
           <ArrowLeft size={17} /> گەڕانەوە بۆ سەبەتە

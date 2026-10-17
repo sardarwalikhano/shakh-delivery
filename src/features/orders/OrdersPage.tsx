@@ -24,7 +24,7 @@ export function OrdersPage() {
   useRealtimeCustomerOrders(user?.id, refresh);
 
   return (
-    <section className="min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-8">
+    <section className="shakh-page py-8">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><PackageCheck size={21} /></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">Orders</div><h1 className="text-3xl font-black">داواکارییەکانم</h1></div></div>
         {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : orders.length === 0 ? <div className="mt-6 rounded-[28px] bg-white p-12 text-center"><h2 className="text-xl font-black">هێشتا داواکاری نییە</h2><Link to="/search" className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">دەستپێکردنی کڕین</Link></div> : (
