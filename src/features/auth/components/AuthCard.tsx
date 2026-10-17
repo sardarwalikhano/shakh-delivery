@@ -11,7 +11,7 @@ export function AuthCard({ title, description, children }: { title: string; desc
         <h1 className="text-3xl font-black tracking-tight text-[var(--shakh-ink)]">{title}</h1>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-black/50">{description}</p>
       </div>
-      <div className="shakh-auth-panel p-5 sm:p-7">
+      <div className="shakh-auth-panel shakh-auth-panel-v3 p-5 sm:p-7">
         {children}
       </div>
     </div>

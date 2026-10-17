@@ -7,7 +7,7 @@ export function HomePage() {
 
   return (
     <div>
-      <section className="shakh-home-hero">
+      <section className="shakh-home-hero shakh-home-hero-v3">
         <div className="relative mx-auto grid min-h-[min(720px,72dvh)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.12fr_.88fr] lg:gap-14">
           <div className="max-w-2xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3.5 py-2 text-xs font-extrabold text-[var(--shakh-orange)] shadow-sm">
@@ -43,7 +43,7 @@ export function HomePage() {
 
 function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return (
-    <div className="shakh-home-feature p-4 sm:p-5">
+    <div className="shakh-home-feature shakh-home-feature-v3 p-4 sm:p-5">
       <div className="mb-4 grid size-10 place-items-center rounded-xl bg-orange-50 text-[var(--shakh-orange)]">{icon}</div>
       <div className="font-black">{title}</div>
       <div className="mt-2 text-sm leading-6 text-[var(--shakh-muted)]">{text}</div>

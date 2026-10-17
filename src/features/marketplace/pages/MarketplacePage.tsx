@@ -195,7 +195,7 @@ export function MarketplacePage() {
   return (
     <section className="shakh-page py-6 sm:py-9">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="shakh-market-hero p-5 text-white sm:p-8 lg:p-10">
+        <div className="shakh-market-hero shakh-market-hero-v3 p-5 text-white sm:p-8 lg:p-10">
           <div className="max-w-3xl">
             <div className="text-xs font-black uppercase tracking-[.16em] text-orange-300">SHAKH MARKET</div>
             <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">چی دەگەڕێیت؟</h1>
