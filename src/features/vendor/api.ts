@@ -117,7 +117,7 @@ export async function createVendorStore(userId: string, input: Pick<VendorStore,
   const { data, error } = await supabase
     .from('stores')
     .insert({ ...input, owner_id: userId, status: 'pending' })
-    .select('id,owner_id,name_ku,name_ar,name_en,slug,logo_url,cover_url,description_ku,description_ar,description_en,status')
+    .select('id,owner_id,name_ku,name_ar,name_en,slug,logo_url,cover_url,description_ku,description_ar,description_en,delivery_latitude,delivery_longitude,delivery_radius_km,status')
     .single();
   if (error) throw error;
   return data as VendorStore;
@@ -129,7 +129,7 @@ export async function updateVendorStore(userId: string, storeId: string, input: 
     .update(input)
     .eq('id', storeId)
     .eq('owner_id', userId)
-    .select('id,owner_id,name_ku,name_ar,name_en,slug,logo_url,cover_url,description_ku,description_ar,description_en,status')
+    .select('id,owner_id,name_ku,name_ar,name_en,slug,logo_url,cover_url,description_ku,description_ar,description_en,delivery_latitude,delivery_longitude,delivery_radius_km,status')
     .single();
   if (error) throw error;
   return data as VendorStore;
