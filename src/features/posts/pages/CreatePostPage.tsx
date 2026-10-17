@@ -12,6 +12,8 @@ import { createPost, getAllowedPostTargets } from '../api';
 import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, PostTarget } from '../types';
 import { getCategoryDetailFields, getVisibleCategoryDetails, sanitizeCategoryDetails, type CategoryDetails } from '@/lib/catalog/categoryDetails';
+import { DeliveryZoneFields } from '../components/DeliveryZoneFields';
+import type { DeliveryCoordinates } from '../components/BuyerDeliveryLocationField';
 
 type ApparelColor = { name: string; hex: string };
 type VariantDraft = { enabled: boolean; stock: string; price: string; imageIndex: string };
@@ -74,6 +76,8 @@ export function CreatePostPage() {
   const [price, setPrice] = useState('');
   const [referralRewardIqd, setReferralRewardIqd] = useState('0');
   const [location, setLocation] = useState('');
+  const [deliveryRadiusKm, setDeliveryRadiusKm] = useState(15);
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<DeliveryCoordinates | null>(null);
   const [apparelType, setApparelType] = useState<ApparelType>('mens_clothing');
   const [brand, setBrand] = useState('');
   const [electronicsDetails, setElectronicsDetails] = useState<CategoryDetails>({});
@@ -112,6 +116,10 @@ export function CreatePostPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    setDeliveryRadiusKm(category === 'food' ? 5 : 15);
+  }, [category]);
 
   const roles = useMemo(() => [...new Set(targets.map((item) => item.publisher_role))], [targets]);
   const preferredRole = useMemo(
@@ -292,6 +300,8 @@ export function CreatePostPage() {
 
     if (title.trim().length < 3) return setError('ناونیشانی پۆست دەبێت لانیکەم 3 پیت بێت.');
     if (content.trim().length > 12000) return setError('ناوەڕۆک زۆر درێژە.');
+    if (!deliveryCoordinates) return setError('پێش بڵاوکردنەوە، شوێنی GPS ـی بڵاوکەرەوە دیاری بکە.');
+    if (!Number.isInteger(deliveryRadiusKm) || deliveryRadiusKm < 1 || deliveryRadiusKm > 100) return setError('زۆنی گەیاندن دەبێت لە ١ تا ١٠٠ کم بێت.');
 
     if (category === 'cars') {
       const vehicleError = validateVehicleListing(vehicleListing);
@@ -309,6 +319,9 @@ export function CreatePostPage() {
           referralRewardIqd: 0,
           location: vehicleListing.location,
           images,
+          deliveryRadiusKm,
+          deliveryLatitude: deliveryCoordinates.latitude,
+          deliveryLongitude: deliveryCoordinates.longitude,
           vehicle: {
             details: vehicleListing,
             imageKinds: images.map((file) => vehiclePhotoKinds.get(file) ?? ''),
@@ -360,6 +373,9 @@ export function CreatePostPage() {
           categoryDetails: details.values,
           location,
           images,
+          deliveryRadiusKm,
+          deliveryLatitude: deliveryCoordinates.latitude,
+          deliveryLongitude: deliveryCoordinates.longitude,
         });
         setSuccess(true);
         navigate(`/posts/${created.id}`, { replace: true });
@@ -422,6 +438,9 @@ export function CreatePostPage() {
           location,
           itemCondition,
           apparelAudience,
+          deliveryRadiusKm,
+          deliveryLatitude: deliveryCoordinates.latitude,
+          deliveryLongitude: deliveryCoordinates.longitude,
           apparel: {
             apparel_type: apparelType,
             brand,
@@ -446,7 +465,7 @@ export function CreatePostPage() {
     if (!reviewing) { setReviewing(true); return; }
     setBusy(true);
     try {
-      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, referralRewardIqd: Number(referralRewardIqd || '0'), location, images });
+      const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, referralRewardIqd: Number(referralRewardIqd || '0'), location, images, deliveryRadiusKm, deliveryLatitude: deliveryCoordinates.latitude, deliveryLongitude: deliveryCoordinates.longitude });
       setSuccess(true);
       navigate(`/posts/${created.id}`, { replace: true });
     } catch (nextError) {
@@ -884,6 +903,13 @@ export function CreatePostPage() {
               <button type="button" onClick={() => setReviewing(false)} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
             </section>
           ) : null}
+          <DeliveryZoneFields
+            radiusKm={deliveryRadiusKm}
+            onRadiusChange={setDeliveryRadiusKm}
+            coordinates={deliveryCoordinates}
+            onCoordinatesChange={setDeliveryCoordinates}
+            disabled={busy}
+          />
           <button className={primaryButtonClass} type="submit" disabled={busy}>
             {busy ? 'پاشەکەوت و بڵاوکردنەوە...' : <><Send size={17} /> <span className="ms-2">{reviewing ? 'پشتڕاستکردنەوە و بڵاوکردنەوە' : 'پێداچوونەوە پێش بڵاوکردنەوە'}</span></>}
           </button>
