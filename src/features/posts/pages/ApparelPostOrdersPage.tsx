@@ -116,6 +116,7 @@ export function ApparelPostOrdersPage() {
                     <div className="text-xs font-black text-[var(--shakh-blue)]" dir="ltr">{order.order_number}</div>
                     <h3 className="mt-1 text-lg font-black">{order.post_title}</h3>
                     <p className="mt-1 text-xs font-bold text-black/45">{postCategoryLabels[order.post_category]} · {order.quantity} دانە</p>
+                    {order.post_category === 'electronics' && order.brand && order.brand !== 'electronics' ? <p className="mt-1 text-xs font-bold text-black/45">{order.brand}</p> : null}
                     {order.selected_color ? <p className="mt-1 text-xs font-black text-[var(--shakh-blue)]">ڕەنگی داواکراو: {electronicsColorLabels[order.selected_color] ?? order.selected_color}</p> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
