@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { listApparelPostOrders, updateApparelPostOrderStatus, listFoodPostOrders, updateFoodPostOrderStatus, listElectronicsPostOrders, updateElectronicsPostOrderStatus, type ApparelPostOrder, type ApparelPostOrderStatus, type FoodPostOrder, type FoodPostOrderStatus, type ElectronicsPostOrder, type ElectronicsPostOrderStatus } from '../apparelOrders';
 import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
+import { postCategoryLabels } from '../labels';
 import { supabase } from '@/lib/supabase/client';
 
 const labels: Record<ApparelPostOrderStatus,string> = { pending:'لە چاوەڕوانیدایە', confirmed:'پەسەندکرا', rejected:'ڕەتکرایەوە', delivered:'گەیەنراوە', cancelled:'هەڵوەشێنراوەتەوە' };
@@ -74,8 +75,8 @@ export function ApparelPostOrdersPage() {
     try {
       await updateElectronicsPostOrderStatus(order.id, status);
       setMessage(status === 'delivered'
-        ? 'گەیاندن و وەرگرتنی پارە پشتڕاست کرایەوە؛ خەڵاتی شێرکردن بەپێی مەرجەکان هەژمار دەکرێت.'
-        : 'دۆخی داواکاریی ئەلیکترۆنیات نوێ کرایەوە.');
+        ? 'گەیاندن و وەرگرتنی پارە پشتڕاست کرایەوە.'
+        : 'دۆخی داواکاریی بەرهەم نوێ کرایەوە.');
       await refresh();
     } catch (err) { setError(err instanceof Error ? err.message : 'گۆڕینی دۆخی داواکاری سەرنەکەوت.'); }
     finally { setBusyId(null); }
@@ -85,7 +86,7 @@ export function ApparelPostOrdersPage() {
   return (
     <section className="shakh-page py-7 sm:py-10" dir="rtl">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH Post orders</div><h1 className="mt-1 text-3xl font-black">داواکارییەکانی پۆست</h1><p className="mt-2 text-sm leading-6 text-black/50">داواکاریی پۆستەکانی جل‌وبەرگ، خواردن و ئەلیکترۆنیات لێرە بەڕێوەدەچن.</p></div><button type="button" onClick={() => void refresh()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><RefreshCw size={16}/> نوێکردنەوە</button></div>
+        <div className="flex flex-wrap items-end justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH Post orders</div><h1 className="mt-1 text-3xl font-black">داواکارییەکانی پۆست</h1><p className="mt-2 text-sm leading-6 text-black/50">داواکاریی پۆستەکانی خواردن، جل‌وبەرگ، ئەلیکترۆنیات، سوپەرمارکێت و بازاڕی گشتی لێرە بەڕێوەدەچن.</p></div><button type="button" onClick={() => void refresh()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-black"><RefreshCw size={16}/> نوێکردنەوە</button></div>
         {location.state?.orderCreated ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">داواکارییەکەت تۆمارکرا؛ فرۆشیار دەتوانێت پەسەندی بکات.</div> : null}
         {error ? <div role="alert" className="mt-4 rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
         {message ? <div role="status" className="mt-4 rounded-2xl bg-emerald-500/10 p-4 text-sm font-bold text-emerald-700">{message}</div> : null}
@@ -104,7 +105,7 @@ export function ApparelPostOrdersPage() {
           })}</div>
         )}
         {!loading && electronicsOrders.length > 0 ? <section className="mt-8">
-          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH Electronics</div><h2 className="mt-1 text-2xl font-black">داواکارییەکانی ئەلیکترۆنیات</h2></div>
+          <div><div className="text-xs font-black text-[var(--shakh-blue)]">SHAKH Product Orders</div><h2 className="mt-1 text-2xl font-black">داواکاریی بەرهەمەکان و سوپەرمارکێت</h2></div>
           <div className="mt-4 space-y-3">{electronicsOrders.map((order) => {
             const seller = order.seller_id === user?.id || permissions.has('posts.manage');
             const buyer = order.buyer_id === user?.id;
@@ -114,7 +115,7 @@ export function ApparelPostOrdersPage() {
                   <div>
                     <div className="text-xs font-black text-[var(--shakh-blue)]" dir="ltr">{order.order_number}</div>
                     <h3 className="mt-1 text-lg font-black">{order.post_title}</h3>
-                    <p className="mt-1 text-xs font-bold text-black/45">{order.brand} · {order.quantity} دانە</p>
+                    <p className="mt-1 text-xs font-bold text-black/45">{postCategoryLabels[order.post_category]} · {order.quantity} دانە</p>
                     {order.selected_color ? <p className="mt-1 text-xs font-black text-[var(--shakh-blue)]">ڕەنگی داواکراو: {electronicsColorLabels[order.selected_color] ?? order.selected_color}</p> : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -123,7 +124,7 @@ export function ApparelPostOrdersPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {getVisibleCategoryDetails('electronics', order.product_details).filter((item) => item.key !== 'stock_quantity').map((item) => (
+                  {getVisibleCategoryDetails(order.post_category, order.product_details).filter((item) => item.key !== 'stock_quantity').map((item) => (
                     <span key={item.key} className="rounded-lg bg-[var(--shakh-bg)] px-3 py-1.5 text-xs font-bold">{item.label}: {item.value}</span>
                   ))}
                 </div>
