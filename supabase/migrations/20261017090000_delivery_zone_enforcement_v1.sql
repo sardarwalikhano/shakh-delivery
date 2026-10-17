@@ -16,7 +16,7 @@ do $constraints$
 begin
   if not exists (select 1 from pg_constraint where conname='posts_delivery_zone_valid' and conrelid='public.posts'::regclass) then
     alter table public.posts add constraint posts_delivery_zone_valid check (
-      delivery_radius_km between 1 and 100
+      delivery_radius_km between 1 and 100 and delivery_radius_km = trunc(delivery_radius_km)
       and ((delivery_latitude is null and delivery_longitude is null)
         or (delivery_latitude is not null and delivery_longitude is not null
           and delivery_latitude between -90 and 90 and delivery_longitude between -180 and 180))
@@ -24,7 +24,7 @@ begin
   end if;
   if not exists (select 1 from pg_constraint where conname='stores_delivery_zone_valid' and conrelid='public.stores'::regclass) then
     alter table public.stores add constraint stores_delivery_zone_valid check (
-      delivery_radius_km between 1 and 100
+      delivery_radius_km between 1 and 100 and delivery_radius_km = trunc(delivery_radius_km)
       and ((delivery_latitude is null and delivery_longitude is null)
         or (delivery_latitude is not null and delivery_longitude is not null
           and delivery_latitude between -90 and 90 and delivery_longitude between -180 and 180))
@@ -110,7 +110,8 @@ begin
   if new.delivery_latitude is null or new.delivery_longitude is null then
     raise exception using errcode='22023', message='پێش پۆستکردن شوێنی GPS و ناوچەی گەیاندن دیاری بکە.';
   end if;
-  if new.delivery_radius_km is null or new.delivery_radius_km < 1 or new.delivery_radius_km > 100 then
+  if new.delivery_radius_km is null or new.delivery_radius_km < 1 or new.delivery_radius_km > 100
+    or new.delivery_radius_km <> trunc(new.delivery_radius_km) then
     raise exception using errcode='22023', message='مەودای گەیاندن دەبێت لە ١ تا ١٠٠ کیلۆمەتر بێت.';
   end if;
   return new;
