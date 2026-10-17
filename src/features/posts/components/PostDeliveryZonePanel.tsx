@@ -1,4 +1,4 @@
-import { Check, LoaderCircle, LocateFixed, Minus, Plus, Save, Truck } from 'lucide-react';
+import { Check, LoaderCircle, Minus, Plus, Save, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { supabase } from '@/lib/supabase/client';
