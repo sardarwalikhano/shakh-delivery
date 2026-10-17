@@ -18,14 +18,16 @@ begin
     alter table public.posts add constraint posts_delivery_zone_valid check (
       delivery_radius_km between 1 and 100
       and ((delivery_latitude is null and delivery_longitude is null)
-        or (delivery_latitude between -90 and 90 and delivery_longitude between -180 and 180))
+        or (delivery_latitude is not null and delivery_longitude is not null
+          and delivery_latitude between -90 and 90 and delivery_longitude between -180 and 180))
     );
   end if;
   if not exists (select 1 from pg_constraint where conname='stores_delivery_zone_valid' and conrelid='public.stores'::regclass) then
     alter table public.stores add constraint stores_delivery_zone_valid check (
       delivery_radius_km between 1 and 100
       and ((delivery_latitude is null and delivery_longitude is null)
-        or (delivery_latitude between -90 and 90 and delivery_longitude between -180 and 180))
+        or (delivery_latitude is not null and delivery_longitude is not null
+          and delivery_latitude between -90 and 90 and delivery_longitude between -180 and 180))
     );
   end if;
 end;
