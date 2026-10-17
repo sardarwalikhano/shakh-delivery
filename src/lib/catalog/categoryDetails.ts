@@ -35,6 +35,7 @@ const foodFields: CategoryDetailField[] = [
 ];
 
 const supermarketFields: CategoryDetailField[] = [
+  { key: 'stock_quantity', label: 'ژمارەی دانەی بەردەست', type: 'number', required: true, min: 1, max: 100000, unit: 'دانە' },
   { key: 'nutrition_serving_size', label: 'قەبارەی بەشی خۆراک', type: 'text', placeholder: 'وەک ١٠٠ گرام' },
   { key: 'nutrition_calories_kcal', label: 'کالۆری بۆ هەر بەش', type: 'number', min: 0, max: 100000, unit: 'kcal' },
   { key: 'nutrition_protein_g', label: 'پرۆتین', type: 'number', min: 0, max: 100000, unit: 'g' },
