@@ -563,7 +563,7 @@ begin
   values(v_captain,v_type,v_id,v_fee,v_commission,greatest(0,v_fee-v_commission),(now() at time zone 'Asia/Baghdad')::date)
   on conflict(order_type,order_id) do nothing;
 
-  if v_payment_method='cash_on_delivery' then
+  if tg_table_name='deliveries' and v_payment_method='cash_on_delivery' then
     insert into public.captain_cash_ledger(captain_id,order_id,product_subtotal_iqd,delivery_fee_iqd,platform_fee_iqd,cash_collected_iqd,idempotency_key,note)
     values(v_captain,case when tg_table_name='deliveries' then v_order.id else v_id end,v_subtotal,v_fee,v_platform_fee,v_total,
       v_type||':'||v_id::text,'COD collected when direct-post delivery was marked delivered')
@@ -613,5 +613,33 @@ drop trigger if exists zzz_record_product_post_cod_collection on public.electron
 create trigger zzz_record_product_post_cod_collection
 after update of payment_status on public.electronics_post_orders
 for each row execute function private.record_direct_post_cod_collection();
+
+
+-- Sellers cannot mark direct-post orders delivered themselves; only the assigned
+-- captain's delivery RPC may finalize the delivery status.
+create or replace function private.guard_direct_post_delivery_completion()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog,public,private
+as $function$
+begin
+  if new.status='delivered' and old.status is distinct from 'delivered' then
+    if new.delivery_status<>'delivered' or new.captain_id is null or new.captain_id is distinct from auth.uid() then
+      raise exception using errcode='42501',message='Only the assigned captain can complete this direct-post delivery';
+    end if;
+  end if;
+  return new;
+end;
+$function$;
+revoke all on function private.guard_direct_post_delivery_completion() from public,anon,authenticated;
+drop trigger if exists guard_apparel_direct_delivery_completion on public.apparel_post_orders;
+create trigger guard_apparel_direct_delivery_completion
+before update of status on public.apparel_post_orders
+for each row execute function private.guard_direct_post_delivery_completion();
+drop trigger if exists guard_product_direct_delivery_completion on public.electronics_post_orders;
+create trigger guard_product_direct_delivery_completion
+before update of status on public.electronics_post_orders
+for each row execute function private.guard_direct_post_delivery_completion();
 
 notify pgrst,'reload schema';
