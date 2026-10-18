@@ -642,4 +642,66 @@ create trigger guard_product_direct_delivery_completion
 before update of status on public.electronics_post_orders
 for each row execute function private.guard_direct_post_delivery_completion();
 
+
+-- Live order offers and status changes use Supabase Realtime; seller acceptance
+-- also creates an in-app notification for captains.
+do $publication$
+begin
+  if exists(select 1 from pg_publication where pubname='supabase_realtime') then
+    if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='apparel_post_orders') then
+      alter publication supabase_realtime add table public.apparel_post_orders;
+    end if;
+    if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='electronics_post_orders') then
+      alter publication supabase_realtime add table public.electronics_post_orders;
+    end if;
+  end if;
+end;
+$publication$;
+
+create or replace function private.notify_direct_post_captains()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog,public,private
+as $function$
+declare
+  v_category text;
+  v_title text;
+  v_city text;
+  v_order_number text;
+  v_order_id uuid;
+begin
+  if new.status<>'confirmed' or old.status is not distinct from 'confirmed' then return new; end if;
+  v_category:=case when tg_table_name='apparel_post_orders' then 'جل‌وبەرگ' else 'بەرهەمی بازاڕ' end;
+  v_title:=new.post_title;
+  v_city:=new.delivery_city;
+  v_order_number:=new.order_number;
+  v_order_id:=new.id;
+
+  insert into public.notifications(
+    user_id,type,title_ku,body_ku,title_ar,body_ar,title_en,body_en,route,entity_type,entity_id,data
+  )
+  select ur.user_id,'delivery_offer','گەیاندنی نوێ بۆ وەرگرتن',
+    'داواکاریی '||v_category||' «'||v_title||'» لە '||coalesce(v_city,'شارێکی دیارینەکراو')||' ئامادەیە بۆ وەرگرتن.',
+    'عرض توصيل جديد','طلب جديد بانتظار كابتن للتوصيل.',
+    'New delivery offer','A direct-post order is ready for captain pickup.',
+    '/dashboard/deliveries',
+    case when tg_table_name='apparel_post_orders' then 'apparel_post_order' else 'product_post_order' end,
+    v_order_id,
+    jsonb_build_object('order_number',v_order_number,'order_type',case when tg_table_name='apparel_post_orders' then 'apparel_post' else 'product_post' end,'city',v_city,'post_title',v_title)
+  from public.user_roles ur
+  where ur.role::text='captain';
+  return new;
+end;
+$function$;
+revoke all on function private.notify_direct_post_captains() from public,anon,authenticated;
+
+drop trigger if exists notify_apparel_delivery_offer on public.apparel_post_orders;
+create trigger notify_apparel_delivery_offer after update of status on public.apparel_post_orders
+for each row execute function private.notify_direct_post_captains();
+drop trigger if exists notify_product_post_delivery_offer on public.electronics_post_orders;
+create trigger notify_product_post_delivery_offer after update of status on public.electronics_post_orders
+for each row execute function private.notify_direct_post_captains();
+
+
 notify pgrst,'reload schema';
