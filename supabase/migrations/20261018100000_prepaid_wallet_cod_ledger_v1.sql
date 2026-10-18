@@ -46,7 +46,7 @@ create table if not exists public.prepaid_topup_requests (
 create index if not exists prepaid_topup_requests_status_created_idx
   on public.prepaid_topup_requests(status, requested_at desc);
 create unique index if not exists prepaid_topup_one_pending_per_user
-  on public.prepaid_topup_requests(user_id) where status = 'pending' and false;
+  on public.prepaid_topup_requests(user_id) where status = 'pending';
 
 create table if not exists public.captain_cash_ledger (
   id uuid primary key default gen_random_uuid(),
@@ -67,6 +67,18 @@ create table if not exists public.captain_cash_ledger (
 create index if not exists captain_cash_ledger_captain_status_idx
   on public.captain_cash_ledger(captain_id, status, collected_at desc);
 create index if not exists captain_cash_ledger_order_idx on public.captain_cash_ledger(order_id);
+
+
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values ('wallet-payment-receipts','wallet-payment-receipts',false,5242880,array['image/jpeg','image/png','image/webp','application/pdf'])
+on conflict (id) do update set public=false,file_size_limit=5242880,allowed_mime_types=excluded.allowed_mime_types;
+
+drop policy if exists wallet_receipts_insert_own on storage.objects;
+create policy wallet_receipts_insert_own on storage.objects for insert to authenticated
+with check (bucket_id='wallet-payment-receipts' and (storage.foldername(name))[1]=(select auth.uid())::text);
+drop policy if exists wallet_receipts_select_owner_or_finance on storage.objects;
+create policy wallet_receipts_select_owner_or_finance on storage.objects for select to authenticated
+using (bucket_id='wallet-payment-receipts' and ((storage.foldername(name))[1]=(select auth.uid())::text or (select private.has_permission('wallets.manage'))));
 
 alter table public.prepaid_wallet_accounts enable row level security;
 alter table public.prepaid_wallet_transactions enable row level security;
@@ -97,7 +109,14 @@ insert into public.permissions(code, description) values
 on conflict (code) do update set description = excluded.description;
 
 insert into public.role_permissions(role, permission_code)
-values ('super_admin'::public.app_role,'wallets.manage')
+values
+ ('super_admin'::public.app_role,'wallets.manage'),
+ ('admin'::public.app_role,'wallets.manage'),
+ ('captain'::public.app_role,'wallets.view_own'),
+ ('restaurant_vendor'::public.app_role,'wallets.view_own'),
+ ('fashion_vendor'::public.app_role,'wallets.view_own'),
+ ('car_dealer'::public.app_role,'wallets.view_own'),
+ ('umrah_agency'::public.app_role,'wallets.view_own')
 on conflict do nothing;
 
 create or replace function public.request_prepaid_topup(
