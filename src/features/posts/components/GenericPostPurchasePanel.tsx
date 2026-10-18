@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { postCategoryLabels } from '../labels';
 import type { Post } from '../types';
 import { createProductPostOrder } from '../apparelOrders';
+import { getPostShareToken } from '../shareRewards';
 import { DeliveryPointPicker } from './DeliveryPointPicker';
 import { isWithinDeliveryZone, readableDeliveryError, saveMyDeliveryPoint, type DeliveryPoint } from '../deliveryZones';
 
@@ -90,6 +91,7 @@ export function GenericPostPurchasePanel({ post }: Props) {
         buyerPhone: phone,
         customerNote: note.trim(),
         paymentMethod,
+        shareLinkId: getPostShareToken(post.id),
       });
       requestId.current = null;
       navigate('/post-orders', { replace: true, state: { orderCreated: true } });
