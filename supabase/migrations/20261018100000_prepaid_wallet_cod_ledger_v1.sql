@@ -111,6 +111,8 @@ on conflict (code) do update set description = excluded.description;
 insert into public.role_permissions(role, permission_code)
 values
  ('super_admin'::public.app_role,'wallets.manage'),
+ ('super_admin'::public.app_role,'wallets.view_own'),
+ ('admin'::public.app_role,'wallets.view_own'),
  ('captain'::public.app_role,'wallets.view_own'),
  ('restaurant_vendor'::public.app_role,'wallets.view_own'),
  ('fashion_vendor'::public.app_role,'wallets.view_own'),
