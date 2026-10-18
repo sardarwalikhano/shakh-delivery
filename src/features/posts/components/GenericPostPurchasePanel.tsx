@@ -35,7 +35,7 @@ export function GenericPostPurchasePanel({ post }: Props) {
   const rawStock = post.category_details?.stock_quantity;
   const stockText = rawStock == null ? '' : String(rawStock).trim();
   const hasTrackedStock = stockText.length > 0;
-  const validStock = /^\\d+$/.test(stockText);
+  const validStock = /^\d+$/.test(stockText);
   const stock = validStock ? Number(stockText) : 0;
   const basePrice = Number(post.price_iqd ?? 0);
   const discount = Math.max(0, Math.min(99, Number(post.discount_percent ?? 0)));
