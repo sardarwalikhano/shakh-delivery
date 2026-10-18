@@ -520,10 +520,10 @@ export function CreatePostPage() {
           <AuthFeedback error={error} />
           {success ? <AuthSuccess>پۆستەکە بە سەرکەوتوویی بڵاوکرایەوە.</AuthSuccess> : null}
 
-          {category === 'food' || category === 'fashion' || category === 'electronics' ? (
+          {['food','fashion','electronics','general','supermarket','beauty','kids','online_stores','delivery'].includes(category) ? (
             <section className="space-y-2 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.045] p-4">
               <label className="block text-sm font-black" htmlFor="post-referral-reward">
-                خەڵاتی شێرکردن بۆ هەر داواکارییەکی تەواوبوو (د.ع)
+                قازانجی Share بۆ هەر دانەیەکی فرۆشراو (د.ع)
               </label>
               <div className="flex items-center gap-3">
                 <input
@@ -541,7 +541,7 @@ export function CreatePostPage() {
                 <span className="shrink-0 text-sm font-black">د.ع</span>
               </div>
               <p className="text-xs leading-6 text-black/50">
-                ٠ واتە خەڵات ناچالاکە. ئەگەر بڕێک دابنێیت، ئەو کەسەی لینکی تایبەتی خۆی شێر دەکات ئەگەر کڕیار لەو لینکەوە داوا بکات، دوای گەیاندن و پشتڕاستبوونەوەی پارەدان بڕە دیاریکراوەکە وەردەگرێت. خەڵات بۆ هەر داواکارییەکە، نەک بۆ هەر دانەیەک، هەژمار دەکرێت.
+                ٠ واتە Share ناچالاکە. ئەگەر بڕێک دابنێیت، هەمان بڕ بۆ هەر دانەیەک لە ئۆردەری تەواوبوو لە جزدانی پریپەیدی تۆ کەم دەکرێتەوە و دەچێتە جزدانی Share ـکار. ئەگەر بڕی باڵانسی بەردەستت بەس نەبێت، کڕینەکەی ئەو Share ـە تا پڕکردنەوەی جزدان تەواو نابێت.
               </p>
             </section>
           ) : null}
@@ -978,7 +978,7 @@ export function CreatePostPage() {
                     {getVisibleCategoryDetails('electronics', electronicsDetails).map((detail) => (
                       <div key={detail.key} className="rounded-xl bg-white p-3"><span className="text-black/45">{detail.label}:</span><strong className="ms-1 break-words">{detail.value}</strong></div>
                     ))}
-                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">خەڵاتی شێرکردن:</span><strong className="ms-1">{Number(referralRewardIqd || 0).toLocaleString('en-US')} د.ع بۆ هەر فرۆشتنێکی تەواوبوو</strong></div>
+                    <div className="rounded-xl bg-white p-3"><span className="text-black/45">خەڵاتی شێرکردن:</span><strong className="ms-1">{Number(referralRewardIqd || 0).toLocaleString('en-US')} د.ع بۆ هەر دانەیەکی فرۆشراو</strong></div>
                   </>
                 ) : null}
                 <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">وێنەکان بە ڕیز:</span><div className="mt-2 space-y-1">{images.map((image, index) => <div key={image.name + image.size + image.lastModified + index} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="font-bold">وێنەی {index + 1}: {image.name}</span><span className="text-black/40">{(image.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی سەرەکی' : ''}</span></div>)}</div></div>
