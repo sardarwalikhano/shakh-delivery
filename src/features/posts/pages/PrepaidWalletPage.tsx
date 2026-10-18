@@ -143,6 +143,54 @@ export function PrepaidWalletPage() {
       <Stat label="قازانجی ئەمڕۆی کاپتن" value={fmt(todayEarnings)} icon={<BadgeCheck size={18}/>}/>
       <Stat label="کاشی ماوەی کاپتن" value={fmt(ownOutstanding)} icon={<Banknote size={18}/>}/>
     </div>
+
+    <div className="grid gap-5 xl:grid-cols-2">
+      <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6">
+        <h2 className="text-lg font-black">قازانجی ڕۆژانەی کاپتن</h2>
+        <p className="mt-1 text-xs leading-5 text-black/45">قازانج بە کرێی گەیاندن منهای کۆمسیۆنی ٢٠٪ حساب دەکرێت. کۆمسیۆن لە جزدانی پریپەید کەم دەکرێتەوە.</p>
+        <div className="mt-4 space-y-2">
+          {dailyEarnings.filter(item=>item.captain_id===user?.id || canManage).map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3"><div><div className="text-xs font-mono text-black/45" dir="ltr">{item.order_id}</div><div className="mt-1 text-xs text-black/45">{item.earning_day} · کرێ: {fmt(item.delivery_fee_iqd)} · کۆمسیۆن: {fmt(item.commission_iqd)}</div></div><strong className="text-emerald-700">{fmt(item.net_earning_iqd)}</strong></div>)}
+          {!dailyEarnings.some(item=>item.captain_id===user?.id || canManage) && <Empty text="هێشتا قازانجی گەیاندن تۆمار نەکراوە."/>}
+        </div>
+      </section>
+      <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6">
+        <h2 className="text-lg font-black">حسابی کاشی گەیاندن</h2>
+        <p className="mt-1 text-xs leading-5 text-black/45">پارەی وەرگیراو، بڕی گەڕێندراوە و بڕی ماوە بە تۆماری جێگیر دەپارێزرێن. گەڕاندنەوەی بەشێک، تەنها هەمان بڕ کەم دەکاتەوە.</p>
+        <div className="mt-4 space-y-2">
+          {cashLedger.filter(row=>row.captain_id===user?.id || canManage).map(row=>{
+            const outstanding=Math.max(0,Number(row.cash_collected_iqd)-Number(row.cash_remitted_iqd));
+            const captain=captainProfiles[row.captain_id];
+            return <article key={row.id} className="rounded-xl bg-[var(--shakh-bg)] p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0"><div className="text-xs font-mono text-black/40" dir="ltr">{row.order_id}</div><div className="mt-1 text-sm font-bold">{captain?.full_name??(canManage?row.captain_id:'ئۆردەری گەیاندن')}</div><div className="mt-1 text-xs text-black/45">{date(row.collected_at)}</div></div>
+                <div className="text-end"><div className="text-sm font-black">وەرگیراو: {fmt(row.cash_collected_iqd)}</div><div className="mt-1 text-xs text-black/45">گەڕێندراوە: {fmt(row.cash_remitted_iqd)}</div><div className={'mt-1 text-sm font-black '+(outstanding?'text-amber-700':'text-emerald-700')}>ماوە: {fmt(outstanding)}</div></div>
+              </div>
+            </article>;
+          })}
+          {!cashLedger.some(row=>row.captain_id===user?.id || canManage) && <Empty text="هێشتا مامەڵەی کاش تۆمار نەکراوە."/>}
+        </div>
+      </section>
+    </div>
+    {canManage && <section className="rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-5 sm:p-6">
+      <h2 className="text-lg font-black">پێدانەوەی کاشی کاپتن · سوپەر ئەدمین</h2>
+      <p className="mt-1 text-xs leading-5 text-black/45">تەنها کاتێک کاش لە کاپتن وەرگیرا، بڕەکە تۆمار بکە. سیستەم بڕەکە بە ڕیز لە کۆنترین کاشە ماوەکان کەم دەکاتەوە و مێژووی مامەڵەکە دەپارێزێت.</p>
+      <div className="mt-4 space-y-3">
+        {outstandingByCaptain.map(row=><article key={row.captain_id} className="rounded-2xl border border-black/[0.07] p-4">
+          <div className="font-black">{captainProfiles[row.captain_id]?.full_name??'کاپتن'} <span className="ms-2 text-xs font-normal text-black/45" dir="ltr">{captainProfiles[row.captain_id]?.phone??row.captain_id}</span></div>
+          <div className="mt-1 text-sm">کاشی ماوە: <strong>{fmt(row.outstanding_iqd)}</strong></div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <label className="block text-xs font-black">بڕی گەڕاندنەوە (د.ع)
+              <input type="number" min="1" max={row.outstanding_iqd} step="1" value={settlementAmounts[row.captain_id]??String(row.outstanding_iqd)} onChange={e=>setSettlementAmounts(values=>({...values,[row.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/>
+            </label>
+            <label className="block text-xs font-black">تێبینی (ئارەزوومەندانە)
+              <input maxLength={1000} value={settlementNotes[row.captain_id]??''} onChange={e=>setSettlementNotes(values=>({...values,[row.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal" placeholder="ژمارەی وەسڵ یان تێبینی"/>
+            </label>
+          </div>
+          <button type="button" disabled={busyId===row.captain_id} onClick={()=>void settleCash(row.captain_id,Number(row.outstanding_iqd))} className="mt-3 min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">{busyId===row.captain_id?'تۆمارکردن...':'تۆمارکردنی وەرگرتنی کاش'}</button>
+        </article>)}
+        {!outstandingByCaptain.length && <Empty text="هیچ کاشێکی ماوە لای کاپتن نییە."/>}
+      </div>
+    </section>}
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><h2 className="text-lg font-black">داوای زیادکردنی باڵانس</h2><p className="mt-1 text-xs leading-5 text-black/45">وەسڵ باربکە و بڕەکە بنووسە. بەڵگەکە لە هەژماری تایبەتی خۆتدا هەڵدەگیرێت؛ داواکاریی نوێ تا دیاریکردنی دۆخی داواکاریی پێشوو ناتوانرێت بنێردرێت.</p>
         <form onSubmit={submit} className="mt-4 space-y-3">
