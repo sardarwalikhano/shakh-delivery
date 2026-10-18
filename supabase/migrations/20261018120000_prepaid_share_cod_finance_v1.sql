@@ -230,8 +230,9 @@ alter table public.share_withdrawal_requests
 
 -- Add delivery/collection fields where post orders previously had only seller-side statuses.
 alter table public.food_post_orders
-  add column if not exists seller_fee_per_item_iqd numeric(14,2) not null default 100 check (seller_fee_per_item_iqd >= 0),
-  add column if not exists captain_fee_percent numeric(5,2) not null default 20 check (captain_fee_percent between 0 and 100);
+  add column if not exists seller_fee_per_item_iqd numeric(14,2),
+  add column if not exists captain_fee_percent numeric(5,2),
+  add column if not exists finance_policy_applied boolean not null default false;
 
 alter table public.apparel_post_orders
   add column if not exists captain_id uuid references auth.users(id) on delete set null,
@@ -243,8 +244,9 @@ alter table public.apparel_post_orders
   add column if not exists delivered_at timestamptz,
   add column if not exists payment_status text not null default 'pending',
   add column if not exists payment_collected_at timestamptz,
-  add column if not exists seller_fee_per_item_iqd numeric(14,2) not null default 100,
-  add column if not exists captain_fee_percent numeric(5,2) not null default 20;
+  add column if not exists seller_fee_per_item_iqd numeric(14,2),
+  add column if not exists captain_fee_percent numeric(5,2),
+  add column if not exists finance_policy_applied boolean not null default false;
 
 alter table public.electronics_post_orders
   add column if not exists captain_id uuid references auth.users(id) on delete set null,
@@ -255,8 +257,9 @@ alter table public.electronics_post_orders
   add column if not exists arrived_at timestamptz,
   add column if not exists delivered_at timestamptz,
   add column if not exists payment_collected_at timestamptz,
-  add column if not exists seller_fee_per_item_iqd numeric(14,2) not null default 100,
-  add column if not exists captain_fee_percent numeric(5,2) not null default 20;
+  add column if not exists seller_fee_per_item_iqd numeric(14,2),
+  add column if not exists captain_fee_percent numeric(5,2),
+  add column if not exists finance_policy_applied boolean not null default false;
 
 do $constraints$
 begin
@@ -679,10 +682,6 @@ begin
     update public.share_wallet_accounts
     set lifetime_withdrawn_iqd=lifetime_withdrawn_iqd+v_request.amount_iqd,updated_at=now()
     where user_id=v_request.user_id;
-    insert into public.share_wallet_transactions(user_id,transaction_type,amount_iqd,balance_after_iqd,reference_type,reference_id,description)
-    select v_request.user_id,'withdrawal_paid',0,a.balance_iqd,'withdrawal_request',v_request.id,
-      'Payout confirmed by Super Admin with proof: '||coalesce(v_request.payout_reference,'receipt attached')
-    from public.share_wallet_accounts a where a.user_id=v_request.user_id;
   else
     insert into public.share_wallet_accounts(user_id) values(v_request.user_id) on conflict(user_id) do nothing;
     update public.share_wallet_accounts
@@ -770,6 +769,7 @@ begin
   new.seller_fee_per_item_iqd := v_seller_fee;
   new.captain_fee_percent := v_captain_percent;
   new.total_iqd := new.line_total_iqd + new.delivery_fee_iqd + new.platform_fee_iqd;
+  new.finance_policy_applied := true;
 
   if new.share_link_id is not null then
     select l.sharer_id,p.share_reward_iqd into v_sharer,v_reward
@@ -857,6 +857,7 @@ declare
   v_share_balance_after numeric(14,2);
   v_cash_after numeric(14,2);
 begin
+  if not coalesce(new.finance_policy_applied,false) then return new; end if;
   if new.status<>'delivered' or new.payment_status<>'collected' then return new; end if;
   if old.status='delivered' and old.payment_status='collected' then return new; end if;
 
@@ -875,8 +876,8 @@ begin
     v_category := new.post_category::text;
   end if;
 
-  v_seller_fee_total := new.seller_fee_per_item_iqd * new.quantity;
-  v_captain_fee := round(new.delivery_fee_iqd * new.captain_fee_percent / 100,0);
+  v_seller_fee_total := coalesce(new.seller_fee_per_item_iqd,0) * new.quantity;
+  v_captain_fee := round(new.delivery_fee_iqd * coalesce(new.captain_fee_percent,0) / 100,0);
 
   if new.share_link_id is not null and coalesce(new.share_reward_iqd,0)>0 then
     select l.sharer_id,new.share_reward_iqd into v_sharer,v_reward
@@ -895,8 +896,8 @@ begin
     captain_fee_percent,captain_fee_iqd,share_reward_iqd,payment_method
   ) values (
     v_order_type,new.id,new.order_number,new.post_id,v_category,new.buyer_id,new.seller_id,new.captain_id,new.quantity,
-    new.total_iqd,new.delivery_fee_iqd,new.platform_fee_iqd,new.seller_fee_per_item_iqd,v_seller_fee_total,
-    new.captain_fee_percent,v_captain_fee,v_reward,new.payment_method
+    new.total_iqd,new.delivery_fee_iqd,new.platform_fee_iqd,coalesce(new.seller_fee_per_item_iqd,0),v_seller_fee_total,
+    coalesce(new.captain_fee_percent,0),v_captain_fee,v_reward,new.payment_method
   ) on conflict(order_type,order_id) do nothing returning id into v_settlement_id;
 
   if v_settlement_id is null then return new; end if;
@@ -1234,6 +1235,78 @@ end;
 $function$;
 revoke all on function public.get_wallet_finance_summary() from public, anon;
 grant execute on function public.get_wallet_finance_summary() to authenticated;
+
+
+
+-- Add share attribution to general/supermarket/beauty/kids/online-store post orders
+-- without changing the existing RPC signature used by older clients.
+create or replace function public.create_product_post_order_with_share(
+  p_request_id uuid,
+  p_post_id uuid,
+  p_quantity integer,
+  p_delivery_address text,
+  p_buyer_phone text,
+  p_delivery_city text,
+  p_customer_note text,
+  p_payment_method text,
+  p_share_link_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'pg_catalog','public','private'
+as $function$
+declare
+  v_user_id uuid := (select auth.uid());
+  v_existing public.electronics_post_orders%rowtype;
+  v_order public.electronics_post_orders%rowtype;
+  v_result jsonb;
+  v_reward numeric(14,2);
+begin
+  if v_user_id is null then raise exception using errcode='42501',message='Authentication required'; end if;
+  if p_request_id is null then raise exception using errcode='22023',message='Request id is required'; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(v_user_id::text || ':' || p_request_id::text, 0));
+  select * into v_existing from public.electronics_post_orders
+  where buyer_id=v_user_id and request_id=p_request_id;
+  if found then
+    return jsonb_build_object('id',v_existing.id,'order_number',v_existing.order_number,'post_category',v_existing.post_category,
+      'status',v_existing.status,'quantity',v_existing.quantity,'unit_price_iqd',v_existing.unit_price_iqd,
+      'line_total_iqd',v_existing.line_total_iqd,'delivery_city',v_existing.delivery_city,
+      'delivery_fee_iqd',v_existing.delivery_fee_iqd,'platform_fee_iqd',v_existing.platform_fee_iqd,'total_iqd',v_existing.total_iqd,
+      'share_reward_iqd',v_existing.share_reward_iqd);
+  end if;
+
+  v_result := public.create_product_post_order(
+    p_request_id,p_post_id,p_quantity,p_delivery_address,p_buyer_phone,p_delivery_city,p_customer_note,p_payment_method
+  );
+  select * into v_order from public.electronics_post_orders where id=(v_result->>'id')::uuid for update;
+  if not found then raise exception using errcode='P0002',message='Created product order could not be reloaded'; end if;
+
+  if p_share_link_id is not null then
+    select p.share_reward_iqd into v_reward
+    from public.post_share_links l join public.posts p on p.id=l.post_id
+    where l.id=p_share_link_id and l.post_id=v_order.post_id and l.is_active and l.expires_at>now()
+      and l.sharer_id<>v_order.buyer_id and l.sharer_id<>v_order.seller_id and p.author_id<>l.sharer_id;
+    if found and coalesce(v_reward,0)>0 then
+      update public.electronics_post_orders
+      set share_link_id=p_share_link_id,share_reward_iqd=v_reward,updated_at=now()
+      where id=v_order.id and share_link_id is null
+      returning * into v_order;
+      if not found then select * into v_order from public.electronics_post_orders where id=v_order.id; end if;
+    end if;
+  end if;
+
+  return jsonb_build_object('id',v_order.id,'order_number',v_order.order_number,'post_category',v_order.post_category,
+    'status',v_order.status,'quantity',v_order.quantity,'unit_price_iqd',v_order.unit_price_iqd,
+    'line_total_iqd',v_order.line_total_iqd,'delivery_city',v_order.delivery_city,
+    'delivery_fee_iqd',v_order.delivery_fee_iqd,'platform_fee_iqd',v_order.platform_fee_iqd,
+    'total_iqd',v_order.total_iqd,'share_reward_iqd',v_order.share_reward_iqd);
+end;
+$function$;
+revoke all on function public.create_product_post_order_with_share(uuid,uuid,integer,text,text,text,text,text,uuid) from public, anon;
+grant execute on function public.create_product_post_order_with_share(uuid,uuid,integer,text,text,text,text,text,uuid) to authenticated;
+
 
 -- The old direct seller/admin transition may no longer bypass captain delivery/payment.
 create or replace function public.update_apparel_post_order_status(p_order_id uuid,p_status text)
