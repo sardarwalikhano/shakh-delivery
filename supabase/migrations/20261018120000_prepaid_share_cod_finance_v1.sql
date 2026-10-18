@@ -393,7 +393,6 @@ from (values
   ('admin','wallets.view_own'),('admin','wallets.topup_request'),('captain','wallets.view_own'),('captain','wallets.topup_request'),('captain','captain_cash.view_own'),
   ('restaurant_vendor','wallets.view_own'),('restaurant_vendor','wallets.topup_request'),
   ('fashion_vendor','wallets.view_own'),('fashion_vendor','wallets.topup_request'),
-  ('supermarket_vendor','wallets.view_own'),('supermarket_vendor','wallets.topup_request'),
   ('car_dealer','wallets.view_own'),('car_dealer','wallets.topup_request'),
   ('umrah_agency','wallets.view_own'),('umrah_agency','wallets.topup_request')
 ) as v(role, permission_code)
