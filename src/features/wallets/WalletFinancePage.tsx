@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { BadgeCheck, Banknote, CheckCircle2, Clock3, FileText, RefreshCw, ShieldCheck, Upload, WalletCards, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
@@ -59,6 +59,7 @@ type FeeRule = {
 };
 
 type CashAccount = { user_id: string; outstanding_iqd: number | string; lifetime_collected_iqd: number | string; lifetime_settled_iqd: number | string; name?: string | null; phone?: string | null };
+type WalletAccount = { user_id: string; balance_iqd: number | string; lifetime_credited_iqd: number | string; lifetime_debited_iqd: number | string };
 
 const emptySummary: Summary = {
   prepaid_wallet: { balance_iqd: 0, lifetime_credited_iqd: 0, lifetime_debited_iqd: 0 },
@@ -104,6 +105,7 @@ export function WalletFinancePage() {
   const [feeRules, setFeeRules] = useState<FeeRule[]>([]);
   const [feeDrafts, setFeeDrafts] = useState<Record<string, { customer: string; seller: string; captain: string }>>({});
   const [cashAccounts, setCashAccounts] = useState<CashAccount[]>([]);
+  const [walletAccounts, setWalletAccounts] = useState<WalletAccount[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; phone: string | null }>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -153,6 +155,7 @@ export function WalletFinancePage() {
         });
         setTopupQueue((topups.data ?? []) as TopupRequest[]);
         setCashAccounts((cash.data ?? []) as CashAccount[]);
+        setWalletAccounts((accountRows.data ?? []) as WalletAccount[]);
         const ids = [...new Set([...(accountRows.data ?? []).map((row) => row.user_id as string), ...(topupUsers.data ?? []).map((row) => row.user_id as string), ...(cash.data ?? []).map((row) => row.user_id as string)])];
         if (ids.length) {
           const { data: people, error: peopleError } = await supabase.from('profiles').select('id,full_name,phone').in('id', ids);
@@ -163,6 +166,7 @@ export function WalletFinancePage() {
         setTopupQueue([]);
         setFeeRules([]);
         setCashAccounts([]);
+        setWalletAccounts([]);
         setProfiles({});
       }
     } catch (nextError) {
@@ -183,7 +187,7 @@ export function WalletFinancePage() {
     return path;
   };
 
-  const submitTopup = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submitTopup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null); setMessage(null);
     const requestedAmount = Number(amount.replace(/,/g, ''));
@@ -361,6 +365,12 @@ export function WalletFinancePage() {
           </section>
 
           <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex items-center gap-2"><WalletCards size={20} className="text-[var(--shakh-blue)]"/><h2 className="text-lg font-black">باڵانسی پریپەیدی فرۆشیار و کاپتن</h2></div>
+            <div className="mt-4 space-y-2">{walletAccounts.map((account)=><div key={account.user_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3"><div className="min-w-0"><div className="font-black">{formatAccountName(account.user_id)}</div><div className="mt-1 text-[11px] text-black/45" dir="ltr">{account.user_id}</div></div><div className="text-end"><div className="font-black">{iqd(account.balance_iqd)}</div><div className="mt-1 text-[10px] text-black/45">پڕکراوە: {iqd(account.lifetime_credited_iqd)} · کەمکراوە: {iqd(account.lifetime_debited_iqd)}</div></div></div>)}
+              {!loading && walletAccounts.length===0 ? <Empty>هێشتا باڵانسی پریپەیدی دروست نەکراوە.</Empty> : null}</div>
+          </section>
+
+          <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 shadow-sm sm:p-6">
             <div className="flex items-center gap-2"><Banknote size={20} className="text-[var(--shakh-orange)]"/><h2 className="text-lg font-black">تسویەی پارەی کاشی کاپتن</h2></div>
             <p className="mt-1 text-sm leading-6 text-black/50">کۆی outstanding بە وردی کەم دەکرێتەوە. ئەگەر ٢٠٠٬٠٠٠ دینار ماوە بێت و ١٥٠٬٠٠٠ بگەڕێندرێتەوە، ٥٠٬٠٠٠ دینار هەر دەمێنێتەوە.</p>
             <form onSubmit={(event)=>void submitSettlement(event)} className="mt-4 grid gap-3 md:grid-cols-2">
@@ -392,7 +402,7 @@ export function WalletFinancePage() {
   );
 }
 
-function Stat({ title, value, icon, warn = false }: { title: string; value: string; icon: React.ReactNode; warn?: boolean }) {
+function Stat({ title, value, icon, warn = false }: { title: string; value: string; icon: ReactNode; warn?: boolean }) {
   return <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm"><div className="flex items-center gap-2 text-xs font-black text-black/45">{icon}{title}</div><div className={'mt-2 text-xl font-black tabular-nums '+(warn?'text-amber-700':'text-[var(--shakh-navy)]')}>{value}</div></div>;
 }
 function Empty({ children }: { children: React.ReactNode }) { return <div className="rounded-xl border border-dashed border-black/10 p-5 text-center text-sm font-bold text-black/40">{children}</div>; }
