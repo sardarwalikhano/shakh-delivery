@@ -255,7 +255,7 @@ export function WalletFinancePage() {
     finally { setBusyRow(null); }
   };
 
-  const submitSettlement = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submitSettlement = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null); setMessage(null);
     const amountToSettle = Number(settlementAmount.replace(/,/g, ''));
@@ -405,4 +405,4 @@ export function WalletFinancePage() {
 function Stat({ title, value, icon, warn = false }: { title: string; value: string; icon: ReactNode; warn?: boolean }) {
   return <div className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm"><div className="flex items-center gap-2 text-xs font-black text-black/45">{icon}{title}</div><div className={'mt-2 text-xl font-black tabular-nums '+(warn?'text-amber-700':'text-[var(--shakh-navy)]')}>{value}</div></div>;
 }
-function Empty({ children }: { children: React.ReactNode }) { return <div className="rounded-xl border border-dashed border-black/10 p-5 text-center text-sm font-bold text-black/40">{children}</div>; }
+function Empty({ children }: { children: ReactNode }) { return <div className="rounded-xl border border-dashed border-black/10 p-5 text-center text-sm font-bold text-black/40">{children}</div>; }
