@@ -10,6 +10,7 @@ type Tx = { id: string; transaction_type: string; amount_iqd: number; descriptio
 type CaptainEarning = { id: string; captain_id: string; order_type: string; order_id: string; delivery_fee_iqd: number; commission_iqd: number; net_earning_iqd: number; earning_day: string; created_at: string };
 type CashRow = { id: string; captain_id: string; order_id: string; product_subtotal_iqd: number; delivery_fee_iqd: number; platform_fee_iqd: number; cash_collected_iqd: number; cash_remitted_iqd: number; status: string; collected_at: string; note: string | null };
 type CaptainProfile = { id: string; full_name: string | null; phone: string | null };
+type CashBalance = { captain_id: string; outstanding_iqd: number; collected_iqd: number; remitted_iqd: number; last_collected_at: string | null };
 const fmt = (v: number | string | null | undefined) => Math.round(Number(v ?? 0)).toLocaleString('en-US') + ' د.ع';
 const date = (v: string) => new Date(v).toLocaleString('ku-IQ',{dateStyle:'medium',timeStyle:'short'});
 const methods: Record<string,string> = {mobile_cash:'Mobile Cash',zain_cash:'ZainCash',fastpay:'FastPay',qi_card:'Qi Card',bank_transfer:'گواستنەوەی بانکی',other:'ڕێگای تر'};
@@ -23,6 +24,7 @@ export function PrepaidWalletPage() {
   const [transactions,setTransactions] = useState<Tx[]>([]);
   const [dailyEarnings,setDailyEarnings] = useState<CaptainEarning[]>([]);
   const [cashLedger,setCashLedger] = useState<CashRow[]>([]);
+  const [cashBalances,setCashBalances] = useState<CashBalance[]>([]);
   const [captainProfiles,setCaptainProfiles] = useState<Record<string,CaptainProfile>>({});
   const [settlementAmounts,setSettlementAmounts] = useState<Record<string,string>>({});
   const [settlementNotes,setSettlementNotes] = useState<Record<string,string>>({});
@@ -40,14 +42,15 @@ export function PrepaidWalletPage() {
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
-    const [accountRes,txRes,requestRes,earningRes,cashRes] = await Promise.all([
+    const [accountRes,txRes,requestRes,earningRes,cashRes,balanceRes] = await Promise.all([
       supabase.from('prepaid_wallet_accounts').select('user_id,balance_iqd,held_iqd,lifetime_credited_iqd,lifetime_spent_iqd').eq('user_id',user.id).maybeSingle(),
       supabase.from('prepaid_wallet_transactions').select('id,transaction_type,amount_iqd,description_ku,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50),
       supabase.from('prepaid_topup_requests').select('id,user_id,amount_iqd,payment_method,receipt_path,sender_reference,note,status,admin_note,requested_at').order('requested_at',{ascending:false}).limit(100),
       supabase.from('captain_delivery_earnings').select('id,captain_id,order_type,order_id,delivery_fee_iqd,commission_iqd,net_earning_iqd,earning_day,created_at').order('earning_day',{ascending:false}).limit(100),
       supabase.from('captain_cash_ledger').select('id,captain_id,order_id,product_subtotal_iqd,delivery_fee_iqd,platform_fee_iqd,cash_collected_iqd,cash_remitted_iqd,status,collected_at,note').order('collected_at',{ascending:false}).limit(150),
+      supabase.rpc('get_captain_cash_balances'),
     ]);
-    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error;
+    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error;
     if (err) { setError(err.message); return; }
     setAccount(accountRes.data as Account|null);
     setTransactions((txRes.data ?? []) as Tx[]);
@@ -55,6 +58,7 @@ export function PrepaidWalletPage() {
     const cashRows = (cashRes.data ?? []) as CashRow[];
     setDailyEarnings(earnings);
     setCashLedger(cashRows);
+    setCashBalances((balanceRes.data ?? []) as CashBalance[]);
     const profileIds = [...new Set(cashRows.map(row=>row.captain_id))];
     if (canManage && profileIds.length) {
       const {data:profiles} = await supabase.from('profiles').select('id,full_name,phone').in('id',profileIds);
@@ -88,6 +92,27 @@ export function PrepaidWalletPage() {
     finally { setBusy(false); }
   };
 
+
+  const settleCash = async (captainId:string,outstanding:number) => {
+    const amountToSettle = Number(settlementAmounts[captainId] ?? String(outstanding));
+    if (!Number.isSafeInteger(amountToSettle) || amountToSettle<1 || amountToSettle>outstanding) {
+      setError('بڕی گەڕاندنەوە دەبێت لە ١ تا بڕی کاشی ماوە بێت.'); return;
+    }
+    setBusyId(captainId); setError(null); setMessage(null);
+    try {
+      const {data,error:rpcError} = await supabase.rpc('settle_captain_cash',{
+        p_captain_id:captainId,p_amount_iqd:amountToSettle,p_note:settlementNotes[captainId]?.trim()||null
+      });
+      if(rpcError) throw rpcError;
+      const result=data as {settled_iqd?:number;outstanding_iqd?:number}|null;
+      setMessage('گەڕاندنەوەی کاش تۆمارکرا: '+fmt(result?.settled_iqd??amountToSettle)+'. بڕی ماوە: '+fmt(result?.outstanding_iqd??Math.max(0,outstanding-amountToSettle))+'.');
+      setSettlementAmounts(current=>({...current,[captainId]:''}));
+      setSettlementNotes(current=>({...current,[captainId]:''}));
+      await refresh();
+    } catch(e) { setError(e instanceof Error?e.message:'تۆمارکردنی گەڕاندنەوەی کاش سەرکەوتوو نەبوو.'); }
+    finally { setBusyId(null); }
+  };
+
   const review = async (row:Topup,action:'approve'|'reject') => {
     setBusyId(row.id); setError(null); setMessage(null);
     try {
@@ -99,17 +124,24 @@ export function PrepaidWalletPage() {
     finally { setBusyId(null); }
   };
 
+  const todayBaghdad = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Baghdad'}).format(new Date());
+  const todayEarnings = dailyEarnings.filter(item=>item.earning_day===todayBaghdad && (item.captain_id===user?.id || canManage)).reduce((sum,item)=>sum+Number(item.net_earning_iqd),0);
+  const ownOutstanding = cashBalances.find(row=>row.captain_id===user?.id)?.outstanding_iqd ?? 0;
+  const outstandingByCaptain = cashBalances.filter(row=>row.outstanding_iqd>0).sort((a,b)=>Number(b.outstanding_iqd)-Number(a.outstanding_iqd));
+
   return <section className="shakh-page space-y-5 py-6" dir="rtl">
     <header className="rounded-[28px] bg-[var(--shakh-navy)] p-5 text-white sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-orange)]">SHAKH · WALLET</div><h1 className="mt-1 text-2xl font-black sm:text-3xl">جزدانی پریپەید</h1><p className="mt-2 text-sm leading-6 text-white/65">١ خاڵ = ١ دیناری عێراقی. بڕی پارە تەنها دوای پشکنین و پەسەندکردنی وەسڵ زیاد دەکرێت.</p></div><button onClick={()=>void refresh()} disabled={busy||!!busyId} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-black"><RefreshCw size={15}/> نوێکردنەوە</button></div>
     </header>
     {error&&<div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-bold text-red-700"><CircleAlert className="me-2 inline" size={16}/>{error}</div>}
     {message&&<div role="status" className="rounded-xl bg-emerald-500/10 p-3 text-sm font-bold text-emerald-800">{message}</div>}
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <Stat label="باڵانسی بەردەست" value={fmt(account?.balance_iqd??0)} icon={<Wallet size={18}/>}/>
       <Stat label="باڵانسی گیراو" value={fmt(account?.held_iqd??0)} icon={<Banknote size={18}/>}/>
       <Stat label="کۆی پارەی زیادکراو" value={fmt(account?.lifetime_credited_iqd??0)} icon={<BadgeCheck size={18}/>}/>
       <Stat label="کۆی خەرجکراو" value={fmt(account?.lifetime_spent_iqd??0)} icon={<Banknote size={18}/>}/>
+      <Stat label="قازانجی ئەمڕۆی کاپتن" value={fmt(todayEarnings)} icon={<BadgeCheck size={18}/>}/>
+      <Stat label="کاشی ماوەی کاپتن" value={fmt(ownOutstanding)} icon={<Banknote size={18}/>}/>
     </div>
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><h2 className="text-lg font-black">داوای زیادکردنی باڵانس</h2><p className="mt-1 text-xs leading-5 text-black/45">وەسڵ باربکە و بڕەکە بنووسە. بەڵگەکە لە هەژماری تایبەتی خۆتدا هەڵدەگیرێت؛ داواکاریی نوێ تا دیاریکردنی دۆخی داواکاریی پێشوو ناتوانرێت بنێردرێت.</p>
