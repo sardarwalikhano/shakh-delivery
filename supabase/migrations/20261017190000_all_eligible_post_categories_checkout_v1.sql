@@ -270,3 +270,5 @@ $function$;
 
 revoke all on function public.update_product_post_order_status(uuid,text) from public, anon;
 grant execute on function public.update_product_post_order_status(uuid,text) to authenticated;
+
+notify pgrst, 'reload schema';
