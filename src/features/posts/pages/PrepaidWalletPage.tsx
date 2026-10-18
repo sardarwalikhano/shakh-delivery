@@ -182,10 +182,36 @@ export function PrepaidWalletPage() {
       <Stat label="کاشی ماوەی کاپتن" value={fmt(ownOutstanding)} icon={<Banknote size={18}/>}/>
     </div>
 
+
+    {canManage && <section className="rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-sm sm:p-6">
+      <h2 className="text-lg font-black">ڕێژەی کۆمسیۆنی کاپتن</h2>
+      <p className="mt-1 text-xs leading-6 text-black/45">ڕێژە بە پێی ڕێککەوتن ڕێکبخە. ڕێژەی نوێ بۆ گەیاندنە نوێکان جێبەجێ دەبێت؛ ئەو ئۆردەرانەی پێشتر کۆمسیۆنیان گیراوە ڕێژەکەیان ناگۆڕێت.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="block text-sm font-black">ڕێژەی گشتی بۆ کاپتنەکان (%)
+          <input type="number" min="0" max="100" step="0.25" value={defaultCommissionDraft} onChange={e=>setDefaultCommissionDraft(e.target.value)} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/>
+        </label>
+        <button type="button" disabled={busyId==='default-commission'} onClick={()=>void saveCommission(null,Number(defaultCommissionDraft))} className="min-h-11 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">{busyId==='default-commission'?'پاشەکەوتکردن...':'پاشەکەوتی ڕێژەی گشتی'}</button>
+      </div>
+      <p className="mt-2 text-xs text-black/40">ڕێژەی گشتیی ئێستا: {Number(defaultCommissionPercent).toLocaleString('en-US')}٪</p>
+      <div className="mt-5 space-y-3">
+        {captainCommissionOverview.map(captain=><article key={captain.captain_id} className="rounded-2xl border border-black/[0.06] p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-black">{captain.full_name || 'کاپتن'}</div><div className="mt-1 text-xs text-black/45" dir="ltr">{captain.phone || captain.captain_id}</div></div><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-xs font-black">{captain.is_custom?'ڕێژەی تایبەتی':'ڕێژەی گشتی'} · {Number(captain.commission_percent).toLocaleString('en-US')}٪</span></div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+            <label className="block text-xs font-black">ڕێژەی تایبەتی ئەم کاپتنە (%)
+              <input type="number" min="0" max="100" step="0.25" value={commissionDrafts[captain.captain_id] ?? String(captain.commission_percent)} onChange={e=>setCommissionDrafts(current=>({...current,[captain.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/>
+            </label>
+            <button type="button" disabled={busyId===captain.captain_id} onClick={()=>void saveCommission(captain.captain_id,Number(commissionDrafts[captain.captain_id] ?? captain.commission_percent))} className="min-h-11 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">پاشەکەوت</button>
+            {captain.is_custom ? <button type="button" disabled={busyId===captain.captain_id} onClick={()=>void saveCommission(captain.captain_id,null)} className="min-h-11 rounded-xl border border-black/10 px-4 text-xs font-black disabled:opacity-40">گەڕاندنەوە بۆ گشتی</button> : <span className="text-xs text-black/40">ڕێژەی گشتی جێبەجێیە</span>}
+          </div>
+        </article>)}
+        {!captainCommissionOverview.length ? <Empty text="هیچ کاپتنێکی تۆمارکراو نییە."/> : null}
+      </div>
+    </section>}
+
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6">
         <h2 className="text-lg font-black">قازانجی ڕۆژانەی کاپتن</h2>
-        <p className="mt-1 text-xs leading-5 text-black/45">قازانج بە کرێی گەیاندن منهای کۆمسیۆنی ٢٠٪ حساب دەکرێت. کۆمسیۆن لە جزدانی پریپەید کەم دەکرێتەوە.</p>
+        <p className="mt-1 text-xs leading-5 text-black/45">قازانج بە کرێی گەیاندن منهای ڕێژەی کۆمسیۆنی ڕێککەوتوو حساب دەکرێت. کۆمسیۆن لە جزدانی پریپەید کەم دەکرێتەوە.</p>
         <div className="mt-4 space-y-2">
           {dailyEarnings.filter(item=>item.captain_id===user?.id || canManage).map(item=><div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3"><div><div className="text-xs font-mono text-black/45" dir="ltr">{item.order_id}</div><div className="mt-1 text-xs text-black/45">{item.earning_day} · کرێ: {fmt(item.delivery_fee_iqd)} · کۆمسیۆن: {fmt(item.commission_iqd)}</div></div><strong className="text-emerald-700">{fmt(item.net_earning_iqd)}</strong></div>)}
           {!dailyEarnings.some(item=>item.captain_id===user?.id || canManage) && <Empty text="هێشتا قازانجی گەیاندن تۆمار نەکراوە."/>}
