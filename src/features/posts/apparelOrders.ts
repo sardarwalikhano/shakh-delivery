@@ -4,6 +4,7 @@ import type { PostCategory } from './types';
 
 // Electronics direct-post orders are separate from apparel inventory orders.
 export type ElectronicsPostOrderStatus = 'pending' | 'confirmed' | 'rejected' | 'delivered' | 'cancelled';
+export type DirectPostDeliveryStatus = 'pending' | 'accepted' | 'picked_up' | 'on_the_way' | 'arrived' | 'delivered' | 'failed' | 'cancelled';
 export type ElectronicsPostOrder = {
   id: string;
   order_number: string;
@@ -29,6 +30,14 @@ export type ElectronicsPostOrder = {
   platform_fee_iqd: number;
   total_iqd: number;
   share_reward_iqd: number;
+  captain_id: string | null;
+  delivery_status: DirectPostDeliveryStatus;
+  accepted_at: string | null;
+  picked_up_at: string | null;
+  on_the_way_at: string | null;
+  arrived_at: string | null;
+  delivered_at: string | null;
+  payment_collected_at: string | null;
   created_at: string;
 };
 
@@ -88,7 +97,7 @@ export async function createProductPostOrder(input: {
 export async function listElectronicsPostOrders(): Promise<ElectronicsPostOrder[]> {
   const { data, error } = await supabase
     .from('electronics_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,post_category,post_title,brand,selected_color,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_category,post_title,brand,selected_color,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,captain_id,delivery_status,accepted_at,picked_up_at,on_the_way_at,arrived_at,delivered_at,payment_collected_at,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -128,6 +137,15 @@ export type ApparelPostOrder = {
   customer_note: string | null;
   payment_method: 'cash_on_delivery' | 'mobile_cash';
   status: ApparelPostOrderStatus;
+  captain_id: string | null;
+  delivery_status: DirectPostDeliveryStatus;
+  payment_status: 'pending' | 'collected' | 'failed' | 'refunded';
+  accepted_at: string | null;
+  picked_up_at: string | null;
+  on_the_way_at: string | null;
+  arrived_at: string | null;
+  delivered_at: string | null;
+  payment_collected_at: string | null;
   created_at: string;
 };
 
@@ -161,7 +179,7 @@ export async function createApparelPostOrder(input: {
 export async function listApparelPostOrders(): Promise<ApparelPostOrder[]> {
   const { data, error } = await supabase
     .from('apparel_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,accepted_at,picked_up_at,on_the_way_at,arrived_at,delivered_at,payment_collected_at,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -225,6 +243,44 @@ export async function updateFoodPostDeliveryStatus(orderId: string, status: Food
 
 export async function recordFoodPostPayment(orderId: string, amountIqd: number): Promise<void> {
   const { error } = await supabase.rpc('record_food_post_payment', { p_order_id: orderId, p_amount_iqd: amountIqd, p_note: null });
+  if (error) throw new Error(readableDeliveryError(error.message));
+}
+
+
+export type DirectPostOrderType = 'apparel_post' | 'product_post';
+
+export async function claimDirectPostDelivery(orderType: DirectPostOrderType, orderId: string): Promise<void> {
+  const { error } = await supabase.rpc('claim_direct_post_delivery', {
+    p_order_type: orderType,
+    p_order_id: orderId,
+  });
+  if (error) throw new Error(readableDeliveryError(error.message));
+}
+
+export async function updateDirectPostDeliveryStatus(
+  orderType: DirectPostOrderType,
+  orderId: string,
+  status: DirectPostDeliveryStatus,
+): Promise<void> {
+  const { error } = await supabase.rpc('update_direct_post_delivery_status', {
+    p_order_type: orderType,
+    p_order_id: orderId,
+    p_status: status,
+  });
+  if (error) throw new Error(readableDeliveryError(error.message));
+}
+
+export async function recordDirectPostPayment(
+  orderType: DirectPostOrderType,
+  orderId: string,
+  amountIqd: number,
+): Promise<void> {
+  const { error } = await supabase.rpc('record_direct_post_payment', {
+    p_order_type: orderType,
+    p_order_id: orderId,
+    p_amount_iqd: amountIqd,
+    p_note: null,
+  });
   if (error) throw new Error(readableDeliveryError(error.message));
 }
 
