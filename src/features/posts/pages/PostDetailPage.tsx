@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { ApparelPurchasePanel } from '../components/ApparelPurchasePanel';
 import { ElectronicsPurchasePanel } from '../components/ElectronicsPurchasePanel';
+import { GenericPostPurchasePanel } from '../components/GenericPostPurchasePanel';
 import { getVisibleCategoryDetails } from '@/lib/catalog/categoryDetails';
 import { VehiclePostDetails } from '../components/VehiclePostDetails';
 import { PostDeliveryZonePanel } from '../components/PostDeliveryZonePanel';
@@ -187,6 +188,7 @@ export function PostDetailPage() {
   const isElectronics = post.category === 'electronics';
   const isSupermarket = post.category === 'supermarket';
   const isVehicle = post.category === 'cars';
+  const isGenericOrderable = post.category === 'general' || post.category === 'supermarket' || post.category === 'beauty' || post.category === 'kids' || post.category === 'online_stores' || post.category === 'delivery';
   const electronicsSpecs = isElectronics ? getVisibleCategoryDetails('electronics', post.category_details) : [];
   const supermarketSpecs = isSupermarket ? getVisibleCategoryDetails('supermarket', post.category_details) : [];
   const vehicleListing = isVehicle ? singleVehicleListing(post.vehicle_listing) : null;
@@ -652,6 +654,7 @@ ${share.title || post.title}
             {isElectronics && post.status === 'active' ? <ElectronicsPurchasePanel post={post} selectedColor={chosenElectronicsColor} /> : null}
             {isApparel && !selectedVariant && post.status === 'active' ? <div className="mt-6 rounded-2xl bg-red-500/[0.07] p-4 text-sm font-bold text-red-700">ئەم کاڵایە لە ئێستادا هیچ ڕەنگ و قەبارەیەکی بەردەستی نییە.</div> : null}
             {post.category === 'food' && post.status === 'active' ? <div className="mt-6 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-bg)] p-4"><button type="button" onClick={() => void addFoodPost()} disabled={addingFoodToCart || ownsPost || !post.price_iqd || post.price_iqd <= 0} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-45"><ShoppingBag size={17}/>{addingFoodToCart ? 'زیادکردن...' : ownsPost ? 'پۆستی خۆتە' : !post.price_iqd || post.price_iqd <= 0 ? 'نرخی خواردن دیاری نەکراوە' : 'زیادکردن بۆ سەلە'}</button>{foodCartMessage ? <div role="status" className={`mt-3 text-center text-sm font-bold ${foodCartError ? 'text-red-700' : 'text-emerald-700'}`}>{foodCartMessage}{foodCartMessage.includes('زیادکرا') ? <Link to="/cart" className="ms-2 underline">بینینی سەلە</Link> : null}</div> : null}</div> : null}
+            {isGenericOrderable && post.status === 'active' ? <GenericPostPurchasePanel post={post} /> : null}
 
             {!isVehicle ? <div className="mt-6 grid gap-3 border-t border-black/[0.06] pt-5 sm:grid-cols-2">
               <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/40">شوێنی فرۆشیار</div><div className="mt-1 font-black">{post.location || 'دیاری نەکراوە'}</div></div>
