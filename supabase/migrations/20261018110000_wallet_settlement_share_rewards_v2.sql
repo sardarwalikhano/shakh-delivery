@@ -497,6 +497,40 @@ create trigger zzz_record_food_post_cod_collection
 after update of payment_status on public.food_post_orders
 for each row execute function private.record_food_post_cod_collection();
 
+
+create or replace function public.get_captain_cash_balances()
+returns table(captain_id uuid,outstanding_iqd bigint,collected_iqd bigint,remitted_iqd bigint,last_collected_at timestamptz)
+language plpgsql
+security definer
+set search_path=pg_catalog,public,private
+as $function$
+begin
+  if auth.uid() is null then raise exception using errcode='42501',message='Authentication required'; end if;
+  if not private.has_permission('wallets.manage') then
+    return query
+    select l.captain_id,
+      coalesce(sum(l.cash_collected_iqd-l.cash_remitted_iqd),0)::bigint,
+      coalesce(sum(l.cash_collected_iqd),0)::bigint,
+      coalesce(sum(l.cash_remitted_iqd),0)::bigint,
+      max(l.collected_at)
+    from public.captain_cash_ledger l
+    where l.captain_id=auth.uid()
+    group by l.captain_id;
+  else
+    return query
+    select l.captain_id,
+      coalesce(sum(l.cash_collected_iqd-l.cash_remitted_iqd),0)::bigint,
+      coalesce(sum(l.cash_collected_iqd),0)::bigint,
+      coalesce(sum(l.cash_remitted_iqd),0)::bigint,
+      max(l.collected_at)
+    from public.captain_cash_ledger l
+    group by l.captain_id;
+  end if;
+end;
+$function$;
+revoke all on function public.get_captain_cash_balances() from public,anon;
+grant execute on function public.get_captain_cash_balances() to authenticated;
+
 create or replace function public.settle_captain_cash(
   p_captain_id uuid,
   p_amount_iqd bigint,
