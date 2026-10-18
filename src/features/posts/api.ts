@@ -66,7 +66,7 @@ export async function createPost(input: {
   const isVehiclePost = input.category === 'cars';
   const isElectronicsPost = input.category === 'electronics';
   const isSupermarketPost = input.category === 'supermarket';
-  const referralReward = input.category === 'food' || input.category === 'fashion' || isElectronicsPost
+  const referralReward = ['food','fashion','electronics','general','supermarket','beauty','kids','online_stores','delivery'].includes(input.category)
     ? Number(input.referralRewardIqd ?? 0)
     : 0;
   if (!Number.isInteger(referralReward) || !Number.isFinite(referralReward) || referralReward < 0 || referralReward > 100000000) {
