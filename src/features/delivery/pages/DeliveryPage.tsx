@@ -5,7 +5,7 @@ import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { assignCaptain, claimDelivery, getAvailableCaptains, getDispatchDeliveries, getMyDeliveries, updateCaptainDelivery, updateCaptainLocation, type Captain, type Delivery, type DeliveryStatus } from '../api';
 import { useRealtimeCaptainDeliveries } from '@/features/realtime/hooks';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/maps/navigation';
-import { claimFoodPostDelivery, listFoodPostOrders, recordFoodPostPayment, updateFoodPostDeliveryStatus, type FoodPostDeliveryStatus, type FoodPostOrder } from '@/features/posts/apparelOrders';
+import { claimFoodPostDelivery, listFoodPostOrders, recordFoodPostPayment, updateFoodPostDeliveryStatus, claimPostOrderDelivery, listApparelPostOrders, listElectronicsPostOrders, recordPostOrderPayment, updatePostOrderDeliveryStatus, type FoodPostDeliveryStatus, type FoodPostOrder, type ApparelPostOrder, type ElectronicsPostOrder, type PostOrderDeliveryStatus } from '@/features/posts/apparelOrders';
 import { supabase } from '@/lib/supabase/client';
 
 const statusLabel: Record<DeliveryStatus, string> = {
@@ -61,6 +61,8 @@ export function DeliveryPage() {
 function CaptainOrScopedView({ role, userId }: { role: string | null; userId: string | undefined }) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [foodOrders, setFoodOrders] = useState<FoodPostOrder[]>([]);
+  const [apparelOrders, setApparelOrders] = useState<ApparelPostOrder[]>([]);
+  const [electronicsOrders, setElectronicsOrders] = useState<ElectronicsPostOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -69,16 +71,26 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   const refresh = useCallback(async () => {
     setLoading(true); setMessage(null);
     try {
-      const [nextDeliveries, nextFoodOrders] = await Promise.all([
+      const [nextDeliveries, nextFoodOrders, nextApparelOrders, nextElectronicsOrders] = await Promise.all([
         getMyDeliveries(),
         role === 'captain' ? listFoodPostOrders() : Promise.resolve([]),
+        role === 'captain' ? listApparelPostOrders() : Promise.resolve([]),
+        role === 'captain' ? listElectronicsPostOrders() : Promise.resolve([]),
       ]);
       setDeliveries(nextDeliveries);
       setFoodOrders(nextFoodOrders);
+      setApparelOrders(nextApparelOrders);
+      setElectronicsOrders(nextElectronicsOrders);
     }
     catch (error) { setMessage(error instanceof Error ? error.message : 'هەڵەیەک ڕوویدا.'); }
     finally { setLoading(false); }
   }, [role]);
+
+  const shareableOrders = useMemo(() => [
+    ...apparelOrders.map((order) => ({ ...order, orderType: 'apparel_post' as const })),
+    ...electronicsOrders.map((order) => ({ ...order, orderType: 'electronics_post' as const })),
+  ], [apparelOrders, electronicsOrders]);
+  const shareableOffers = useMemo(() => shareableOrders.filter((order) => order.status === 'confirmed' && order.delivery_status === 'pending' && !order.captain_id), [shareableOrders]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useRealtimeCaptainDeliveries(userId, refresh);
@@ -86,6 +98,8 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     if (role !== 'captain') return;
     const channel = supabase.channel('captain-food-post-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'food_post_orders' }, () => { void refresh(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apparel_post_orders' }, () => { void refresh(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'electronics_post_orders' }, () => { void refresh(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [refresh, role]);
@@ -155,6 +169,32 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     finally { setBusyId(null); }
   };
 
+  const claimShareableOrder = async (order: (ApparelPostOrder | ElectronicsPostOrder) & { orderType: 'apparel_post' | 'electronics_post' }) => {
+    setBusyId(order.id); setMessage(null);
+    try { await claimPostOrderDelivery(order.orderType, order.id); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'وەرگرتنی گەیاندن سەرنەکەوت؛ لەوانەیە کاپتنێکی تر پێش تۆی وەرگرتبێت.'); }
+    finally { setBusyId(null); }
+  };
+
+  const advanceShareableOrder = async (order: (ApparelPostOrder | ElectronicsPostOrder) & { orderType: 'apparel_post' | 'electronics_post' }) => {
+    const next: Partial<Record<PostOrderDeliveryStatus, PostOrderDeliveryStatus>> = {
+      accepted: 'picked_up', picked_up: 'on_the_way', on_the_way: 'arrived', arrived: 'delivered',
+    };
+    const target = next[order.delivery_status];
+    if (!target) return;
+    setBusyId(order.id); setMessage(null);
+    try { await updatePostOrderDeliveryStatus(order.orderType, order.id, target); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'نوێکردنەوەی دۆخی گەیاندن سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
+  const recordShareablePayment = async (order: (ApparelPostOrder | ElectronicsPostOrder) & { orderType: 'apparel_post' | 'electronics_post' }) => {
+    setBusyId(order.id); setMessage(null);
+    try { await recordPostOrderPayment(order.orderType, order.id, Number(order.total_iqd)); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'تۆمارکردنی پارە سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
   return (
     <DeliveryLayout eyebrow="Captain workspace" title="گەیاندنەکانی تۆ" subtitle={role === 'captain' ? 'داواکارییە نوێکان لێرە وەردەگریت و دەتوانیت گەیاندنە سپێردراوەکانت بەڕێوەببەیت.' : 'ئەم بەشە بەپێی دەسەڵاتی هەژمارەکەت داتای گەیاندن پیشان دەدات.'} onRefresh={() => void refresh()} refreshing={loading}>
       {message ? <Notice text={message} /> : null}
@@ -167,7 +207,8 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
           {foodOffers.map((order) => (
             <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id} onAction={() => void claimFoodOrder(order)} actionLabel="وەرگرتنی داواکاری" />
           ))}
-          {!loading && offers.length === 0 && foodOffers.length === 0 ? <Empty text="هێشتا هیچ داواکارییەکی نوێ بۆ وەرگرتن نییە." /> : null}
+          {shareableOffers.map((order) => <PostDeliveryCard key={order.orderType + ':' + order.id} order={order} busy={busyId === order.id} onAction={() => void claimShareableOrder(order)} actionLabel="وەرگرتنی داواکاری" />)}
+          {!loading && offers.length === 0 && foodOffers.length === 0 && shareableOffers.length === 0 ? <Empty text="هێشتا هیچ داواکارییەکی نوێ بۆ وەرگرتن نییە." /> : null}
         </section>
       ) : null}
       {role === 'captain' ? <section className="space-y-3">
@@ -189,6 +230,18 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
           <FoodPostCaptainCard key={order.id} order={order} busy={false} />
         ))}
         {!loading && !foodOrders.some((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')) ? <Empty text="مێژووی داواکاریی خواردن بەتاڵە." /> : null}
+      </section> : null}
+      {role === 'captain' ? <section className="space-y-3">
+        <div className="flex items-center gap-2 px-1"><PackageCheck size={18} className="text-[var(--shakh-green)]"/><h2 className="text-lg font-black">داواکاریی بازاڕ و جل‌وبەرگ</h2></div>
+        {shareableOrders.filter((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending'))).map((order) => {
+          const next: Partial<Record<PostOrderDeliveryStatus, PostOrderDeliveryStatus>> = { accepted: 'picked_up', picked_up: 'on_the_way', on_the_way: 'arrived', arrived: 'delivered' };
+          const target = next[order.delivery_status];
+          const needsPayment = order.delivery_status === 'delivered' && order.payment_status === 'pending';
+          return <PostDeliveryCard key={order.orderType + ':' + order.id} order={order} busy={busyId === order.id}
+            onAction={() => void (needsPayment ? recordShareablePayment(order) : advanceShareableOrder(order))}
+            actionLabel={needsPayment ? 'تۆمارکردنی وەرگرتنی پارە' : target ? 'گواستنەوە بۆ ' + foodDeliveryStatusLabel[target] : 'چاوەڕوانی'} />;
+        })}
+        {!loading && !shareableOrders.some((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending'))) ? <Empty text="هیچ داواکارییەکی بازاڕ یان جل‌وبەرگی سپێردراوت نییە." /> : null}
       </section> : null}
       <section className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
         <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_60px_rgba(16,22,35,.05)] sm:p-7">
@@ -336,4 +389,33 @@ function Empty({ text }: { text: string }) { return <div className="grid min-h-4
 function Stat({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-white/5 p-4"><div className="text-xs font-bold text-white/40">{label}</div><div className="mt-1 text-xl font-black">{value}</div></div>; }
 function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) { return <div className="rounded-3xl border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)]"><div className="flex items-center gap-2 text-xs font-black text-black/40">{icon}{label}</div><div className="mt-2 text-2xl font-black">{value.toLocaleString('en-US')}</div></div>; }
 function MiniInfo({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-white p-4"><div className="text-[11px] font-bold text-black/35">{label}</div><div className="mt-1 truncate text-sm font-black">{value}</div></div>; }
+
+function PostDeliveryCard({ order, busy, onAction, actionLabel }: {
+  order: (ApparelPostOrder | ElectronicsPostOrder) & { orderType: 'apparel_post' | 'electronics_post' };
+  busy: boolean;
+  onAction: () => void;
+  actionLabel: string;
+}) {
+  const statusLabels: Record<string, string> = {
+    pending: 'لە چاوەڕوانی', accepted: 'وەرگیراوە', picked_up: 'لە فرۆشگا وەرگیراوە',
+    on_the_way: 'لە ڕێگایە', arrived: 'گەیشتووە', delivered: 'گەیەنراوە',
+    failed: 'سەرنەکەوتووە', cancelled: 'هەڵوەشێنراوەتەوە',
+  };
+  const isPaymentAction = actionLabel === 'تۆمارکردنی وەرگرتنی پارە';
+  return <article className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-sm">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div><div className="text-xs font-mono font-bold text-[var(--shakh-blue)]" dir="ltr">{order.order_number}</div>
+        <h3 className="mt-1 font-black">{order.post_title}</h3>
+        <div className="mt-1 text-xs text-black/45">{order.orderType === 'apparel_post' ? 'جل‌وبەرگ' : 'بەرهەمی بازاڕ'} · {order.delivery_city}</div>
+      </div>
+      <span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1.5 text-xs font-black">{statusLabels[order.delivery_status] ?? order.delivery_status}</span>
+    </div>
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="rounded-xl bg-[var(--shakh-bg)] p-3"><div className="text-xs text-black/40">ناونیشانی گەیاندن</div><div className="mt-1 text-sm font-bold">{order.delivery_address}</div><div className="mt-1 text-xs text-black/45">{order.buyer_phone}</div></div>
+      <div className="rounded-xl bg-[var(--shakh-bg)] p-3"><div className="text-xs text-black/40">کۆی کاش لە کڕیار</div><div className="mt-1 text-lg font-black">{Number(order.total_iqd).toLocaleString('en-US')} د.ع</div><div className="mt-1 text-xs text-black/45">{order.payment_method === 'cash_on_delivery' ? 'پارە لە کاتی گەیاندن' : 'Mobile Cash'}</div></div>
+    </div>
+    {order.delivery_status === 'delivered' && order.payment_status === 'collected' ? <p className="mt-3 text-xs font-bold text-emerald-700">گەیاندن و وەرگرتنی پارە تۆمار کراوە.</p> : null}
+    <button type="button" disabled={busy || (!isPaymentAction && order.delivery_status === 'delivered')} onClick={onAction} className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40"><Check size={15}/>{busy ? 'تۆمارکردن...' : actionLabel}</button>
+  </article>;
+}
 
