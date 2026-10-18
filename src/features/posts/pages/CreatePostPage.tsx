@@ -520,7 +520,7 @@ export function CreatePostPage() {
           <AuthFeedback error={error} />
           {success ? <AuthSuccess>پۆستەکە بە سەرکەوتوویی بڵاوکرایەوە.</AuthSuccess> : null}
 
-          {category === 'food' || category === 'fashion' || category === 'electronics' ? (
+          {['food','fashion','electronics','general','supermarket','beauty','kids','online_stores','delivery'].includes(category) ? (
             <section className="space-y-2 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.045] p-4">
               <label className="block text-sm font-black" htmlFor="post-referral-reward">
                 خەڵاتی شێرکردن بۆ هەر داواکارییەکی تەواوبوو (د.ع)
