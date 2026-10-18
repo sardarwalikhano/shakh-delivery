@@ -59,7 +59,7 @@ export function PrepaidWalletPage() {
       const path = user.id+'/'+crypto.randomUUID()+'.'+ext;
       const upload = await supabase.storage.from('wallet-payment-receipts').upload(path,receipt,{contentType:receipt.type,upsert:false});
       if (upload.error) throw upload.error;
-      const {data,error:rpcError} = await supabase.rpc('request_prepaid_topup',{p_amount_iqd:Number(amount),p_payment_method:method,p_receipt_path:path,p_sender_reference:reference.trim()||null,p_note:note.trim()||null});
+      const {error:rpcError} = await supabase.rpc('request_prepaid_topup',{p_amount_iqd:Number(amount),p_payment_method:method,p_receipt_path:path,p_sender_reference:reference.trim()||null,p_note:note.trim()||null});
       if (rpcError) { await supabase.storage.from('wallet-payment-receipts').remove([path]); throw rpcError; }
       setMessage('داواکاری زیادکردنی باڵانس نێردرا؛ تا پەسەندکردنی ئەدمین باڵانس زیاد نابێت.');
       setReceipt(null); setReference(''); setNote('');
