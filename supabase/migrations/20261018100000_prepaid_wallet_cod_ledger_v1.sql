@@ -133,6 +133,7 @@ as $$
 declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.has_permission('wallets.view_own') then raise exception using errcode='42501',message='This account is not eligible for prepaid wallet top-ups'; end if;
   if p_amount_iqd < 1 or p_amount_iqd > 100000000 then raise exception 'Invalid top-up amount'; end if;
   if p_payment_method not in ('mobile_cash','zain_cash','fastpay','qi_card','bank_transfer','other') then raise exception 'Invalid payment method'; end if;
   if p_receipt_path is null or length(trim(p_receipt_path)) < 3 then raise exception 'Payment receipt is required'; end if;
