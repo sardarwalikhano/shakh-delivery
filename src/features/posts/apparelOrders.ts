@@ -69,8 +69,9 @@ export async function createProductPostOrder(input: {
   buyerPhone: string;
   customerNote?: string | null;
   paymentMethod: 'cash_on_delivery' | 'mobile_cash';
+  shareLinkId?: string | null;
 }): Promise<void> {
-  const { error } = await supabase.rpc('create_product_post_order', {
+  const { error } = await supabase.rpc('create_product_post_order_with_share', {
     p_request_id: input.requestId,
     p_post_id: input.postId,
     p_quantity: input.quantity,
@@ -79,6 +80,7 @@ export async function createProductPostOrder(input: {
     p_delivery_city: input.deliveryCity,
     p_customer_note: input.customerNote ?? null,
     p_payment_method: input.paymentMethod,
+    p_share_link_id: input.shareLinkId ?? null,
   });
   if (error) throw new Error(readableDeliveryError(error.message));
 }
