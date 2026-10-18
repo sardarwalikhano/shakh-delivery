@@ -35,6 +35,7 @@ import { MyPostsPage } from '@/features/posts/pages/MyPostsPage';
 import { ApparelPostOrdersPage } from '@/features/posts/pages/ApparelPostOrdersPage';
 import { FoodPostCheckoutPage } from '@/features/posts/pages/FoodPostCheckoutPage';
 import { ReferralWalletPage } from '@/features/posts/pages/ReferralWalletPage';
+import { WalletFinancePage } from '@/features/wallets/WalletFinancePage';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function App() {
@@ -79,6 +80,7 @@ export function App() {
           <Route path="/dashboard/role-requests" element={<RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission>} />
           <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission>} />
           <Route path="/dashboard/referral-wallet" element={<RequirePermission permission="posts.view"><ReferralWalletPage /></RequirePermission>} />
+          <Route path="/dashboard/wallets" element={<RequirePermission permission="wallets.view_own"><WalletFinancePage /></RequirePermission>} />
           <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission>} />
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
