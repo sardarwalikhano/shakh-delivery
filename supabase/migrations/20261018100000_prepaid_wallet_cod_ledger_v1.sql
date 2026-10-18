@@ -135,6 +135,7 @@ begin
   if p_amount_iqd < 1 or p_amount_iqd > 100000000 then raise exception 'Invalid top-up amount'; end if;
   if p_payment_method not in ('mobile_cash','zain_cash','fastpay','qi_card','bank_transfer','other') then raise exception 'Invalid payment method'; end if;
   if p_receipt_path is null or length(trim(p_receipt_path)) < 3 then raise exception 'Payment receipt is required'; end if;
+  if (storage.foldername(trim(p_receipt_path)))[1] is distinct from auth.uid()::text then raise exception 'Receipt must belong to the authenticated user'; end if;
   if length(p_receipt_path) > 1000 or length(coalesce(p_sender_reference,'')) > 200 or length(coalesce(p_note,'')) > 1000 then raise exception 'Input too long'; end if;
   if exists (select 1 from public.prepaid_topup_requests r where r.user_id=auth.uid() and r.status='pending') then
     raise exception 'You already have a pending top-up request';
