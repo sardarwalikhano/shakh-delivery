@@ -5,7 +5,7 @@ import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { assignCaptain, claimDelivery, getAvailableCaptains, getDispatchDeliveries, getMyDeliveries, updateCaptainDelivery, updateCaptainLocation, type Captain, type Delivery, type DeliveryStatus } from '../api';
 import { useRealtimeCaptainDeliveries } from '@/features/realtime/hooks';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/maps/navigation';
-import { claimFoodPostDelivery, listFoodPostOrders, recordFoodPostPayment, updateFoodPostDeliveryStatus, type FoodPostDeliveryStatus, type FoodPostOrder } from '@/features/posts/apparelOrders';
+import { claimFoodPostDelivery, listFoodPostOrders, recordFoodPostPayment, updateFoodPostDeliveryStatus, listApparelPostOrders, listElectronicsPostOrders, claimDirectPostDelivery, updateDirectPostDeliveryStatus, recordDirectPostPayment, type FoodPostDeliveryStatus, type FoodPostOrder, type ApparelPostOrder, type ElectronicsPostOrder, type DirectPostDeliveryStatus, type DirectPostOrderType } from '@/features/posts/apparelOrders';
 import { supabase } from '@/lib/supabase/client';
 
 const statusLabel: Record<DeliveryStatus, string> = {
@@ -51,6 +51,67 @@ const statusTone: Record<DeliveryStatus, string> = {
   cancelled: 'bg-red-50 text-red-600',
 };
 
+
+type DirectCaptainOrder = {
+  id: string;
+  order_type: DirectPostOrderType;
+  order_number: string;
+  post_title: string;
+  quantity: number;
+  delivery_city: string;
+  delivery_address: string;
+  buyer_phone: string;
+  line_total_iqd: number;
+  delivery_fee_iqd: number;
+  platform_fee_iqd: number;
+  total_iqd: number;
+  payment_method: 'cash_on_delivery' | 'mobile_cash';
+  payment_status: 'pending' | 'collected' | 'failed' | 'refunded';
+  status: string;
+  captain_id: string | null;
+  delivery_status: DirectPostDeliveryStatus;
+};
+
+const nextDirectDeliveryStatus: Partial<Record<DirectPostDeliveryStatus, DirectPostDeliveryStatus>> = {
+  accepted: 'picked_up',
+  picked_up: 'on_the_way',
+  on_the_way: 'arrived',
+  arrived: 'delivered',
+};
+const directDeliveryStatusLabel: Record<DirectPostDeliveryStatus, string> = {
+  pending: 'لە چاوەڕوانی',
+  accepted: 'وەرگیراوە',
+  picked_up: 'کاڵا وەرگیراوە',
+  on_the_way: 'لە ڕێگایە',
+  arrived: 'گەیشتووە',
+  delivered: 'گەیەنراوە',
+  failed: 'سەرنەکەوتووە',
+  cancelled: 'هەڵوەشێنراوەتەوە',
+};
+
+function mapApparelToCaptainOrder(order: ApparelPostOrder): DirectCaptainOrder {
+  return {
+    id: order.id, order_type: 'apparel_post', order_number: order.order_number,
+    post_title: order.post_title, quantity: order.quantity, delivery_city: order.delivery_city,
+    delivery_address: order.delivery_address, buyer_phone: order.buyer_phone,
+    line_total_iqd: order.line_total_iqd, delivery_fee_iqd: order.delivery_fee_iqd,
+    platform_fee_iqd: order.platform_fee_iqd, total_iqd: order.total_iqd,
+    payment_method: order.payment_method, payment_status: order.payment_status,
+    status: order.status, captain_id: order.captain_id, delivery_status: order.delivery_status,
+  };
+}
+function mapProductToCaptainOrder(order: ElectronicsPostOrder): DirectCaptainOrder {
+  return {
+    id: order.id, order_type: 'product_post', order_number: order.order_number,
+    post_title: order.post_title, quantity: order.quantity, delivery_city: order.delivery_city,
+    delivery_address: order.delivery_address, buyer_phone: order.buyer_phone,
+    line_total_iqd: order.line_total_iqd, delivery_fee_iqd: order.delivery_fee_iqd,
+    platform_fee_iqd: order.platform_fee_iqd, total_iqd: order.total_iqd,
+    payment_method: order.payment_method, payment_status: order.payment_status,
+    status: order.status, captain_id: order.captain_id, delivery_status: order.delivery_status,
+  };
+}
+
 export function DeliveryPage() {
   const { user } = useAuth();
   const { role, hasPermission } = useAuthorization();
@@ -61,6 +122,7 @@ export function DeliveryPage() {
 function CaptainOrScopedView({ role, userId }: { role: string | null; userId: string | undefined }) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [foodOrders, setFoodOrders] = useState<FoodPostOrder[]>([]);
+  const [directOrders, setDirectOrders] = useState<DirectCaptainOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -69,12 +131,18 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   const refresh = useCallback(async () => {
     setLoading(true); setMessage(null);
     try {
-      const [nextDeliveries, nextFoodOrders] = await Promise.all([
+      const [nextDeliveries, nextFoodOrders, nextApparelOrders, nextProductOrders] = await Promise.all([
         getMyDeliveries(),
         role === 'captain' ? listFoodPostOrders() : Promise.resolve([]),
+        role === 'captain' ? listApparelPostOrders() : Promise.resolve([]),
+        role === 'captain' ? listElectronicsPostOrders() : Promise.resolve([]),
       ]);
       setDeliveries(nextDeliveries);
       setFoodOrders(nextFoodOrders);
+      setDirectOrders([
+        ...nextApparelOrders.map(mapApparelToCaptainOrder),
+        ...nextProductOrders.map(mapProductToCaptainOrder),
+      ]);
     }
     catch (error) { setMessage(error instanceof Error ? error.message : 'هەڵەیەک ڕوویدا.'); }
     finally { setLoading(false); }
@@ -84,8 +152,10 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   useRealtimeCaptainDeliveries(userId, refresh);
   useEffect(() => {
     if (role !== 'captain') return;
-    const channel = supabase.channel('captain-food-post-orders')
+    const channel = supabase.channel('captain-post-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'food_post_orders' }, () => { void refresh(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apparel_post_orders' }, () => { void refresh(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'electronics_post_orders' }, () => { void refresh(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [refresh, role]);
@@ -115,6 +185,10 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
 
   const offers = useMemo(() => deliveries.filter((d) => d.status === 'pending' && d.captain_id == null), [deliveries]);
   const foodOffers = useMemo(() => foodOrders.filter((order) => order.status === 'confirmed' && order.delivery_status === 'pending' && !order.captain_id), [foodOrders]);
+  const directOffers = useMemo(() => directOrders.filter((order) => order.status === 'confirmed' && order.delivery_status === 'pending' && !order.captain_id), [directOrders]);
+  const directActive = useMemo(() => directOrders.filter((order) => order.captain_id === userId && !['delivered','failed','cancelled'].includes(order.delivery_status)), [directOrders,userId]);
+  const directAwaitingCash = useMemo(() => directOrders.filter((order) => order.captain_id === userId && order.delivery_status === 'delivered' && order.payment_method === 'cash_on_delivery' && order.payment_status === 'pending'), [directOrders,userId]);
+  const directHistory = useMemo(() => directOrders.filter((order) => order.captain_id === userId && (['failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && !(order.payment_method === 'cash_on_delivery' && order.payment_status === 'pending')))), [directOrders,userId]);
   const canAdvance = Boolean(active && nextStatus[active.status]);
 
   const claim = async (delivery: Delivery) => {
@@ -155,6 +229,31 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     finally { setBusyId(null); }
   };
 
+
+  const claimDirectOrder = async (order: DirectCaptainOrder) => {
+    setBusyId(order.id); setMessage(null);
+    try { await claimDirectPostDelivery(order.order_type,order.id); await refresh(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'وەرگرتنی گەیاندن سەرنەکەوت؛ لەوانەیە کاپتنێکی تر پێش تۆی وەرگرتبێت.'); }
+    finally { setBusyId(null); }
+  };
+
+  const advanceDirectOrder = async (order: DirectCaptainOrder) => {
+    const target=nextDirectDeliveryStatus[order.delivery_status];
+    if(!target) return;
+    setBusyId(order.id); setMessage(null);
+    try { await updateDirectPostDeliveryStatus(order.order_type,order.id,target); await refresh(); }
+    catch(error) { setMessage(error instanceof Error ? error.message : 'نوێکردنەوەی دۆخی گەیاندن سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
+  const recordDirectPayment = async (order: DirectCaptainOrder) => {
+    setBusyId(order.id); setMessage(null);
+    try { await recordDirectPostPayment(order.order_type,order.id,Number(order.total_iqd)); await refresh(); }
+    catch(error) { setMessage(error instanceof Error ? error.message : 'تۆمارکردنی پارەی کاش سەرنەکەوت.'); }
+    finally { setBusyId(null); }
+  };
+
+
   return (
     <DeliveryLayout eyebrow="Captain workspace" title="گەیاندنەکانی تۆ" subtitle={role === 'captain' ? 'داواکارییە نوێکان لێرە وەردەگریت و دەتوانیت گەیاندنە سپێردراوەکانت بەڕێوەببەیت.' : 'ئەم بەشە بەپێی دەسەڵاتی هەژمارەکەت داتای گەیاندن پیشان دەدات.'} onRefresh={() => void refresh()} refreshing={loading}>
       {message ? <Notice text={message} /> : null}
@@ -167,7 +266,8 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
           {foodOffers.map((order) => (
             <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id} onAction={() => void claimFoodOrder(order)} actionLabel="وەرگرتنی داواکاری" />
           ))}
-          {!loading && offers.length === 0 && foodOffers.length === 0 ? <Empty text="هێشتا هیچ داواکارییەکی نوێ بۆ وەرگرتن نییە." /> : null}
+          {directOffers.map((order) => <DirectPostCaptainCard key={order.order_type+':'+order.id} order={order} busy={busyId===order.id} onAction={() => void claimDirectOrder(order)} actionLabel="وەرگرتنی گەیاندن" />)}
+          {!loading && offers.length === 0 && foodOffers.length === 0 && directOffers.length === 0 ? <Empty text="هێشتا هیچ داواکارییەکی نوێ بۆ وەرگرتن نییە." /> : null}
         </section>
       ) : null}
       {role === 'captain' ? <section className="space-y-3">
@@ -190,6 +290,25 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
         ))}
         {!loading && !foodOrders.some((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')) ? <Empty text="مێژووی داواکاریی خواردن بەتاڵە." /> : null}
       </section> : null}
+
+      {role === 'captain' ? <section className="space-y-3">
+        <div className="flex items-center gap-2 px-1"><Truck size={18} className="text-[var(--shakh-blue)]"/><h2 className="text-lg font-black">گەیاندنی جل‌وبەرگ و بازاڕی گشتی</h2></div>
+        {directActive.map(order=>{
+          const target=nextDirectDeliveryStatus[order.delivery_status];
+          return <DirectPostCaptainCard key={order.order_type+':'+order.id} order={order} busy={busyId===order.id}
+            onAction={target?()=>void advanceDirectOrder(order):undefined}
+            actionLabel={target ? ('گواستنەوە بۆ ' + directDeliveryStatusLabel[target]) : undefined}/>;
+        })}
+        {directAwaitingCash.map(order=><DirectPostCaptainCard key={order.order_type+':'+order.id} order={order} busy={busyId===order.id}
+          onAction={()=>void recordDirectPayment(order)} actionLabel="تۆمارکردنی وەرگرتنی پارە"/>)}
+        {!loading && !directActive.length && !directAwaitingCash.length ? <Empty text="هیچ گەیاندنێکی جل‌وبەرگ یان بازاڕی گشتی بۆ بەڕێوەبردن نییە."/> : null}
+      </section> : null}
+      {role === 'captain' ? <section className="space-y-3">
+        <div className="flex items-center gap-2 px-1"><PackageCheck size={18} className="text-[var(--shakh-green)]"/><h2 className="text-lg font-black">مێژووی جل‌وبەرگ و بازاڕی گشتی</h2></div>
+        {directHistory.map(order=><DirectPostCaptainCard key={order.order_type+':'+order.id} order={order} busy={false}/>)}
+        {!loading && !directHistory.length ? <Empty text="مێژووی گەیاندنی بەرهەمە گشتییەکان بەتاڵە."/> : null}
+      </section> : null}
+
       <section className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
         <div className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_18px_60px_rgba(16,22,35,.05)] sm:p-7">
           <div className="flex items-center justify-between gap-4">
@@ -320,6 +439,28 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
         <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
       </div>
       {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy ? 'چاوەڕوانبە...' : actionLabel}</button> : null}
+    </div>
+  </article>;
+}
+
+
+function DirectPostCaptainCard({ order, busy, onAction, actionLabel }: { order: DirectCaptainOrder; busy: boolean; onAction?: () => void; actionLabel?: string }) {
+  const category = order.order_type === 'apparel_post' ? 'جل‌وبەرگ' : 'بەرهەمی بازاڕ';
+  return <article className="rounded-[28px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.04)] sm:p-6">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[11px] font-black text-[var(--shakh-orange)]">{category} · {directDeliveryStatusLabel[order.delivery_status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{order.order_number}</span></div>
+        <h3 className="mt-2 font-black">{order.post_title} × {order.quantity}</h3>
+        <div className="mt-2 space-y-1 text-sm font-bold text-black/55"><div>{order.delivery_city} · {order.delivery_address}</div><div dir="ltr" className="text-start">{order.buyer_phone}</div></div>
+        <div className="mt-4 grid gap-2 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm">
+          <FoodAmount label="کۆی بەرهەم" amount={order.line_total_iqd}/>
+          <FoodAmount label="کرێی گەیاندن" amount={order.delivery_fee_iqd}/>
+          <FoodAmount label="کرێی پلاتفۆرم" amount={order.platform_fee_iqd}/>
+          <FoodAmount label="کۆی پارەی کڕیار" amount={order.total_iqd} strong/>
+        </div>
+        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method==='cash_on_delivery'?'کاش لە کاتی گەیاندن':'Mobile Cash'} · {order.payment_status==='collected'?'پارە وەرگیراوە':order.delivery_status==='delivered'?'چاوەڕوانی تۆمارکردنی پارە':'تا گەیاندن چاوەڕوانە'}</div>
+      </div>
+      {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy?'چاوەڕوانبە...':actionLabel}</button> : null}
     </div>
   </article>;
 }
