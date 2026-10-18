@@ -7,6 +7,9 @@ import { supabase } from '@/lib/supabase/client';
 type Account = { user_id: string; balance_iqd: number; held_iqd: number; lifetime_credited_iqd: number; lifetime_spent_iqd: number };
 type Topup = { id: string; user_id: string; amount_iqd: number; payment_method: string; receipt_path: string; sender_reference: string | null; note: string | null; status: 'pending'|'approved'|'rejected'; admin_note: string | null; requested_at: string };
 type Tx = { id: string; transaction_type: string; amount_iqd: number; description_ku: string; created_at: string };
+type CaptainEarning = { id: string; captain_id: string; order_type: string; order_id: string; delivery_fee_iqd: number; commission_iqd: number; net_earning_iqd: number; earning_day: string; created_at: string };
+type CashRow = { id: string; captain_id: string; order_id: string; product_subtotal_iqd: number; delivery_fee_iqd: number; platform_fee_iqd: number; cash_collected_iqd: number; cash_remitted_iqd: number; status: string; collected_at: string; note: string | null };
+type CaptainProfile = { id: string; full_name: string | null; phone: string | null };
 const fmt = (v: number | string | null | undefined) => Math.round(Number(v ?? 0)).toLocaleString('en-US') + ' د.ع';
 const date = (v: string) => new Date(v).toLocaleString('ku-IQ',{dateStyle:'medium',timeStyle:'short'});
 const methods: Record<string,string> = {mobile_cash:'Mobile Cash',zain_cash:'ZainCash',fastpay:'FastPay',qi_card:'Qi Card',bank_transfer:'گواستنەوەی بانکی',other:'ڕێگای تر'};
@@ -18,6 +21,11 @@ export function PrepaidWalletPage() {
   const [account,setAccount] = useState<Account|null>(null);
   const [requests,setRequests] = useState<Topup[]>([]);
   const [transactions,setTransactions] = useState<Tx[]>([]);
+  const [dailyEarnings,setDailyEarnings] = useState<CaptainEarning[]>([]);
+  const [cashLedger,setCashLedger] = useState<CashRow[]>([]);
+  const [captainProfiles,setCaptainProfiles] = useState<Record<string,CaptainProfile>>({});
+  const [settlementAmounts,setSettlementAmounts] = useState<Record<string,string>>({});
+  const [settlementNotes,setSettlementNotes] = useState<Record<string,string>>({});
   const [amount,setAmount] = useState('25000');
   const [method,setMethod] = useState('mobile_cash');
   const [receipt,setReceipt] = useState<File|null>(null);
@@ -32,15 +40,26 @@ export function PrepaidWalletPage() {
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
-    const [accountRes,txRes,requestRes] = await Promise.all([
+    const [accountRes,txRes,requestRes,earningRes,cashRes] = await Promise.all([
       supabase.from('prepaid_wallet_accounts').select('user_id,balance_iqd,held_iqd,lifetime_credited_iqd,lifetime_spent_iqd').eq('user_id',user.id).maybeSingle(),
       supabase.from('prepaid_wallet_transactions').select('id,transaction_type,amount_iqd,description_ku,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50),
       supabase.from('prepaid_topup_requests').select('id,user_id,amount_iqd,payment_method,receipt_path,sender_reference,note,status,admin_note,requested_at').order('requested_at',{ascending:false}).limit(100),
+      supabase.from('captain_delivery_earnings').select('id,captain_id,order_type,order_id,delivery_fee_iqd,commission_iqd,net_earning_iqd,earning_day,created_at').order('earning_day',{ascending:false}).limit(100),
+      supabase.from('captain_cash_ledger').select('id,captain_id,order_id,product_subtotal_iqd,delivery_fee_iqd,platform_fee_iqd,cash_collected_iqd,cash_remitted_iqd,status,collected_at,note').order('collected_at',{ascending:false}).limit(150),
     ]);
-    const err = accountRes.error ?? txRes.error ?? requestRes.error;
+    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error;
     if (err) { setError(err.message); return; }
     setAccount(accountRes.data as Account|null);
     setTransactions((txRes.data ?? []) as Tx[]);
+    const earnings = (earningRes.data ?? []) as CaptainEarning[];
+    const cashRows = (cashRes.data ?? []) as CashRow[];
+    setDailyEarnings(earnings);
+    setCashLedger(cashRows);
+    const profileIds = [...new Set(cashRows.map(row=>row.captain_id))];
+    if (canManage && profileIds.length) {
+      const {data:profiles} = await supabase.from('profiles').select('id,full_name,phone').in('id',profileIds);
+      setCaptainProfiles(Object.fromEntries(((profiles ?? []) as CaptainProfile[]).map(profile=>[profile.id,profile])));
+    } else setCaptainProfiles({});
     const rows = (requestRes.data ?? []) as Topup[];
     setRequests(canManage ? rows : rows.filter(x=>x.user_id===user.id));
   },[canManage,user]);
