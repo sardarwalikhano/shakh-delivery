@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDownToLine, BadgeCheck, Banknote, CalendarClock, CircleAlert, Gift, RefreshCw, Wallet, WalletCards } from 'lucide-react';
+import { ArrowDownToLine, BadgeCheck, Banknote, CalendarClock, CircleAlert, FileText, Gift, RefreshCw, Upload, Wallet, WalletCards } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { supabase } from '@/lib/supabase/client';
@@ -43,6 +43,7 @@ type WithdrawalRequest = {
   requested_at: string;
   reviewed_at: string | null;
   paid_at: string | null;
+  payout_proof_path?: string | null;
 };
 
 type ReferralReward = {
@@ -113,8 +114,8 @@ function statusTone(status: string): string {
 
 export function ReferralWalletPage() {
   const { user } = useAuth();
-  const { permissions } = useAuthorization();
-  const canManageWithdrawals = permissions.has('share_rewards.manage');
+  const { permissions, roles } = useAuthorization();
+  const canManageWithdrawals = permissions.has('share_rewards.manage') && roles.includes('super_admin');
   const [snapshot, setSnapshot] = useState<WalletSnapshot>(emptyWallet);
   const [adminRequests, setAdminRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,8 @@ export function ReferralWalletPage() {
   const [payoutAccount, setPayoutAccount] = useState('');
   const [withdrawalNote, setWithdrawalNote] = useState('');
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
+  const [payoutProofFiles, setPayoutProofFiles] = useState<Record<string, File | null>>({});
+  const [payoutReferences, setPayoutReferences] = useState<Record<string, string>>({});
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -145,6 +148,7 @@ export function ReferralWalletPage() {
         recipient_account: string | null;
         recipient_phone: string | null;
         user_note: string | null;
+        payout_proof_path?: string | null;
         status: string;
         admin_note: string | null;
         payout_reference?: string | null;
@@ -182,6 +186,7 @@ export function ReferralWalletPage() {
         requested_at: item.requested_at,
         reviewed_at: item.reviewed_at,
         paid_at: item.status === 'paid' ? item.reviewed_at : null,
+        payout_proof_path: item.payout_proof_path ?? null,
       });
 
       if (!summary) {
@@ -224,7 +229,7 @@ export function ReferralWalletPage() {
       if (canManageWithdrawals) {
         const { data: requests, error: requestsError } = await supabase
           .from('share_withdrawal_requests')
-          .select('id,user_id,amount_iqd,payment_method,recipient_name,recipient_account,recipient_phone,user_note,status,admin_note,payout_reference,requested_at,reviewed_at')
+          .select('id,user_id,amount_iqd,payment_method,recipient_name,recipient_account,recipient_phone,user_note,status,admin_note,payout_reference,payout_proof_path,requested_at,reviewed_at')
           .order('requested_at', { ascending: false })
           .limit(100);
         if (requestsError) throw requestsError;
@@ -260,7 +265,7 @@ export function ReferralWalletPage() {
 
     setBusy(true);
     try {
-      const phoneMethods = ['mobile_cash', 'zain_cash', 'fastpay', 'qi_card'];
+      const phoneMethods = ['mobile_cash', 'zain_cash', 'fastpay', 'fib', 'qi_card'];
       const amountToWithdraw = Math.floor(available);
       const { data, error: requestError } = await supabase.rpc('request_share_withdrawal', {
         p_amount_iqd: amountToWithdraw,
@@ -289,14 +294,28 @@ export function ReferralWalletPage() {
     setError(null);
     setMessage(null);
     try {
-      const { error: actionError } = await supabase.rpc('review_share_withdrawal', {
+      let proofPath: string | null = null;
+      if (action === 'mark_paid') {
+        const proof = payoutProofFiles[request.id];
+        if (!proof || !user) throw new Error('پێش نیشانکردنی پارەدرا، بەڵگەنامەی پارەدان بار بکە.');
+        if (!['image/jpeg','image/png','image/webp','application/pdf'].includes(proof.type) || proof.size > 10 * 1024 * 1024) {
+          throw new Error('بەڵگە دەبێت JPG، PNG، WebP یان PDF بێت و لە ١٠MB بچووکتر بێت.');
+        }
+        const extension = proof.type === 'image/png' ? 'png' : proof.type === 'image/webp' ? 'webp' : proof.type === 'application/pdf' ? 'pdf' : 'jpg';
+        proofPath = 'payouts/' + request.user_id + '/' + request.id + '/' + crypto.randomUUID() + '.' + extension;
+        const { error: uploadError } = await supabase.storage.from('wallet-proofs').upload(proofPath, proof, { contentType: proof.type, cacheControl: '3600', upsert: false });
+        if (uploadError) throw uploadError;
+      }
+      const { error: actionError } = await supabase.rpc('review_share_withdrawal_with_proof', {
         p_request_id: request.id,
         p_action: action === 'mark_paid' ? 'paid' : 'rejected',
         p_admin_note: adminNote[request.id]?.trim() || null,
-        p_payout_reference: null,
+        p_payout_reference: payoutReferences[request.id]?.trim() || null,
+        p_payout_proof_path: proofPath,
       });
       if (actionError) throw actionError;
-      setMessage(action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکە گەڕێندرایەوە.' : 'پارەدان بە دەستی تیمی دارایی تۆمارکرا.');
+      setPayoutProofFiles((current) => ({ ...current, [request.id]: null }));
+      setMessage(action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکە گەڕێندرایەوە.' : 'پارەدان تۆمار کرا و بەڵگەنامەکە پاشەکەوت کرا.');
       await refresh();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'جێبەجێکردنی داواکاری سەرنەکەوت.');
@@ -340,7 +359,7 @@ export function ReferralWalletPage() {
             </label>
             <label className="block text-sm font-black">ڕێگای وەرگرتنی پارە
               <select value={payoutMethod} onChange={(event) => setPayoutMethod(event.target.value)} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal">
-                <option value="mobile_cash">Mobile Cash</option><option value="zain_cash">ZainCash</option><option value="fastpay">FastPay</option><option value="bank_transfer">گواستنەوەی بانکی</option><option value="qi_card">Qi Card</option><option value="other">ڕێگای تر</option>
+                <option value="mobile_cash">Mobile Cash</option><option value="zain_cash">ZainCash</option><option value="fastpay">FastPay</option><option value="fib">FIB</option><option value="bank_transfer">گواستنەوەی بانکی</option><option value="qi_card">Qi Card</option><option value="other">ڕێگای تر</option>
               </select>
             </label>
             <label className="block text-sm font-black">ژمارە یان زانیاریی هەژماری پارەدان
@@ -400,8 +419,17 @@ export function ReferralWalletPage() {
               <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold text-black/45" dir="ltr">{request.user_id}</div><div className="mt-1 text-lg font-black">{formatIQD(request.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{payoutLabels[request.payout_method] ?? request.payout_method} · {formatDate(request.requested_at)}</div></div><span className={'rounded-full px-2.5 py-1 text-[10px] font-black ' + statusTone(request.status)}>{withdrawalStatusLabels[request.status]}</span></div>
               <div className="mt-3 rounded-xl bg-[var(--shakh-bg)] p-3 text-sm"><div><strong>خاوەنی هەژمار: </strong>{request.account_holder_name}</div><div className="mt-1 break-words"><strong>هەژمار: </strong>{request.payout_account}</div>{request.note ? <div className="mt-1"><strong>تێبینی: </strong>{request.note}</div> : null}</div>
               <textarea value={adminNote[request.id] ?? ''} onChange={(event) => setAdminNote((current) => ({ ...current, [request.id]: event.target.value }))} maxLength={2000} className="mt-3 min-h-16 w-full rounded-xl border border-black/10 p-3 text-sm" placeholder="تێبینی بۆ بەکارهێنەر (ئارەزوومەندانە)"/>
+              {request.status === 'pending' ? <>
+                <label className="mt-3 block text-xs font-black">بەڵگەنامەی ناردنی پارە بە FastPay / FIB *
+                  <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setPayoutProofFiles((current) => ({ ...current, [request.id]: event.target.files?.[0] ?? null }))} className="mt-2 block w-full rounded-xl border border-black/10 bg-white p-2 text-xs"/>
+                </label>
+                <label className="mt-3 block text-xs font-black">ژمارەی مامەڵە / reference
+                  <input value={payoutReferences[request.id] ?? ''} onChange={(event) => setPayoutReferences((current) => ({ ...current, [request.id]: event.target.value }))} maxLength={200} className="mt-2 w-full rounded-xl border border-black/10 px-3 py-2 text-sm font-normal" placeholder="FastPay / FIB transaction ID"/>
+                </label>
+              </> : null}
+              {request.payout_proof_path ? <button type="button" onClick={() => void (async () => { const result = await supabase.storage.from('wallet-proofs').createSignedUrl(request.payout_proof_path!,900); if (result.error) setError(result.error.message); else window.open(result.data.signedUrl,'_blank','noopener,noreferrer'); })()} className="mt-3 inline-flex items-center gap-1 text-xs font-black text-[var(--shakh-blue)]"><FileText size={14}/> بینینی بەڵگەنامەی پارەدان</button> : null}
               <div className="mt-3 flex flex-wrap gap-2">
-                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'mark_paid')} className="min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">پارە درا · تۆمارکردن</button> : null}
+                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id || !payoutProofFiles[request.id]} onClick={() => void processRequest(request,'mark_paid')} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40"><Upload size={14}/> پارە درا · تۆمارکردن</button> : null}
                 {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'reject')} className="min-h-10 rounded-xl border border-red-500/20 px-4 text-xs font-black text-red-700 disabled:opacity-40">ڕەتکردنەوە و گەڕاندنەوەی باڵانس</button> : null}
               </div>
             </article>)}
