@@ -43,6 +43,7 @@ type WithdrawalRequest = {
   requested_at: string;
   reviewed_at: string | null;
   paid_at: string | null;
+  payout_receipt_path: string | null;
 };
 
 type ReferralReward = {
@@ -68,6 +69,7 @@ const payoutLabels: Record<string, string> = {
   zain_cash: 'ZainCash',
   mobile_cash: 'Mobile Cash',
   fastpay: 'FastPay',
+  fib: 'FIB',
   bank_transfer: 'گواستنەوەی بانکی',
   qi_card: 'Qi Card',
   other: 'ڕێگای تر',
@@ -77,6 +79,7 @@ const transactionLabels: Record<string, string> = {
   earning: 'خەڵاتی شێرکردن زیادکرا',
   platform_spend_refund: 'گەڕاندنەوەی باڵانس',
   withdrawal_reserved: 'باڵانس بۆ ڕاکێشان گرترا',
+  withdrawal_paid: 'پارەی قازانج نێردرا',
   withdrawal_refund: 'گەڕاندنەوەی پارەی ڕاکێشان',
   reward_pending: 'خەڵات لە چاوەڕوانی گەیاندن',
   reward_available: 'خەڵات چووەتە باڵانس',
@@ -127,6 +130,7 @@ export function ReferralWalletPage() {
   const [payoutAccount, setPayoutAccount] = useState('');
   const [withdrawalNote, setWithdrawalNote] = useState('');
   const [adminNote, setAdminNote] = useState<Record<string, string>>({});
+  const [payoutReceiptFiles, setPayoutReceiptFiles] = useState<Record<string, File>>({});
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -148,6 +152,7 @@ export function ReferralWalletPage() {
         status: string;
         admin_note: string | null;
         payout_reference?: string | null;
+        payout_receipt_path?: string | null;
         requested_at: string;
         reviewed_at: string | null;
       };
@@ -168,6 +173,14 @@ export function ReferralWalletPage() {
         withdrawals?: LegacyWithdrawal[];
       };
       const summary = data as LegacySummary | null;
+      const { data: ownReceiptRows, error: ownReceiptError } = await supabase
+        .from('share_withdrawal_requests')
+        .select('id,payout_receipt_path')
+        .eq('user_id', user.id)
+        .order('requested_at', { ascending: false })
+        .limit(20);
+      if (ownReceiptError) throw ownReceiptError;
+      const receiptByRequest = new Map((ownReceiptRows ?? []).map((item) => [item.id, item.payout_receipt_path]));
       const toWithdrawal = (item: LegacyWithdrawal): WithdrawalRequest => ({
         id: item.id,
         user_id: item.user_id,
@@ -182,6 +195,7 @@ export function ReferralWalletPage() {
         requested_at: item.requested_at,
         reviewed_at: item.reviewed_at,
         paid_at: item.status === 'paid' ? item.reviewed_at : null,
+        payout_receipt_path: item.payout_receipt_path ?? receiptByRequest.get(item.id) ?? null,
       });
 
       if (!summary) {
@@ -224,7 +238,7 @@ export function ReferralWalletPage() {
       if (canManageWithdrawals) {
         const { data: requests, error: requestsError } = await supabase
           .from('share_withdrawal_requests')
-          .select('id,user_id,amount_iqd,payment_method,recipient_name,recipient_account,recipient_phone,user_note,status,admin_note,payout_reference,requested_at,reviewed_at')
+          .select('id,user_id,amount_iqd,payment_method,recipient_name,recipient_account,recipient_phone,user_note,status,admin_note,payout_reference,payout_receipt_path,requested_at,reviewed_at')
           .order('requested_at', { ascending: false })
           .limit(100);
         if (requestsError) throw requestsError;
@@ -260,7 +274,7 @@ export function ReferralWalletPage() {
 
     setBusy(true);
     try {
-      const phoneMethods = ['mobile_cash', 'zain_cash', 'fastpay', 'qi_card'];
+      const phoneMethods = ['mobile_cash', 'zain_cash', 'fastpay', 'fib', 'qi_card'];
       const amountToWithdraw = Math.floor(available);
       const { data, error: requestError } = await supabase.rpc('request_share_withdrawal', {
         p_amount_iqd: amountToWithdraw,
@@ -289,14 +303,27 @@ export function ReferralWalletPage() {
     setError(null);
     setMessage(null);
     try {
-      const { error: actionError } = await supabase.rpc('review_share_withdrawal', {
+      let receiptPath: string | null = null;
+      if (action === 'mark_paid') {
+        const file = payoutReceiptFiles[request.id];
+        if (!file) throw new Error('پێش تۆمارکردنی پارەدان وەسڵی پارەدان باربکە.');
+        if (file.size > 5 * 1024 * 1024) throw new Error('قەبارەی وەسڵ دەبێت لە ٥MB کەمتر بێت.');
+        if (!['image/jpeg','image/png','image/webp','application/pdf'].includes(file.type)) throw new Error('تەنها JPG، PNG، WebP یان PDF ڕێگەپێدراوە.');
+        const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+        receiptPath = request.user_id + '/payouts/' + request.id + '-' + crypto.randomUUID() + '.' + ext;
+        const upload = await supabase.storage.from('wallet-payment-receipts').upload(receiptPath,file,{contentType:file.type,upsert:false});
+        if (upload.error) throw upload.error;
+      }
+      const { error: actionError } = await supabase.rpc('review_share_withdrawal_with_receipt', {
         p_request_id: request.id,
         p_action: action === 'mark_paid' ? 'paid' : 'rejected',
         p_admin_note: adminNote[request.id]?.trim() || null,
         p_payout_reference: null,
+        p_receipt_path: receiptPath,
       });
       if (actionError) throw actionError;
-      setMessage(action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکە گەڕێندرایەوە.' : 'پارەدان بە دەستی تیمی دارایی تۆمارکرا.');
+      setMessage(action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکە گەڕێندرایەوە.' : 'پارە نێردرا و وەسڵی پارەدان پاشەکەوت کرا.');
+      setPayoutReceiptFiles((current) => { const next = { ...current }; delete next[request.id]; return next; });
       await refresh();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'جێبەجێکردنی داواکاری سەرنەکەوت.');
@@ -340,7 +367,7 @@ export function ReferralWalletPage() {
             </label>
             <label className="block text-sm font-black">ڕێگای وەرگرتنی پارە
               <select value={payoutMethod} onChange={(event) => setPayoutMethod(event.target.value)} className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-3 text-sm font-normal">
-                <option value="mobile_cash">Mobile Cash</option><option value="zain_cash">ZainCash</option><option value="fastpay">FastPay</option><option value="bank_transfer">گواستنەوەی بانکی</option><option value="qi_card">Qi Card</option><option value="other">ڕێگای تر</option>
+                <option value="mobile_cash">Mobile Cash</option><option value="zain_cash">ZainCash</option><option value="fastpay">FastPay</option><option value="fib">FIB</option><option value="bank_transfer">گواستنەوەی بانکی</option><option value="qi_card">Qi Card</option><option value="other">ڕێگای تر</option>
               </select>
             </label>
             <label className="block text-sm font-black">ژمارە یان زانیاریی هەژماری پارەدان
@@ -362,6 +389,7 @@ export function ReferralWalletPage() {
               <div className="mt-2 break-words text-xs leading-5 text-black/50">{item.account_holder_name} · {item.payout_account}</div>
               {item.admin_note ? <div className="mt-2 text-xs leading-5 text-black/60">تێبینی دارایی: {item.admin_note}</div> : null}
               {item.paid_at ? <div className="mt-2 text-[11px] text-emerald-800">پارەدراوە: {formatDate(item.paid_at)}</div> : null}
+              {item.payout_receipt_path ? <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('wallet-payment-receipts').createSignedUrl(item.payout_receipt_path!,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-xs font-black"><BadgeCheck size={14}/> بینینی وەسڵی پارەدان</button> : null}
             </article>)}
             {!loading && myWithdrawals.length === 0 ? <Empty text="هێشتا داوای ڕاکێشان تۆمار نەکراوە."/> : null}
           </div>
@@ -399,9 +427,10 @@ export function ReferralWalletPage() {
             {adminRequests.map((request) => <article key={request.id} className="rounded-2xl border border-black/[0.07] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-bold text-black/45" dir="ltr">{request.user_id}</div><div className="mt-1 text-lg font-black">{formatIQD(request.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{payoutLabels[request.payout_method] ?? request.payout_method} · {formatDate(request.requested_at)}</div></div><span className={'rounded-full px-2.5 py-1 text-[10px] font-black ' + statusTone(request.status)}>{withdrawalStatusLabels[request.status]}</span></div>
               <div className="mt-3 rounded-xl bg-[var(--shakh-bg)] p-3 text-sm"><div><strong>خاوەنی هەژمار: </strong>{request.account_holder_name}</div><div className="mt-1 break-words"><strong>هەژمار: </strong>{request.payout_account}</div>{request.note ? <div className="mt-1"><strong>تێبینی: </strong>{request.note}</div> : null}</div>
+              {request.status === 'pending' ? <label className="mt-3 block text-xs font-black">وەسڵی ناردنی پارە (پێویستە بۆ پارەدان)<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event)=>{const file=event.target.files?.[0];if(file)setPayoutReceiptFiles(current=>({...current,[request.id]:file}));}} className="mt-2 block w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/></label> : null}
               <textarea value={adminNote[request.id] ?? ''} onChange={(event) => setAdminNote((current) => ({ ...current, [request.id]: event.target.value }))} maxLength={2000} className="mt-3 min-h-16 w-full rounded-xl border border-black/10 p-3 text-sm" placeholder="تێبینی بۆ بەکارهێنەر (ئارەزوومەندانە)"/>
               <div className="mt-3 flex flex-wrap gap-2">
-                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'mark_paid')} className="min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">پارە درا · تۆمارکردن</button> : null}
+                {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id || !payoutReceiptFiles[request.id]} onClick={() => void processRequest(request,'mark_paid') className="min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">پارە درا · تۆمارکردن</button> : null}
                 {request.status === 'pending' ? <button type="button" disabled={busyRequestId===request.id} onClick={() => void processRequest(request,'reject')} className="min-h-10 rounded-xl border border-red-500/20 px-4 text-xs font-black text-red-700 disabled:opacity-40">ڕەتکردنەوە و گەڕاندنەوەی باڵانس</button> : null}
               </div>
             </article>)}
