@@ -843,4 +843,65 @@ $function$;
 revoke all on function public.create_product_post_order_with_share(uuid,uuid,integer,text,text,text,text,text,uuid) from public,anon;
 grant execute on function public.create_product_post_order_with_share(uuid,uuid,integer,text,text,text,text,text,uuid) to authenticated;
 
+
+-- Generic direct-post orders share the same order table as electronics, but
+-- record their true order type so history and idempotency remain accurate.
+create or replace function private.award_electronics_post_share_reward()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'pg_catalog','public','private'
+as $function$
+declare
+  v_earning_id uuid;
+  v_balance_after numeric(14,2);
+  v_order_type text;
+  v_title text;
+begin
+  if new.status<>'delivered' or new.payment_status<>'collected' then return new; end if;
+  if new.share_link_id is null or coalesce(new.share_reward_iqd,0)<=0 then return new; end if;
+
+  v_order_type:=case when new.post_category::text='electronics' then 'electronics_post' else 'product_post' end;
+  v_title:=new.post_title;
+  insert into public.share_earnings(sharer_id,share_link_id,post_id,post_title,order_type,order_id,order_number,amount_iqd)
+  select l.sharer_id,l.id,new.post_id,v_title,v_order_type,new.id,new.order_number,new.share_reward_iqd
+  from public.post_share_links l
+  join public.posts p on p.id=l.post_id
+  where l.id=new.share_link_id and l.post_id=new.post_id
+    and l.sharer_id<>new.buyer_id and l.sharer_id<>new.seller_id
+    and p.author_id<>l.sharer_id
+  on conflict(order_type,order_id) do nothing
+  returning id into v_earning_id;
+  if v_earning_id is null then return new; end if;
+
+  insert into public.share_wallet_accounts(user_id)
+  select sharer_id from public.share_earnings where id=v_earning_id
+  on conflict(user_id) do nothing;
+  update public.share_wallet_accounts a
+  set balance_iqd=a.balance_iqd+(select e.amount_iqd from public.share_earnings e where e.id=v_earning_id),
+      lifetime_earned_iqd=a.lifetime_earned_iqd+(select e.amount_iqd from public.share_earnings e where e.id=v_earning_id),
+      updated_at=now()
+  where a.user_id=(select e.sharer_id from public.share_earnings e where e.id=v_earning_id)
+  returning balance_iqd into v_balance_after;
+
+  insert into public.share_wallet_transactions(user_id,transaction_type,amount_iqd,balance_after_iqd,reference_type,reference_id,description)
+  select e.sharer_id,'earning',e.amount_iqd,v_balance_after,e.order_type,e.order_id,
+    case when e.order_type='electronics_post' then 'Reward for a completed electronics purchase'
+         else 'Reward for a completed eligible product post purchase' end
+  from public.share_earnings e where e.id=v_earning_id;
+
+  insert into public.notifications(user_id,type,title_ku,body_ku,title_ar,body_ar,title_en,body_en,route,entity_type,entity_id,data)
+  select e.sharer_id,'share_earning','خەڵاتی شێرکردن زیادکرا',
+    'خەڵاتی '||to_char(e.amount_iqd,'FM999,999,999,990')||' د.ع بۆ کڕینی '||e.post_title||' زیادکرا.',
+    'تمت إضافة مكافأة مشاركة','تمت إضافة مكافأتك لعملية شراء مكتملة.',
+    'Share reward credited','Your reward for a completed product purchase is now available.',
+    '/dashboard/referral-wallet','share_earning',e.id,
+    jsonb_build_object('amount_iqd',e.amount_iqd,'order_number',e.order_number,'post_id',e.post_id)
+  from public.share_earnings e where e.id=v_earning_id;
+  return new;
+end;
+$function$;
+revoke all on function private.award_electronics_post_share_reward() from public,anon,authenticated;
+
+
 notify pgrst, 'reload schema';
