@@ -11,6 +11,8 @@ type CaptainEarning = { id: string; captain_id: string; order_type: string; orde
 type CashRow = { id: string; captain_id: string; order_id: string; product_subtotal_iqd: number; delivery_fee_iqd: number; platform_fee_iqd: number; cash_collected_iqd: number; cash_remitted_iqd: number; status: string; collected_at: string; note: string | null };
 type CaptainProfile = { id: string; full_name: string | null; phone: string | null };
 type CashBalance = { captain_id: string; outstanding_iqd: number; collected_iqd: number; remitted_iqd: number; last_collected_at: string | null };
+type CommissionRule = { captain_id: string | null; commission_percent: number };
+type CaptainCommissionOverview = { captain_id: string; full_name: string | null; phone: string | null; commission_percent: number; is_custom: boolean };
 const fmt = (v: number | string | null | undefined) => Math.round(Number(v ?? 0)).toLocaleString('en-US') + ' د.ع';
 const date = (v: string) => new Date(v).toLocaleString('ku-IQ',{dateStyle:'medium',timeStyle:'short'});
 const methods: Record<string,string> = {mobile_cash:'Mobile Cash',zain_cash:'ZainCash',fastpay:'FastPay',qi_card:'Qi Card',bank_transfer:'گواستنەوەی بانکی',other:'ڕێگای تر'};
@@ -25,6 +27,10 @@ export function PrepaidWalletPage() {
   const [dailyEarnings,setDailyEarnings] = useState<CaptainEarning[]>([]);
   const [cashLedger,setCashLedger] = useState<CashRow[]>([]);
   const [cashBalances,setCashBalances] = useState<CashBalance[]>([]);
+  const [defaultCommissionPercent,setDefaultCommissionPercent] = useState(20);
+  const [defaultCommissionDraft,setDefaultCommissionDraft] = useState('20');
+  const [captainCommissionOverview,setCaptainCommissionOverview] = useState<CaptainCommissionOverview[]>([]);
+  const [commissionDrafts,setCommissionDrafts] = useState<Record<string,string>>({});
   const [captainProfiles,setCaptainProfiles] = useState<Record<string,CaptainProfile>>({});
   const [settlementAmounts,setSettlementAmounts] = useState<Record<string,string>>({});
   const [settlementNotes,setSettlementNotes] = useState<Record<string,string>>({});
@@ -42,15 +48,17 @@ export function PrepaidWalletPage() {
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
-    const [accountRes,txRes,requestRes,earningRes,cashRes,balanceRes] = await Promise.all([
+    const [accountRes,txRes,requestRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes] = await Promise.all([
       supabase.from('prepaid_wallet_accounts').select('user_id,balance_iqd,held_iqd,lifetime_credited_iqd,lifetime_spent_iqd').eq('user_id',user.id).maybeSingle(),
       supabase.from('prepaid_wallet_transactions').select('id,transaction_type,amount_iqd,description_ku,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50),
       supabase.from('prepaid_topup_requests').select('id,user_id,amount_iqd,payment_method,receipt_path,sender_reference,note,status,admin_note,requested_at').order('requested_at',{ascending:false}).limit(100),
       supabase.from('captain_delivery_earnings').select('id,captain_id,order_type,order_id,delivery_fee_iqd,commission_iqd,net_earning_iqd,earning_day,created_at').order('earning_day',{ascending:false}).limit(100),
       supabase.from('captain_cash_ledger').select('id,captain_id,order_id,product_subtotal_iqd,delivery_fee_iqd,platform_fee_iqd,cash_collected_iqd,cash_remitted_iqd,status,collected_at,note').order('collected_at',{ascending:false}).limit(150),
       supabase.rpc('get_captain_cash_balances'),
+      supabase.from('captain_commission_rules').select('captain_id,commission_percent'),
+      supabase.rpc('get_captain_commission_overview'),
     ]);
-    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error;
+    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error ?? ruleRes.error ?? commissionOverviewRes.error;
     if (err) { setError(err.message); return; }
     setAccount(accountRes.data as Account|null);
     setTransactions((txRes.data ?? []) as Tx[]);
@@ -59,6 +67,12 @@ export function PrepaidWalletPage() {
     setDailyEarnings(earnings);
     setCashLedger(cashRows);
     setCashBalances((balanceRes.data ?? []) as CashBalance[]);
+    const rules = (ruleRes.data ?? []) as CommissionRule[];
+    const defaultRule = rules.find(rule => rule.captain_id === null);
+    const defaultPercent = Number(defaultRule?.commission_percent ?? 20);
+    setDefaultCommissionPercent(defaultPercent);
+    setDefaultCommissionDraft(String(defaultPercent));
+    setCaptainCommissionOverview((commissionOverviewRes.data ?? []) as CaptainCommissionOverview[]);
     const profileIds = [...new Set(cashRows.map(row=>row.captain_id))];
     if (canManage && profileIds.length) {
       const {data:profiles} = await supabase.from('profiles').select('id,full_name,phone').in('id',profileIds);
@@ -111,6 +125,30 @@ export function PrepaidWalletPage() {
       await refresh();
     } catch(e) { setError(e instanceof Error?e.message:'تۆمارکردنی گەڕاندنەوەی کاش سەرکەوتوو نەبوو.'); }
     finally { setBusyId(null); }
+  };
+
+
+  const saveCommission = async (captainId: string | null, value: number | null) => {
+    if (value !== null && (!Number.isFinite(value) || value < 0 || value > 100 || Math.round(value * 100) !== value * 100)) {
+      setError('ڕێژەی کۆمسیۆن دەبێت لە ٠ تا ١٠٠٪ بێت و زۆرترین دوو ژمارەی پاش خاڵی هەبێت.');
+      return;
+    }
+    const busyKey = captainId ?? 'default-commission';
+    setBusyId(busyKey); setError(null); setMessage(null);
+    try {
+      const { error: rpcError } = await supabase.rpc('set_captain_commission_percent', {
+        p_captain_id: captainId,
+        p_percent: value,
+      });
+      if (rpcError) throw rpcError;
+      setMessage(captainId
+        ? value === null ? 'ڕێژەی تایبەتی کاپتن سڕایەوە و ڕێژەی گشتی جێبەجێ دەبێت.' : 'ڕێژەی کۆمسیۆنی کاپتن نوێکرایەوە.'
+        : 'ڕێژەی گشتی کۆمسیۆنی کاپتن نوێکرایەوە.');
+      if (captainId) setCommissionDrafts(current => { const next = {...current}; delete next[captainId]; return next; });
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'گۆڕینی ڕێژەی کۆمسیۆن سەرکەوتوو نەبوو.');
+    } finally { setBusyId(null); }
   };
 
   const review = async (row:Topup,action:'approve'|'reject') => {
