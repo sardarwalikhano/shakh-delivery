@@ -54,6 +54,13 @@ alter table public.share_earnings drop constraint if exists share_earnings_order
 alter table public.share_earnings add constraint share_earnings_order_type_check
   check (order_type in ('food_post','apparel_post','electronics_post','product_post'));
 
+alter table public.share_wallet_transactions
+  drop constraint if exists share_wallet_transactions_transaction_type_check;
+alter table public.share_wallet_transactions
+  add constraint share_wallet_transactions_transaction_type_check
+  check (transaction_type in ('earning','withdrawal_reserved','withdrawal_refund','withdrawal_paid','platform_spend','platform_spend_refund'));
+
+
 alter table public.prepaid_wallet_transactions
   drop constraint if exists prepaid_wallet_transactions_transaction_type_check;
 alter table public.prepaid_wallet_transactions
@@ -554,6 +561,7 @@ begin
     raise exception using errcode='22023',message='Settlement amount is invalid';
   end if;
   if length(coalesce(p_note,''))>1000 then raise exception 'Settlement note is too long'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(p_captain_id::text, 0));
   select coalesce(sum(cash_collected_iqd-cash_remitted_iqd),0)::bigint into v_outstanding
   from public.captain_cash_ledger where captain_id=p_captain_id;
   if p_amount_iqd>v_outstanding then
