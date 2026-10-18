@@ -116,6 +116,32 @@ export async function checkoutFoodPostCart(input: {
   if (error) throw new Error(readableDeliveryError(error.message));
   const result = data as { orders?: FoodPostOrderResult[] } | null;
   if (!result?.orders?.length) throw new Error('داواکارییەک تۆمار نەکرا. سەلەکەت بەتاڵە یان نرخی خواردن بەردەست نییە.');
-  return result.orders;
+
+  // Checkout RPC compatibility: read server-authoritative fee snapshots after the insert
+  // triggers run, so the confirmation page never shows stale client-calculated totals.
+  const orderIds = result.orders.map((order) => order.id).filter(Boolean);
+  if (orderIds.length !== result.orders.length) return result.orders;
+  const { data: settledOrders, error: settledError } = await supabase
+    .from('food_post_orders')
+    .select('id,order_number,status,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd')
+    .in('id', orderIds);
+  if (settledError) throw settledError;
+  const byId = new Map((settledOrders ?? []).map((order) => [order.id, order]));
+  return result.orders.map((order) => {
+    const settled = byId.get(order.id);
+    return settled ? {
+      ...order,
+      order_number: settled.order_number,
+      status: settled.status,
+      post_title: settled.post_title,
+      quantity: settled.quantity,
+      unit_price_iqd: Number(settled.unit_price_iqd),
+      line_total_iqd: Number(settled.line_total_iqd),
+      delivery_city: settled.delivery_city,
+      delivery_fee_iqd: Number(settled.delivery_fee_iqd),
+      platform_fee_iqd: Number(settled.platform_fee_iqd),
+      total_iqd: Number(settled.total_iqd),
+    } : order;
+  });
 }
 
