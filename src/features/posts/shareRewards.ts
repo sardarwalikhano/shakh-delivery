@@ -10,7 +10,7 @@ export type PostShareLink = {
   title: string;
   reward_iqd: number;
   reward_enabled: boolean;
-  expires_days: number;
+  expires_hours: number;
 };
 
 /**
@@ -64,7 +64,7 @@ export async function createPostShareLink(postId: string): Promise<PostShareLink
   if (postError) throw new Error(postError.message);
 
   const reward = Number(post?.share_reward_iqd ?? 0);
-  const rewardEnabled = reward > 0 && (post?.category === 'food' || post?.category === 'fashion' || post?.category === 'electronics');
+  const rewardEnabled = reward > 0 && ['food','fashion','electronics','general','supermarket','beauty','kids','online_stores','delivery'].includes(String(post?.category ?? ''));
   const url = new URL(`/posts/${encodeURIComponent(postId)}`, window.location.origin);
   url.searchParams.set('share', token);
 
@@ -74,6 +74,6 @@ export async function createPostShareLink(postId: string): Promise<PostShareLink
     title: post?.title ?? '',
     reward_iqd: reward,
     reward_enabled: rewardEnabled,
-    expires_days: 30,
+    expires_hours: 24,
   };
 }
