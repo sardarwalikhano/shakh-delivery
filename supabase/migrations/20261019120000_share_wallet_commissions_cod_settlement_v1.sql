@@ -203,7 +203,7 @@ begin
    new.share_reward_reserved_iqd := 0; new.share_reward_reserved := false;
    return new;
  end if;
- v_reward := greatest(0,round(coalesce(v_post.share_reward_iqd,0))::bigint);
+ v_reward := greatest(0,round(coalesce(v_post.share_reward_iqd,0))::bigint)*greatest(1,coalesce(new.quantity,1));
  new.share_reward_iqd := v_reward;
  if v_reward=0 then new.share_reward_reserved_iqd:=0; new.share_reward_reserved:=false; return new; end if;
  insert into public.prepaid_wallet_accounts(user_id) values(v_seller_id) on conflict(user_id) do nothing;
@@ -381,7 +381,7 @@ create policy share_payout_receipts_admin_insert on storage.objects for insert t
 with check(bucket_id='share-payout-receipts' and (storage.foldername(name))[1]='share-withdrawals' and (select private.has_permission('share_rewards.manage')));
 drop policy if exists share_payout_receipts_admin_select on storage.objects;
 create policy share_payout_receipts_admin_select on storage.objects for select to authenticated
-using(bucket_id='share-payout-receipts' and (storage.foldername(name))[1]='share-withdrawals' and (select private.has_permission('share_rewards.manage')));
+using(bucket_id='share-payout-receipts' and (storage.foldername(name))[1]='share-withdrawals' and ((select private.has_permission('share_rewards.manage')) or exists (select 1 from public.share_withdrawal_requests r where r.payout_receipt_path=name and r.user_id=(select auth.uid()))));
 
 drop function if exists public.review_share_withdrawal(uuid,text,text,text);
 create or replace function public.review_share_withdrawal(
@@ -559,6 +559,58 @@ $function$;
 create trigger record_food_cash_collection_after_insert
 after insert on public.food_post_payment_events
 for each row execute function private.record_food_cash_collection();
+
+
+-- Generic eligible post checkout now carries a server-validated share link.
+create or replace function public.create_product_post_order_with_share(
+ p_request_id uuid,p_post_id uuid,p_quantity integer,p_delivery_address text,
+ p_buyer_phone text,p_delivery_city text,p_customer_note text default null,
+ p_payment_method text default 'cash_on_delivery',p_share_link_id uuid default null
+) returns jsonb
+language plpgsql security definer
+set search_path=pg_catalog,public,private
+as $function$
+declare
+ v_user_id uuid := auth.uid();
+ v_existing uuid;
+ v_result jsonb;
+ v_order_id uuid;
+ v_order public.electronics_post_orders%rowtype;
+begin
+ if v_user_id is null then raise exception using errcode='42501',message='Authentication required'; end if;
+ if p_request_id is null then raise exception using errcode='22023',message='Request id is required'; end if;
+ perform pg_advisory_xact_lock(hashtextextended(v_user_id::text||':'||p_request_id::text,0));
+ select id into v_existing from public.electronics_post_orders
+ where buyer_id=v_user_id and request_id=p_request_id;
+ if found then
+   return public.create_product_post_order(p_request_id,p_post_id,p_quantity,p_delivery_address,p_buyer_phone,p_delivery_city,p_customer_note,p_payment_method);
+ end if;
+ v_result := public.create_product_post_order(p_request_id,p_post_id,p_quantity,p_delivery_address,p_buyer_phone,p_delivery_city,p_customer_note,p_payment_method);
+ v_order_id := nullif(v_result->>'id','')::uuid;
+ if v_order_id is null then raise exception using errcode='22023',message='Order ID is missing from checkout response'; end if;
+ if p_share_link_id is not null then
+   update public.electronics_post_orders
+   set share_link_id=p_share_link_id,
+       share_reward_iqd=coalesce((select p.share_reward_iqd from public.posts p where p.id=post_id),0)
+   where id=v_order_id and buyer_id=v_user_id
+   returning * into v_order;
+   if not found then raise exception using errcode='42501',message='Order attribution was not available'; end if;
+ else
+   select * into v_order from public.electronics_post_orders where id=v_order_id;
+ end if;
+ return v_result || jsonb_build_object('id',v_order.id,'share_reward_iqd',v_order.share_reward_iqd,'total_iqd',v_order.total_iqd);
+end;
+$function$;
+revoke all on function public.create_product_post_order_with_share(uuid,uuid,integer,text,text,text,text,text,uuid) from public,anon;
+grant execute on function public.create_product_post_order_with_share(uuid,uuid,integer,text,text,text,text,text,uuid) to authenticated;
+
+-- The dashboard route is available to finance admins as well as wallet owners.
+insert into public.role_permissions(role,permission_code)
+values
+ ('super_admin'::public.app_role,'wallets.view_own'),
+ ('admin'::public.app_role,'wallets.view_own')
+on conflict do nothing;
+
 
 notify pgrst,'reload schema';
 commit;
