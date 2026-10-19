@@ -66,9 +66,8 @@ export async function createPost(input: {
   const isVehiclePost = input.category === 'cars';
   const isElectronicsPost = input.category === 'electronics';
   const isSupermarketPost = input.category === 'supermarket';
-  const referralReward = input.category === 'food' || input.category === 'fashion' || isElectronicsPost
-    ? Number(input.referralRewardIqd ?? 0)
-    : 0;
+  const shareRewardEligible = ['food','fashion','electronics','general','supermarket','beauty','kids','online_stores','delivery'].includes(input.category);
+  const referralReward = shareRewardEligible ? Number(input.referralRewardIqd ?? 0) : 0;
   if (!Number.isInteger(referralReward) || !Number.isFinite(referralReward) || referralReward < 0 || referralReward > 100000000) {
     throw new Error('بڕی خەڵاتی شێرکردن دەبێت ژمارەیەکی تەواو لە ٠ تا ١٠٠٬٠٠٠٬٠٠٠ دینار بێت.');
   }
