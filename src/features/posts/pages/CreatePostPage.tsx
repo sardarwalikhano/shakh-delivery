@@ -341,6 +341,9 @@ export function CreatePostPage() {
       const numericPrice = price.trim() ? Number(price.replace(/,/g, '')) : null;
       if (numericPrice === null || !Number.isFinite(numericPrice) || numericPrice <= 0) return setError('نرخی کاڵای سوپەرمارکێت دەبێت لە سفر زیاتر بێت.');
       if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ کاڵای سوپەرمارکێت لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
+      const stockQuantity = Number(supermarketDetails.stock_quantity ?? '');
+      if (!Number.isInteger(stockQuantity) || stockQuantity < 1 || stockQuantity > 100000) return setError('ژمارەی دانە دەبێت لە ١ تا ١٠٠٬٠٠٠ دانە بێت.');
+      if (location.trim().length < 2) return setError('شوێنی فرۆشیار پێویستە.');
       const details = sanitizeCategoryDetails('supermarket', supermarketDetails);
       if (details.error) return setError(details.error);
       if (!reviewing) { setReviewing(true); return; }
@@ -784,10 +787,11 @@ export function CreatePostPage() {
                   const current = supermarketDetails[field.key];
                   const value = typeof current === 'string' ? current : typeof current === 'number' ? String(current) : '';
                   const changeValue = (nextValue: string) => setSupermarketDetails((previous) => ({ ...previous, [field.key]: nextValue }));
+                  const required = Boolean(field.required);
                   if (field.type === 'select') {
                     return (
-                      <Field key={field.key} label={field.label}>
-                        <select className={inputClass} value={value} onChange={(event) => changeValue(event.target.value)}>
+                      <Field key={field.key} label={field.label + (required ? ' *' : '')}>
+                        <select className={inputClass} required={required} value={value} onChange={(event) => changeValue(event.target.value)}>
                           <option value="">هەڵبژاردەیەک دیاری بکە</option>
                           {(field.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                         </select>
@@ -795,12 +799,12 @@ export function CreatePostPage() {
                     );
                   }
                   if (field.type === 'number') {
-                    return <Field key={field.key} label={field.label} hint={field.unit}><input className={inputClass} type="number" min={field.min} max={field.max} step="any" value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.unit ?? 'ژمارە بنووسە'} /></Field>;
+                    return <Field key={field.key} label={field.label + (required ? ' *' : '')} hint={field.unit}><input className={inputClass} type="number" min={field.min} max={field.max} step={field.key === 'stock_quantity' ? '1' : 'any'} required={required} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.key === 'stock_quantity' ? 'ژمارەی دانە' : field.unit ?? 'ژمارە بنووسە'} /></Field>;
                   }
                   if (field.type === 'textarea') {
-                    return <Field key={field.key} label={field.label}><textarea className={inputClass + ' min-h-24'} maxLength={field.maxLength ?? 2000} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} /></Field>;
+                    return <Field key={field.key} label={field.label + (required ? ' *' : '')}><textarea className={inputClass + ' min-h-24'} required={required} maxLength={field.maxLength ?? 2000} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} /></Field>;
                   }
-                  return <Field key={field.key} label={field.label}><input className={inputClass} maxLength={field.maxLength ?? 120} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} /></Field>;
+                  return <Field key={field.key} label={field.label + (required ? ' *' : '')}><input className={inputClass} required={required} maxLength={field.maxLength ?? 120} value={value} onChange={(event) => changeValue(event.target.value)} placeholder={field.placeholder ?? ''} /></Field>;
                 })}
               </div>
             </section>
@@ -933,10 +937,10 @@ export function CreatePostPage() {
                 <input className={inputClass + ' ps-11'} type="number" min={category === 'fashion' || category === 'electronics' || category === 'supermarket' ? 1 : 0} step="1" inputMode="decimal" required={category === 'fashion' || category === 'electronics' || category === 'supermarket'} value={price} onChange={(event) => setPrice(event.target.value)} placeholder="0" dir="ltr" />
               </div>
             </Field>
-            <Field label="شوێنی فرۆشیار">
+            <Field label={category === 'supermarket' ? 'شوێنی فرۆشیار *' : 'شوێنی فرۆشیار'}>
               <div className="relative">
                 <MapPin className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-black/30" size={17} />
-                <input className={inputClass + ' ps-11'} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="هەولێر" />
+                <input className={inputClass + ' ps-11'} value={location} onChange={(event) => setLocation(event.target.value)} required={category === 'supermarket'} minLength={category === 'supermarket' ? 2 : undefined} placeholder="هەولێر" />
               </div>
             </Field>
           </div>

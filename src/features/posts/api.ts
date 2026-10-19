@@ -115,6 +115,12 @@ export async function createPost(input: {
   if (isSupermarketPost) {
     const price = input.priceIqd ?? 0;
     if (!Number.isFinite(price) || price <= 0) throw new Error('نرخی کاڵای سوپەرمارکێت دەبێت لە سفر زیاتر بێت.');
+    if (!Number.isInteger(Number(supermarketDetailsResult.values.stock_quantity))
+      || Number(supermarketDetailsResult.values.stock_quantity) < 1
+      || Number(supermarketDetailsResult.values.stock_quantity) > 100000) {
+      throw new Error('ژمارەی دانە دەبێت لە ١ تا ١٠٠٬٠٠٠ دانە بێت.');
+    }
+    if ((input.location ?? '').trim().length < 2) throw new Error('شوێنی فرۆشیار پێویستە.');
     if (imageFiles.length < 1 || imageFiles.length > MAX_POST_IMAGES) throw new Error('بۆ کاڵای سوپەرمارکێت لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
     if (supermarketDetailsResult.error) throw new Error(supermarketDetailsResult.error);
   }
