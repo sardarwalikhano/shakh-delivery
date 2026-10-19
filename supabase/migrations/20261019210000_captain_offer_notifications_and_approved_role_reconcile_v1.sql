@@ -3,20 +3,58 @@
 -- Additive and idempotent: no order, wallet, payment, or historical status is changed.
 begin;
 
--- These users were already explicitly approved by Super Admin, but the matching
--- user_roles rows are missing. Reconcile only approved captain requests.
+-- The app uses one active role per user (user_roles.user_id is the primary key).
+-- For users with an already-approved captain request, make captain their active
+-- role instead of leaving the previous customer/vendor role in place. If a user
+-- has duplicate approved captain requests, use the most recently reviewed one.
+with latest_approved_captain_request as (
+  select distinct on (rr.user_id)
+    rr.user_id,
+    rr.requested_role
+  from public.role_requests rr
+  where rr.requested_role::text = 'captain'
+    and rr.status = 'approved'
+  order by rr.user_id, rr.reviewed_at desc nulls last, rr.updated_at desc,
+           rr.requested_at desc, rr.id desc
+)
 insert into public.user_roles(user_id, role)
-select rr.user_id, rr.requested_role
-from public.role_requests rr
-where rr.requested_role::text = 'captain'
-  and rr.status = 'approved'
-  and not exists (
-    select 1
-    from public.user_roles ur
-    where ur.user_id = rr.user_id
-      and ur.role::text = 'captain'
-  )
-on conflict do nothing;
+select user_id, requested_role
+from latest_approved_captain_request
+on conflict (user_id) do update
+set role = excluded.role,
+    updated_at = now();
+
+-- Keep the single-active-role rule for all future role approvals, not only captains.
+-- The existing review function updates role_requests.status after its initial role
+-- insert; this trigger ensures an approved request replaces the prior role.
+create or replace function private.sync_user_role_after_approval()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+begin
+  if new.status = 'approved'
+     and old.status is distinct from 'approved' then
+    insert into public.user_roles(user_id, role)
+    values (new.user_id, new.requested_role)
+    on conflict (user_id) do update
+    set role = excluded.role,
+        updated_at = now();
+  end if;
+
+  return new;
+end;
+$function$;
+
+revoke all on function private.sync_user_role_after_approval()
+  from public, anon, authenticated;
+
+drop trigger if exists sync_user_role_after_approval on public.role_requests;
+create trigger sync_user_role_after_approval
+after update of status on public.role_requests
+for each row
+execute function private.sync_user_role_after_approval();
 
 create or replace function private.notify_direct_post_captains()
 returns trigger
