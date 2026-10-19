@@ -7,7 +7,6 @@ import { postCategoryLabels } from '../labels';
 import type { Post } from '../types';
 import { createProductPostOrder } from '../apparelOrders';
 import { getPostShareToken } from '../shareRewards';
-import { getPostShareToken } from '../shareRewards';
 import { DeliveryPointPicker } from './DeliveryPointPicker';
 import { isWithinDeliveryZone, readableDeliveryError, saveMyDeliveryPoint, type DeliveryPoint } from '../deliveryZones';
 
