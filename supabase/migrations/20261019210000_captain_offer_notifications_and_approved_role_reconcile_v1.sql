@@ -21,15 +21,15 @@ with latest_approved_request as (
 eligible_captain_reconciliation as (
   select lar.user_id, lar.requested_role
   from latest_approved_request lar
-  left join public.user_roles current_role on current_role.user_id = lar.user_id
+  left join public.user_roles active_role on active_role.user_id = lar.user_id
   where lar.requested_role::text = 'captain'
     -- Never replace a non-customer role as a side effect of historical repair.
-    and (current_role.user_id is null or current_role.role::text = 'customer')
+    and (active_role.user_id is null or active_role.role::text = 'customer')
     -- Do not revert a role that was changed after this approval; this keeps
     -- rerunning the migration from resurrecting a stale captain role.
     and (
-      current_role.user_id is null
-      or current_role.updated_at <= coalesce(lar.reviewed_at, lar.request_updated_at)
+      active_role.user_id is null
+      or active_role.updated_at <= coalesce(lar.reviewed_at, lar.request_updated_at)
     )
 )
 insert into public.user_roles(user_id, role)
