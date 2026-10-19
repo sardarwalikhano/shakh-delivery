@@ -70,6 +70,7 @@ const payoutLabels: Record<string, string> = {
   mobile_cash: 'Mobile Cash',
   fastpay: 'FastPay',
   fib: 'FIB',
+  fib: 'FIB',
   bank_transfer: 'گواستنەوەی بانکی',
   qi_card: 'Qi Card',
   other: 'ڕێگای تر',
@@ -310,18 +311,21 @@ export function ReferralWalletPage() {
         if (file.size > 5 * 1024 * 1024) throw new Error('قەبارەی وەسڵ دەبێت لە ٥MB کەمتر بێت.');
         if (!['image/jpeg','image/png','image/webp','application/pdf'].includes(file.type)) throw new Error('تەنها JPG، PNG، WebP یان PDF ڕێگەپێدراوە.');
         const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-        receiptPath = request.user_id + '/payouts/' + request.id + '-' + crypto.randomUUID() + '.' + ext;
-        const upload = await supabase.storage.from('wallet-payment-receipts').upload(receiptPath,file,{contentType:file.type,upsert:false});
+        receiptPath = 'share-withdrawals/' + request.id + '/' + crypto.randomUUID() + '.' + ext;
+        const upload = await supabase.storage.from('share-payout-receipts').upload(receiptPath,file,{contentType:file.type,upsert:false});
         if (upload.error) throw upload.error;
       }
-      const { error: actionError } = await supabase.rpc('review_share_withdrawal_with_receipt', {
+      const { error: actionError } = await supabase.rpc('review_share_withdrawal', {
         p_request_id: request.id,
         p_action: action === 'mark_paid' ? 'paid' : 'rejected',
         p_admin_note: adminNote[request.id]?.trim() || null,
         p_payout_reference: null,
-        p_receipt_path: receiptPath,
+        p_payout_receipt_path: receiptPath,
       });
-      if (actionError) throw actionError;
+      if (actionError) {
+        if (receiptPath) await supabase.storage.from('share-payout-receipts').remove([receiptPath]);
+        throw actionError;
+      }
       setMessage(action === 'reject' ? 'داواکاری ڕەتکرایەوە و باڵانسەکە گەڕێندرایەوە.' : 'پارە نێردرا و وەسڵی پارەدان پاشەکەوت کرا.');
       setPayoutReceiptFiles((current) => { const next = { ...current }; delete next[request.id]; return next; });
       await refresh();
@@ -389,7 +393,7 @@ export function ReferralWalletPage() {
               <div className="mt-2 break-words text-xs leading-5 text-black/50">{item.account_holder_name} · {item.payout_account}</div>
               {item.admin_note ? <div className="mt-2 text-xs leading-5 text-black/60">تێبینی دارایی: {item.admin_note}</div> : null}
               {item.paid_at ? <div className="mt-2 text-[11px] text-emerald-800">پارەدراوە: {formatDate(item.paid_at)}</div> : null}
-              {item.payout_receipt_path ? <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('wallet-payment-receipts').createSignedUrl(item.payout_receipt_path!,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-xs font-black"><BadgeCheck size={14}/> بینینی وەسڵی پارەدان</button> : null}
+              {item.payout_receipt_path ? <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('share-payout-receipts').createSignedUrl(item.payout_receipt_path!,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-xs font-black"><BadgeCheck size={14}/> بینینی وەسڵی پارەدان</button> : null}
             </article>)}
             {!loading && myWithdrawals.length === 0 ? <Empty text="هێشتا داوای ڕاکێشان تۆمار نەکراوە."/> : null}
           </div>
