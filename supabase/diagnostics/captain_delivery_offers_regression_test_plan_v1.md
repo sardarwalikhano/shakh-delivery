@@ -26,5 +26,12 @@ Run only against an isolated disposable Supabase database. Do not apply this mig
 ## Role model
 The app has exactly one active role per user. Approval of a new role replaces the previous active role. Do not aggregate permissions across old and new roles; all category/dashboard permissions must follow the newly approved role.
 
-## Current status
-This is a test plan only. No test database has executed the migration. Frontend CI does not validate SQL syntax, trigger behavior, RLS, or data reconciliation. Keep the PR Draft until isolated database evidence is available.
+## Validation evidence (2026-10-19)
+- The migration was applied successfully to Supabase project `testing` (`yrwwnlwchqnrmrmjfnhr`) under a test-only migration label.
+- Reapplying the same migration under a second test-only label succeeded. This validates that the migration reruns against the current test schema without a migration error.
+- Catalog checks confirmed the expected triggers exist for `food_post_orders`, `apparel_post_orders`, `electronics_post_orders`, and `role_requests`; both private trigger functions exist as `SECURITY DEFINER` with a fixed `search_path`.
+- GitHub Actions run #159 passed TypeScript and production build.
+- A synthetic end-to-end SQL test was attempted but did not complete: the test project's auth-user trigger requires a mobile number, and the follow-up synthetic write was blocked by the tool's safety checks. No production writes were attempted.
+- Important limitation: this is not a clean replay of the full repository migration chain. The testing project needed test-only fixture schemas/columns for `food_post_orders`, `electronics_post_orders`, and apparel delivery fields because the source migration history does not currently establish all of those dependencies from a blank database. Therefore this is not yet proof of full schema parity or end-to-end RLS/claim behavior.
+- Production remains read-only and the PR migration has not been applied there. Keep this PR Draft until a controlled synthetic test can verify role replacement, notification creation/deduplication, RLS visibility, atomic claiming, and financial invariance.
+
