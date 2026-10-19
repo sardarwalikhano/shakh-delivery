@@ -1,0 +1,56 @@
+# Supabase migration-history recovery inventory
+
+**Status:** Investigation only — no production writes  
+**Production project:** `jjtmtxrkbewmdxdmgtrf`  
+**Related issue:** [#43 — Restore reproducible Supabase migration history for food orders and share links](https://github.com/sardarwalikhano/shakh-delivery/issues/43)  
+**Related change:** [PR #42 — Captain delivery offers and notifications](https://github.com/sardarwalikhano/shakh-delivery/pull/42)
+
+## Purpose and safety boundary
+
+This inventory records verified migration-history gaps and the evidence needed to recover them. It is not a schema migration and must not be applied to a database.
+
+- Keep production read-only until a complete schema-only recovery and clean replay are verified.
+- Do not drop, recreate, or rename production objects.
+- Do not change order, payment, wallet, commission, referral, or ledger rows.
+- Preserve every existing trigger, policy, grant, constraint, index, function, and feature.
+- Do not treat the partial `testing` project or its test-only fixtures as a clean replay or production-equivalent schema.
+
+## Confirmed repository / production drift
+
+1. Production migration history includes `20261012081736 / food_post_order_flow_v1`, but the corresponding versioned SQL file is not present at the expected path in `main`.
+2. Production records the food cart migration as version `20261013072843`, while the source tree contains `20261013071759_food_post_cart.sql`. The source file creates `food_post_cart_items` and cart RPCs, but delegates checkout to the existing `public.create_food_post_order(...)` function; it does not create the base `food_post_orders` table.
+3. `20261013075200_food_post_captain_payment_ledger.sql` alters `food_post_orders` and adds financial logic assuming the base table already exists; it is not a base-table migration.
+4. `20261015170000_electronics_posts_checkout_share_rewards_v1.sql` creates electronics orders with a foreign key to `public.post_share_links(id)`, but the source migration tree has no identified authoritative creation migration for that table.
+5. The Oct 15 Share & Earn UI commit explicitly describes reusing a production-applied migration rather than including its authoritative schema migration: [commit 4e9f03f](https://github.com/sardarwalikhano/shakh-delivery/commit/4e9f03fdffbad3b8add62aef05d8f885be87a0ec).
+
+These findings indicate incomplete/relabelled migration history; they do **not** indicate that these tables are absent from production.
+
+## Read-only production catalog evidence
+
+### `public.food_post_orders`
+
+- 49 columns across order identity, buyer/seller/post references, quantities and prices, delivery address/city/coordinates, delivery and payment states, captain assignment, share attribution/rewards, seller-fee accounting, and captain-fee accounting.
+- Constraints cover foreign keys to `auth.users`, `profiles`, `posts`, and `post_share_links`; order number uniqueness; buyer/request idempotency; status and payment enumerations; phone/address lengths; quantity bounds; total consistency; and nonnegative/integer share amounts.
+- Indexes include buyer-created, buyer/request unique, captain-delivery, order number unique, post-created, and seller-created.
+- RLS is enabled. The SELECT policy covers the buyer, seller, `posts.manage` permission, and `deliveries.claim` users for assigned deliveries or confirmed/pending/unassigned offers.
+- Existing triggers include wallet charges, share rewards, captain commission reservation/finalization, delivery-zone enforcement, cancellation share-credit refund, seller-fee reservation, and share-reward reservation.
+
+### `public.post_share_links`
+
+- Six columns: `id`, `post_id`, `sharer_id`, `is_active`, `created_at`, and `expires_at`.
+- Foreign keys reference `posts` and `auth.users`; indexes cover active expiry, post/sharer expiry, and sharer-created ordering.
+- RLS is enabled. SELECT is limited to the sharer or users with `share_rewards.manage`.
+
+## Required recovery sequence
+
+1. Obtain a schema-only export or authoritative original SQL for the base `food_post_orders` and `post_share_links` definitions, preferably from deployment records, backups, or source-control history.
+2. Recover the full related object graph: referenced enum types, constraints, indexes, RLS policies and grants, triggers, trigger functions, RPCs, and publication settings. In particular, inspect every function that touches fee holds, wallet balances, cash ledgers, share earnings, or delivery state.
+3. Record source provenance and compare each recovered definition to production catalog output. Avoid replacing existing objects merely to make a clean replay pass.
+4. Add versioned migrations or a documented bootstrap path that handles clean databases and existing production databases safely. Any baseline must be additive/idempotent where appropriate and must not duplicate already-applied production changes.
+5. Build a truly disposable database from the repository's migration chain without test-only fixture tables/columns.
+6. Run schema, RLS, role-transition, delivery-offer, notification idempotency, atomic-claim, and financial-invariance tests.
+7. Keep PR #42 Draft until the SQL and end-to-end tests pass. Production changes require a separate explicit deployment decision.
+
+## Known validation limitation
+
+The existing `testing` project was only a partial migration replay and required test-only fixture schemas/columns for food, electronics, and apparel delivery fields before PR #42's migration could be applied. The migration rerun and trigger-catalog checks on that project are useful partial checks, but they do not prove a clean migration replay, production schema parity, end-to-end RLS behavior, or atomic claim correctness.
