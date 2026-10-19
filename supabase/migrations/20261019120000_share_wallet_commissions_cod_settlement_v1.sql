@@ -168,8 +168,8 @@ begin
  if v_fee=0 then return new; end if;
  insert into public.prepaid_wallet_accounts(user_id) values(v_seller_id) on conflict(user_id) do nothing;
  update public.prepaid_wallet_accounts
- set balance_iqd=balance_iqd-v_fee,held_iqd=held_iqd+v_fee,updated_at=now()
- where user_id=v_seller_id and balance_iqd>=v_fee;
+ set held_iqd=held_iqd+v_fee,updated_at=now()
+ where user_id=v_seller_id and balance_iqd-held_iqd>=v_fee;
  if not found then
    raise exception using errcode='22023', message='Seller prepaid wallet has insufficient balance; the seller must top up before this order can be placed';
  end if;
@@ -220,8 +220,8 @@ begin
  if v_reward=0 then new.share_reward_reserved_iqd:=0; new.share_reward_reserved:=false; return new; end if;
  insert into public.prepaid_wallet_accounts(user_id) values(v_seller_id) on conflict(user_id) do nothing;
  update public.prepaid_wallet_accounts
- set balance_iqd=balance_iqd-v_reward,held_iqd=held_iqd+v_reward,updated_at=now()
- where user_id=v_seller_id and balance_iqd>=v_reward;
+ set held_iqd=held_iqd+v_reward,updated_at=now()
+ where user_id=v_seller_id and balance_iqd-held_iqd>=v_reward;
  if not found then
    raise exception using errcode='22023', message='Seller prepaid wallet has insufficient balance to fund this share reward';
  end if;
@@ -281,8 +281,9 @@ begin
  v_user_id := new.seller_id;
  if v_cancel then
    if new.seller_fee_reserved and not new.seller_fee_settled and not new.seller_fee_released and new.seller_fee_iqd>0 then
-     update public.prepaid_wallet_accounts set balance_iqd=balance_iqd+new.seller_fee_iqd,
-       held_iqd=held_iqd-new.seller_fee_iqd,updated_at=now() where user_id=v_user_id;
+     update public.prepaid_wallet_accounts set held_iqd=held_iqd-new.seller_fee_iqd,updated_at=now()
+       where user_id=v_user_id and held_iqd>=new.seller_fee_iqd;
+     if not found then raise exception 'Seller commission hold is inconsistent; cancellation was rolled back'; end if;
      insert into public.prepaid_wallet_transactions(user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku,created_by)
      values(v_user_id,'hold_release',new.seller_fee_iqd,tg_table_name,new.id,'seller-fee-release:'||tg_table_name||':'||new.id::text,
        'کۆمسیۆنی فرۆشیار بەهۆی هەڵوەشاندنەوەی داواکاری گەڕێندرایەوە',auth.uid())
@@ -290,8 +291,9 @@ begin
      new.seller_fee_released := true;
    end if;
    if new.share_reward_reserved and not new.share_reward_settled and not new.share_reward_released and new.share_reward_reserved_iqd>0 then
-     update public.prepaid_wallet_accounts set balance_iqd=balance_iqd+new.share_reward_reserved_iqd,
-       held_iqd=held_iqd-new.share_reward_reserved_iqd,updated_at=now() where user_id=v_user_id;
+     update public.prepaid_wallet_accounts set held_iqd=held_iqd-new.share_reward_reserved_iqd,updated_at=now()
+       where user_id=v_user_id and held_iqd>=new.share_reward_reserved_iqd;
+     if not found then raise exception 'Seller share reward hold is inconsistent; cancellation was rolled back'; end if;
      insert into public.prepaid_wallet_transactions(user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku,created_by)
      values(v_user_id,'hold_release',new.share_reward_reserved_iqd,tg_table_name,new.id,'share-reward-release:'||tg_table_name||':'||new.id::text,
        'قازانجی Share بەهۆی هەڵوەشاندنەوەی داواکاری گەڕێندرایەوە',auth.uid())
@@ -299,8 +301,9 @@ begin
      new.share_reward_released := true;
    end if;
    if tg_table_name='food_post_orders' and new.captain_fee_reserved and not new.captain_fee_settled and not new.captain_fee_released and new.captain_fee_iqd>0 and new.captain_id is not null then
-     update public.prepaid_wallet_accounts set balance_iqd=balance_iqd+new.captain_fee_iqd,
-       held_iqd=held_iqd-new.captain_fee_iqd,updated_at=now() where user_id=new.captain_id;
+     update public.prepaid_wallet_accounts set held_iqd=held_iqd-new.captain_fee_iqd,updated_at=now()
+       where user_id=new.captain_id and held_iqd>=new.captain_fee_iqd;
+     if not found then raise exception 'Captain commission hold is inconsistent; cancellation was rolled back'; end if;
      insert into public.prepaid_wallet_transactions(user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku,created_by)
      values(new.captain_id,'hold_release',new.captain_fee_iqd,'food_post_order',new.id,'captain-fee-release:food_post:'||new.id::text,
        'کۆمسیۆنی کاپتن بەهۆی هەڵوەشاندنەوەی گەیاندن گەڕێندرایەوە',auth.uid())
@@ -309,8 +312,11 @@ begin
    end if;
  elsif v_complete then
    if new.seller_fee_reserved and not new.seller_fee_settled and not new.seller_fee_released and new.seller_fee_iqd>0 then
-     update public.prepaid_wallet_accounts set held_iqd=held_iqd-new.seller_fee_iqd,
-       lifetime_spent_iqd=lifetime_spent_iqd+new.seller_fee_iqd,updated_at=now() where user_id=v_user_id;
+     update public.prepaid_wallet_accounts set balance_iqd=balance_iqd-new.seller_fee_iqd,
+       held_iqd=held_iqd-new.seller_fee_iqd,
+       lifetime_spent_iqd=lifetime_spent_iqd+new.seller_fee_iqd,updated_at=now()
+       where user_id=v_user_id and balance_iqd>=new.seller_fee_iqd and held_iqd>=new.seller_fee_iqd;
+     if not found then raise exception 'Seller commission hold is inconsistent; order completion was rolled back'; end if;
      insert into public.prepaid_wallet_transactions(user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku,created_by)
      values(v_user_id,'spend',new.seller_fee_iqd,tg_table_name,new.id,'seller-fee-settle:'||tg_table_name||':'||new.id::text,
        'کۆمسیۆنی فرۆشیار لە داواکاریی تەواوبوو کۆتایی پێهات',auth.uid())
@@ -318,8 +324,11 @@ begin
      new.seller_fee_settled := true;
    end if;
    if new.share_reward_reserved and not new.share_reward_settled and not new.share_reward_released and new.share_reward_reserved_iqd>0 then
-     update public.prepaid_wallet_accounts set held_iqd=held_iqd-new.share_reward_reserved_iqd,
-       lifetime_spent_iqd=lifetime_spent_iqd+new.share_reward_reserved_iqd,updated_at=now() where user_id=v_user_id;
+     update public.prepaid_wallet_accounts set balance_iqd=balance_iqd-new.share_reward_reserved_iqd,
+       held_iqd=held_iqd-new.share_reward_reserved_iqd,
+       lifetime_spent_iqd=lifetime_spent_iqd+new.share_reward_reserved_iqd,updated_at=now()
+       where user_id=v_user_id and balance_iqd>=new.share_reward_reserved_iqd and held_iqd>=new.share_reward_reserved_iqd;
+     if not found then raise exception 'Seller share reward hold is inconsistent; order completion was rolled back'; end if;
      insert into public.prepaid_wallet_transactions(user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku,created_by)
      values(v_user_id,'spend',new.share_reward_reserved_iqd,tg_table_name,new.id,'share-reward-settle:'||tg_table_name||':'||new.id::text,
        'قازانجی Share بۆ کڕینی تەواوبوو خەرج کرا',auth.uid())
@@ -327,8 +336,11 @@ begin
      new.share_reward_settled := true;
    end if;
    if tg_table_name='food_post_orders' and new.captain_fee_reserved and not new.captain_fee_settled and not new.captain_fee_released and new.captain_fee_iqd>0 and new.captain_id is not null then
-     update public.prepaid_wallet_accounts set held_iqd=held_iqd-new.captain_fee_iqd,
-       lifetime_spent_iqd=lifetime_spent_iqd+new.captain_fee_iqd,updated_at=now() where user_id=new.captain_id;
+     update public.prepaid_wallet_accounts set balance_iqd=balance_iqd-new.captain_fee_iqd,
+       held_iqd=held_iqd-new.captain_fee_iqd,
+       lifetime_spent_iqd=lifetime_spent_iqd+new.captain_fee_iqd,updated_at=now()
+       where user_id=new.captain_id and balance_iqd>=new.captain_fee_iqd and held_iqd>=new.captain_fee_iqd;
+     if not found then raise exception 'Captain commission hold is inconsistent; order completion was rolled back'; end if;
      insert into public.prepaid_wallet_transactions(user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku,created_by)
      values(new.captain_id,'spend',new.captain_fee_iqd,'food_post_order',new.id,'captain-fee-settle:food_post:'||new.id::text,
        'کۆمسیۆنی کاپتن بۆ گەیاندنی تەواوبوو حساب کرا',auth.uid())
