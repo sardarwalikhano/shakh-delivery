@@ -111,17 +111,17 @@ revoke all on function private.notify_direct_post_captains() from public, anon, 
 -- confirmed. Existing pending orders remain pending and do not alert captains yet.
 drop trigger if exists notify_food_post_delivery_offer on public.food_post_orders;
 create trigger notify_food_post_delivery_offer
-after insert or update of status on public.food_post_orders
+after insert or update on public.food_post_orders
 for each row execute function private.notify_direct_post_captains();
 
 drop trigger if exists notify_apparel_delivery_offer on public.apparel_post_orders;
 create trigger notify_apparel_delivery_offer
-after insert or update of status on public.apparel_post_orders
+after insert or update on public.apparel_post_orders
 for each row execute function private.notify_direct_post_captains();
 
 drop trigger if exists notify_product_post_delivery_offer on public.electronics_post_orders;
 create trigger notify_product_post_delivery_offer
-after insert or update of status on public.electronics_post_orders
+after insert or update on public.electronics_post_orders
 for each row execute function private.notify_direct_post_captains();
 
 -- Catch up already-confirmed, still-unassigned offers for approved captains who
