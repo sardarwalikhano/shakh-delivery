@@ -4,18 +4,22 @@
 begin;
 
 -- The app uses one active role per user (user_roles.user_id is the primary key).
--- For users with an already-approved captain request, make captain their active
--- role instead of leaving the previous customer/vendor role in place. If a user
--- has duplicate approved captain requests, use the most recently reviewed one.
-with latest_approved_captain_request as (
+-- Reconcile only users whose most recent approved role request overall is captain.
+-- This avoids reviving an older captain role if a later request for another role
+-- was approved. Duplicate requests are resolved deterministically.
+with latest_approved_request as (
   select distinct on (rr.user_id)
     rr.user_id,
     rr.requested_role
   from public.role_requests rr
-  where rr.requested_role::text = 'captain'
-    and rr.status = 'approved'
+  where rr.status = 'approved'
   order by rr.user_id, rr.reviewed_at desc nulls last, rr.updated_at desc,
            rr.requested_at desc, rr.id desc
+),
+latest_approved_captain_request as (
+  select user_id, requested_role
+  from latest_approved_request
+  where requested_role::text = 'captain'
 )
 insert into public.user_roles(user_id, role)
 select user_id, requested_role
