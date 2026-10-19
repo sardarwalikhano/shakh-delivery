@@ -138,6 +138,7 @@ begin
   if p_payment_method not in ('mobile_cash','zain_cash','fastpay','qi_card','bank_transfer','other') then raise exception 'Invalid payment method'; end if;
   if p_receipt_path is null or length(trim(p_receipt_path)) < 3 then raise exception 'Payment receipt is required'; end if;
   if (storage.foldername(trim(p_receipt_path)))[1] is distinct from auth.uid()::text then raise exception 'Receipt must belong to the authenticated user'; end if;
+  if not exists (select 1 from storage.objects o where o.bucket_id='wallet-payment-receipts' and o.name=trim(p_receipt_path)) then raise exception 'Payment receipt file was not found in private storage'; end if;
   if length(p_receipt_path) > 1000 or length(coalesce(p_sender_reference,'')) > 200 or length(coalesce(p_note,'')) > 1000 then raise exception 'Input too long'; end if;
   if exists (select 1 from public.prepaid_topup_requests r where r.user_id=auth.uid() and r.status='pending') then
     raise exception 'You already have a pending top-up request';
@@ -165,6 +166,9 @@ begin
   select * into v_req from public.prepaid_topup_requests where id=p_request_id for update;
   if not found then raise exception 'Top-up request not found'; end if;
   if v_req.status <> 'pending' then raise exception 'Top-up request has already been reviewed'; end if;
+  if p_action='approve' and not exists (select 1 from storage.objects o where o.bucket_id='wallet-payment-receipts' and o.name=v_req.receipt_path and (storage.foldername(o.name))[1]=v_req.user_id::text) then
+    raise exception using errcode='22023',message='Top-up receipt is missing or does not belong to the requester';
+  end if;
   if p_action='reject' then
     update public.prepaid_topup_requests set status='rejected',admin_note=nullif(trim(p_admin_note),''),reviewed_by=auth.uid(),reviewed_at=now() where id=v_req.id;
     return jsonb_build_object('status','rejected','request_id',v_req.id);
