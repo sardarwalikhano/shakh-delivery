@@ -36,6 +36,12 @@ A source copy of the missing initial food-order migration was found on the histo
 
 This narrows the recovery task: preserve the historical migration as provenance, then reconstruct the complete ordered chain of later additive changes and compare it to the read-only production catalog before writing any canonical migration. The authoritative origin of `public.post_share_links` remains unresolved.
 
+## Additional historical evidence — Share & Earn and financial follow-ups
+
+Further source-history review found commit [`6df3ac8`](https://github.com/sardarwalikhano/shakh-delivery/commit/6df3ac8af96fc520413a90ff1d08168c3fff21ae) (Oct 19, 2026), titled “Complete prepaid wallets, Share rewards, commissions and COD settlement.” Its SQL changes **alter and use** `public.post_share_links` and `public.food_post_orders`, including expiry/attribution behavior, seller-funded reward holds, wallet/commission/COD settlement, and delivery-finance triggers. The diff does not contain a `CREATE TABLE public.post_share_links` base definition. This confirms the later financial migration depends on pre-existing objects and that reconstructing only the table columns is not sufficient.
+
+The commit is useful provenance for the follow-up object graph, but its large combined diff is not a standalone clean bootstrap. Before any canonical migration is drafted, split its changes by original migration/commit boundaries and recover the actual production-applied SQL/version records. In particular, inventory every trigger on `food_post_orders` and `post_share_links` before replaying any follow-up, to avoid duplicate financial side effects.
+
 ## Read-only production catalog evidence
 
 ### `public.food_post_orders`
