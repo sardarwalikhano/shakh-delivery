@@ -309,13 +309,13 @@ export function PrepaidWalletPage() {
           <div className="mt-1 text-sm">کاشی ماوە: <strong>{fmt(row.outstanding_iqd)}</strong></div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <label className="block text-xs font-black">بڕی گەڕاندنەوە (د.ع)
-              <input type="number" min="1" max={row.outstanding_iqd} step="1" value={settlementAmounts[row.captain_id]??String(row.outstanding_iqd)} onChange={e=>setSettlementAmounts(values=>({...values,[row.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/>
+              <input type="number" min="1" max={row.outstanding_iqd} step="1" value={settlementAmounts[row.captain_id]??String(row.outstanding_iqd)} disabled={!!settlementAttempts[row.captain_id]} onChange={e=>setSettlementAmounts(values=>({...values,[row.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal disabled:bg-black/[0.03]"/>
             </label>
             <label className="block text-xs font-black">تێبینی (ئارەزوومەندانە)
-              <input maxLength={1000} value={settlementNotes[row.captain_id]??''} onChange={e=>setSettlementNotes(values=>({...values,[row.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal" placeholder="ژمارەی وەسڵ یان تێبینی"/>
+              <input maxLength={1000} value={settlementNotes[row.captain_id]??''} disabled={!!settlementAttempts[row.captain_id]} onChange={e=>setSettlementNotes(values=>({...values,[row.captain_id]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal disabled:bg-black/[0.03]" placeholder="ژمارەی وەسڵ یان تێبینی"/>
             </label>
           </div>
-          <button type="button" disabled={busyId===row.captain_id} onClick={()=>void settleCash(row.captain_id,Number(row.outstanding_iqd))} className="mt-3 min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">{busyId===row.captain_id?'تۆمارکردن...':'تۆمارکردنی وەرگرتنی کاش'}</button>
+          <button type="button" disabled={busyId===row.captain_id} onClick={()=>void settleCash(row.captain_id,Number(row.outstanding_iqd))} className="mt-3 min-h-10 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">{busyId===row.captain_id?'تۆمارکردن...':settlementAttempts[row.captain_id]?'دووبارە هەوڵدان بە هەمان داواکاری':'تۆمارکردنی وەرگرتنی کاش'}</button>
         </article>)}
         {!outstandingByCaptain.length && <Empty text="هیچ کاشێکی ماوە لای کاپتن نییە."/>}
       </div>
