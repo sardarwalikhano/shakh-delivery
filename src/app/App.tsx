@@ -36,6 +36,7 @@ import { ApparelPostOrdersPage } from '@/features/posts/pages/ApparelPostOrdersP
 import { FoodPostCheckoutPage } from '@/features/posts/pages/FoodPostCheckoutPage';
 import { ReferralWalletPage } from '@/features/posts/pages/ReferralWalletPage';
 import { PrepaidWalletPage } from '@/features/posts/pages/PrepaidWalletPage';
+import { SuperAdminWalletCreditPage } from '@/features/posts/pages/SuperAdminWalletCreditPage';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function App() {
@@ -81,6 +82,7 @@ export function App() {
           <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission>} />
           <Route path="/dashboard/referral-wallet" element={<RequirePermission permission="posts.view"><ReferralWalletPage /></RequirePermission>} />
           <Route path="/dashboard/wallet" element={<RequirePermission permission="wallets.view_own"><PrepaidWalletPage /></RequirePermission>} />
+          <Route path="/dashboard/wallet/admin-credit" element={<RequirePermission permission="wallets.manage"><SuperAdminWalletCreditPage /></RequirePermission>} />
           <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission>} />
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
