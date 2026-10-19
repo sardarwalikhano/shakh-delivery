@@ -2,6 +2,18 @@
 -- and immutable COD settlement. Additive: existing orders and histories remain intact.
 begin;
 
+-- Prevent duplicate legacy triggers from reserving/settling the same seller-funded reward.
+drop trigger if exists zzz_reserve_food_share_reward on public.food_post_orders;
+drop trigger if exists zzz_reserve_apparel_share_reward on public.apparel_post_orders;
+drop trigger if exists zzz_reserve_electronics_share_reward on public.electronics_post_orders;
+drop trigger if exists zzz_settle_food_share_reward on public.food_post_orders;
+drop trigger if exists zzz_settle_apparel_share_reward on public.apparel_post_orders;
+drop trigger if exists zzz_settle_electronics_share_reward on public.electronics_post_orders;
+-- Cash is recorded by the actual food payment event, not by a second order-update path.
+drop trigger if exists zzz_record_food_post_cod_collection on public.food_post_orders;
+-- Use the shared per-captain commission rule, not a second food-only commission hold.
+drop trigger if exists reserve_food_captain_commission on public.food_post_orders;
+
 -- A fresh share action gets a distinct token with a strict 24-hour lifetime.
 alter table public.post_share_links add column if not exists expires_at timestamptz;
 update public.post_share_links
@@ -203,7 +215,7 @@ begin
    new.share_reward_reserved_iqd := 0; new.share_reward_reserved := false;
    return new;
  end if;
- v_reward := greatest(0,round(coalesce(v_post.share_reward_iqd,0))::bigint)*greatest(1,coalesce(new.quantity,1));
+ v_reward := greatest(0,round(coalesce(v_post.share_reward_iqd,0))::bigint);
  new.share_reward_iqd := v_reward;
  if v_reward=0 then new.share_reward_reserved_iqd:=0; new.share_reward_reserved:=false; return new; end if;
  insert into public.prepaid_wallet_accounts(user_id) values(v_seller_id) on conflict(user_id) do nothing;
@@ -263,7 +275,7 @@ begin
    v_complete := new.status='delivered' and new.payment_status='collected';
    v_cancel := new.status in ('cancelled','rejected');
  else
-   v_complete := new.status='delivered';
+   v_complete := new.status='delivered' and new.payment_status='collected';
    v_cancel := new.status in ('cancelled','rejected');
  end if;
  v_user_id := new.seller_id;
@@ -330,7 +342,7 @@ $function$;
 
 create trigger apply_post_wallet_charges_food before update of status,payment_status,delivery_status on public.food_post_orders
 for each row execute function private.apply_post_order_wallet_charges();
-create trigger apply_post_wallet_charges_apparel before update of status on public.apparel_post_orders
+create trigger apply_post_wallet_charges_apparel before update of status,payment_status on public.apparel_post_orders
 for each row execute function private.apply_post_order_wallet_charges();
 create trigger apply_post_wallet_charges_electronics before update of status,payment_status on public.electronics_post_orders
 for each row execute function private.apply_post_order_wallet_charges();
@@ -363,8 +375,8 @@ begin
  return new;
 end;
 $function$;
-create trigger reserve_food_captain_commission before update of captain_id on public.food_post_orders
-for each row execute function private.reserve_food_captain_commission();
+-- Food commissions are reserved by private.reserve_captain_delivery_commission_before,
+-- shared with store and direct-post delivery flows. Do not install a duplicate hold trigger.
 
 -- Private payout receipts: admin must upload proof before a withdrawal can be marked paid.
 alter table public.share_withdrawal_requests add column if not exists payout_receipt_path text;
@@ -535,6 +547,8 @@ end;
 $function$;
 revoke all on function public.settle_captain_cash(uuid,uuid,bigint,text) from public,anon;
 grant execute on function public.settle_captain_cash(uuid,uuid,bigint,text) to authenticated;
+-- The newer idempotent settlement RPC is the only supported settlement entry point.
+revoke all on function public.settle_captain_cash(uuid,bigint,text) from public,anon,authenticated;
 
 create or replace function private.record_food_cash_collection()
 returns trigger
