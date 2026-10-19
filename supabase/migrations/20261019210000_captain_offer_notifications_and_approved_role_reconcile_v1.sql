@@ -10,20 +10,31 @@ begin;
 with latest_approved_request as (
   select distinct on (rr.user_id)
     rr.user_id,
-    rr.requested_role
+    rr.requested_role,
+    rr.reviewed_at,
+    rr.updated_at as request_updated_at
   from public.role_requests rr
   where rr.status = 'approved'
   order by rr.user_id, rr.reviewed_at desc nulls last, rr.updated_at desc,
            rr.requested_at desc, rr.id desc
 ),
-latest_approved_captain_request as (
-  select user_id, requested_role
-  from latest_approved_request
-  where requested_role::text = 'captain'
+eligible_captain_reconciliation as (
+  select lar.user_id, lar.requested_role
+  from latest_approved_request lar
+  left join public.user_roles current_role on current_role.user_id = lar.user_id
+  where lar.requested_role::text = 'captain'
+    -- Never replace a non-customer role as a side effect of historical repair.
+    and (current_role.user_id is null or current_role.role::text = 'customer')
+    -- Do not revert a role that was changed after this approval; this keeps
+    -- rerunning the migration from resurrecting a stale captain role.
+    and (
+      current_role.user_id is null
+      or current_role.updated_at <= coalesce(lar.reviewed_at, lar.request_updated_at)
+    )
 )
 insert into public.user_roles(user_id, role)
 select user_id, requested_role
-from latest_approved_captain_request
+from eligible_captain_reconciliation
 on conflict (user_id) do update
 set role = excluded.role,
     updated_at = now();
