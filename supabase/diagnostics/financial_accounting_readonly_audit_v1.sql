@@ -231,3 +231,39 @@ union all select 'captain_cash_ledger', count(*) from public.captain_cash_ledger
 union all select 'share_earnings', count(*) from public.share_earnings
 union all select 'share_wallet_transactions', count(*) from public.share_wallet_transactions
 order by table_name;
+
+
+-- 7) Orders marked delivered while delivery_status is not delivered.
+-- These rows may bypass captain-delivery finalization and COD collection hooks.
+-- This is diagnostic only; it does not change historical orders.
+select
+  'food_post_orders'::text as order_table,
+  o.id as order_id,
+  o.order_number,
+  o.status::text as order_status,
+  o.delivery_status::text as delivery_status,
+  o.payment_status::text as payment_status,
+  o.payment_method,
+  o.captain_id,
+  o.delivery_fee_iqd,
+  o.created_at
+from public.food_post_orders o
+where o.status::text = 'delivered'
+  and o.delivery_status::text is distinct from 'delivered'
+union all
+select
+  'apparel_post_orders', o.id, o.order_number,
+  o.status::text, o.delivery_status::text, o.payment_status::text,
+  o.payment_method, o.captain_id, o.delivery_fee_iqd, o.created_at
+from public.apparel_post_orders o
+where o.status::text = 'delivered'
+  and o.delivery_status::text is distinct from 'delivered'
+union all
+select
+  'electronics_post_orders', o.id, o.order_number,
+  o.status::text, o.delivery_status::text, o.payment_status::text,
+  o.payment_method, o.captain_id, o.delivery_fee_iqd, o.created_at
+from public.electronics_post_orders o
+where o.status::text = 'delivered'
+  and o.delivery_status::text is distinct from 'delivered'
+order by order_table, created_at;
