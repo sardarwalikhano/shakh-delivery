@@ -174,7 +174,7 @@ export function PrepaidWalletPage() {
     {error&&<div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-bold text-red-700"><CircleAlert className="me-2 inline" size={16}/>{error}</div>}
     {message&&<div role="status" className="rounded-xl bg-emerald-500/10 p-3 text-sm font-bold text-emerald-800">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-      <Stat label="باڵانسی بەردەست" value={fmt(account?.balance_iqd??0)} icon={<Wallet size={18}/>}/>
+      <Stat label="باڵانسی بەردەست" value={fmt(Math.max(0,Number(account?.balance_iqd??0)-Number(account?.held_iqd??0)))} icon={<Wallet size={18}/>}/>
       <Stat label="باڵانسی گیراو" value={fmt(account?.held_iqd??0)} icon={<Banknote size={18}/>}/>
       <Stat label="کۆی پارەی زیادکراو" value={fmt(account?.lifetime_credited_iqd??0)} icon={<BadgeCheck size={18}/>}/>
       <Stat label="کۆی خەرجکراو" value={fmt(account?.lifetime_spent_iqd??0)} icon={<Banknote size={18}/>}/>
