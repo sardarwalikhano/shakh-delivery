@@ -70,7 +70,6 @@ const payoutLabels: Record<string, string> = {
   mobile_cash: 'Mobile Cash',
   fastpay: 'FastPay',
   fib: 'FIB',
-  fib: 'FIB',
   bank_transfer: 'گواستنەوەی بانکی',
   qi_card: 'Qi Card',
   other: 'ڕێگای تر',
