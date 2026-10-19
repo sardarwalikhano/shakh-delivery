@@ -13,9 +13,12 @@ type CaptainProfile = { id: string; full_name: string | null; phone: string | nu
 type CashBalance = { captain_id: string; outstanding_iqd: number; collected_iqd: number; remitted_iqd: number; last_collected_at: string | null };
 type CommissionRule = { captain_id: string | null; commission_percent: number };
 type CaptainCommissionOverview = { captain_id: string; full_name: string | null; phone: string | null; commission_percent: number; is_custom: boolean };
+type SellerCommissionSetting = { category: string; seller_fee_per_unit_iqd: number | string; captain_fee_percent: number | string };
+type SettlementAttempt = { id: string; amount_iqd: number; note: string };
 const fmt = (v: number | string | null | undefined) => Math.round(Number(v ?? 0)).toLocaleString('en-US') + ' د.ع';
 const date = (v: string) => new Date(v).toLocaleString('ku-IQ',{dateStyle:'medium',timeStyle:'short'});
-const methods: Record<string,string> = {mobile_cash:'Mobile Cash',zain_cash:'ZainCash',fastpay:'FastPay',qi_card:'Qi Card',bank_transfer:'گواستنەوەی بانکی',other:'ڕێگای تر'};
+const methods: Record<string,string> = {mobile_cash:'Mobile Cash',zain_cash:'ZainCash',fastpay:'FastPay',fib:'FIB',qi_card:'Qi Card',bank_transfer:'گواستنەوەی بانکی',other:'ڕێگای تر'};
+const categoryLabels: Record<string,string> = {food:'چێشتخانە',fashion:'جل‌وبەرگ',electronics:'ئەلیکترۆنیات',general:'بازاڕی گشتی',supermarket:'سوپەرمارکێت',beauty:'جوانکاری',kids:'کڕین بۆ منداڵان',online_stores:'فرۆشگا ئۆنلاین',delivery:'گەیاندن'};
 
 export function PrepaidWalletPage() {
   const { user } = useAuth();
@@ -30,6 +33,9 @@ export function PrepaidWalletPage() {
   const [defaultCommissionPercent,setDefaultCommissionPercent] = useState(20);
   const [defaultCommissionDraft,setDefaultCommissionDraft] = useState('20');
   const [captainCommissionOverview,setCaptainCommissionOverview] = useState<CaptainCommissionOverview[]>([]);
+  const [sellerFeeSettings,setSellerFeeSettings] = useState<SellerCommissionSetting[]>([]);
+  const [sellerFeeDrafts,setSellerFeeDrafts] = useState<Record<string,string>>({});
+  const [settlementAttempts,setSettlementAttempts] = useState<Record<string,SettlementAttempt>>({});
   const [commissionDrafts,setCommissionDrafts] = useState<Record<string,string>>({});
   const [captainProfiles,setCaptainProfiles] = useState<Record<string,CaptainProfile>>({});
   const [settlementAmounts,setSettlementAmounts] = useState<Record<string,string>>({});
@@ -48,7 +54,7 @@ export function PrepaidWalletPage() {
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
-    const [accountRes,txRes,requestRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes] = await Promise.all([
+    const [accountRes,txRes,requestRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes,sellerFeeRes] = await Promise.all([
       supabase.from('prepaid_wallet_accounts').select('user_id,balance_iqd,held_iqd,lifetime_credited_iqd,lifetime_spent_iqd').eq('user_id',user.id).maybeSingle(),
       supabase.from('prepaid_wallet_transactions').select('id,transaction_type,amount_iqd,description_ku,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50),
       supabase.from('prepaid_topup_requests').select('id,user_id,amount_iqd,payment_method,receipt_path,sender_reference,note,status,admin_note,requested_at').order('requested_at',{ascending:false}).limit(100),
@@ -57,8 +63,9 @@ export function PrepaidWalletPage() {
       supabase.rpc('get_captain_cash_balances'),
       supabase.from('captain_commission_rules').select('captain_id,commission_percent'),
       supabase.rpc('get_captain_commission_overview'),
+      supabase.from('wallet_commission_settings').select('category,seller_fee_per_unit_iqd,captain_fee_percent').order('category'),
     ]);
-    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error ?? ruleRes.error ?? commissionOverviewRes.error;
+    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error ?? ruleRes.error ?? commissionOverviewRes.error ?? sellerFeeRes.error;
     if (err) { setError(err.message); return; }
     setAccount(accountRes.data as Account|null);
     setTransactions((txRes.data ?? []) as Tx[]);
@@ -73,6 +80,9 @@ export function PrepaidWalletPage() {
     setDefaultCommissionPercent(defaultPercent);
     setDefaultCommissionDraft(String(defaultPercent));
     setCaptainCommissionOverview((commissionOverviewRes.data ?? []) as CaptainCommissionOverview[]);
+    const sellerFees = (sellerFeeRes.data ?? []) as SellerCommissionSetting[];
+    setSellerFeeSettings(sellerFees);
+    setSellerFeeDrafts(current => { const next = {...current}; for (const row of sellerFees) if (next[row.category] === undefined) next[row.category] = String(row.seller_fee_per_unit_iqd); return next; });
     const profileIds = [...new Set(cashRows.map(row=>row.captain_id))];
     if (canManage && profileIds.length) {
       const {data:profiles} = await supabase.from('profiles').select('id,full_name,phone').in('id',profileIds);
@@ -83,6 +93,22 @@ export function PrepaidWalletPage() {
   },[canManage,user]);
 
   useEffect(()=>{ void refresh(); },[refresh]);
+
+  useEffect(()=>{
+    const prefix='shakh.pending-cash-settlement:';
+    const restored:Record<string,SettlementAttempt> = {};
+    try {
+      for(let i=0;i<window.sessionStorage.length;i++){
+        const key=window.sessionStorage.key(i);
+        if(!key||!key.startsWith(prefix)) continue;
+        const captainId=key.slice(prefix.length);
+        try { const value=JSON.parse(window.sessionStorage.getItem(key)??'null') as SettlementAttempt|null; if(value?.id&&Number.isSafeInteger(value.amount_iqd)) restored[captainId]=value; } catch { window.sessionStorage.removeItem(key); }
+      }
+    } catch { /* Session storage is an idempotency aid; the database remains authoritative. */ }
+    setSettlementAttempts(restored);
+    setSettlementAmounts(current=>{const next={...current};for(const [id,value] of Object.entries(restored))next[id]=String(value.amount_iqd);return next;});
+    setSettlementNotes(current=>{const next={...current};for(const [id,value] of Object.entries(restored))next[id]=value.note;return next;});
+  },[]);
 
   const submit = async (e:FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setBusy(true); setError(null); setMessage(null);
@@ -108,23 +134,34 @@ export function PrepaidWalletPage() {
 
 
   const settleCash = async (captainId:string,outstanding:number) => {
-    const amountToSettle = Number(settlementAmounts[captainId] ?? String(outstanding));
-    if (!Number.isSafeInteger(amountToSettle) || amountToSettle<1 || amountToSettle>outstanding) {
-      setError('بڕی گەڕاندنەوە دەبێت لە ١ تا بڕی کاشی ماوە بێت.'); return;
+    const storageKey='shakh.pending-cash-settlement:'+captainId;
+    let attempt=settlementAttempts[captainId];
+    if(!attempt){
+      try { const raw=window.sessionStorage.getItem(storageKey); if(raw) attempt=JSON.parse(raw) as SettlementAttempt; } catch { /* Treat invalid stored retry state as absent. */ }
     }
-    setBusyId(captainId); setError(null); setMessage(null);
+    const amountToSettle=attempt?.amount_iqd ?? Number(settlementAmounts[captainId] ?? String(outstanding));
+    const noteToSettle=attempt?.note ?? (settlementNotes[captainId]?.trim()||'');
+    if(!attempt && (!Number.isSafeInteger(amountToSettle)||amountToSettle<1||amountToSettle>outstanding)){
+      setError('بڕی گەڕاندنەوە دەبێت لە ١ تا بڕی کاشی ماوە بێت.');return;
+    }
+    attempt=attempt??{id:crypto.randomUUID(),amount_iqd:amountToSettle,note:noteToSettle};
+    setSettlementAttempts(current=>({...current,[captainId]:attempt!}));
+    try { window.sessionStorage.setItem(storageKey,JSON.stringify(attempt)); } catch { /* Server RPC still enforces idempotency for the current attempt. */ }
+    setBusyId(captainId);setError(null);setMessage(null);
     try {
-      const {data,error:rpcError} = await supabase.rpc('settle_captain_cash',{
-        p_captain_id:captainId,p_amount_iqd:amountToSettle,p_note:settlementNotes[captainId]?.trim()||null
+      const {data,error:rpcError}=await supabase.rpc('settle_captain_cash',{
+        p_request_id:attempt.id,p_captain_id:captainId,p_amount_iqd:attempt.amount_iqd,p_note:attempt.note||null
       });
-      if(rpcError) throw rpcError;
-      const result=data as {settled_iqd?:number;outstanding_iqd?:number}|null;
-      setMessage('گەڕاندنەوەی کاش تۆمارکرا: '+fmt(result?.settled_iqd??amountToSettle)+'. بڕی ماوە: '+fmt(result?.outstanding_iqd??Math.max(0,outstanding-amountToSettle))+'.');
+      if(rpcError)throw rpcError;
+      const result=data as {amount_iqd?:number;outstanding_iqd?:number;already_recorded?:boolean}|null;
+      setMessage('گەڕاندنەوەی کاش تۆمارکرا: '+fmt(result?.amount_iqd??attempt.amount_iqd)+'. بڕی ماوە: '+fmt(result?.outstanding_iqd??Math.max(0,outstanding-attempt.amount_iqd))+'.');
+      try { window.sessionStorage.removeItem(storageKey); } catch { /* Ignore unavailable session storage. */ }
+      setSettlementAttempts(current=>{const next={...current};delete next[captainId];return next;});
       setSettlementAmounts(current=>({...current,[captainId]:''}));
       setSettlementNotes(current=>({...current,[captainId]:''}));
       await refresh();
-    } catch(e) { setError(e instanceof Error?e.message:'تۆمارکردنی گەڕاندنەوەی کاش سەرکەوتوو نەبوو.'); }
-    finally { setBusyId(null); }
+    } catch(e) {setError(e instanceof Error?e.message:'تۆمارکردنی گەڕاندنەوەی کاش سەرکەوتوو نەبوو. هەوڵ بدەوە بە هەمان داواکاری.');}
+    finally {setBusyId(null);}
   };
 
 
@@ -149,6 +186,21 @@ export function PrepaidWalletPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'گۆڕینی ڕێژەی کۆمسیۆن سەرکەوتوو نەبوو.');
     } finally { setBusyId(null); }
+  };
+
+  const saveSellerFee = async (category:string) => {
+    const raw=sellerFeeDrafts[category]??String(sellerFeeSettings.find(row=>row.category===category)?.seller_fee_per_unit_iqd??100);
+    const fee=Number(raw);
+    if(!Number.isSafeInteger(fee)||fee<0||fee>10000000){setError('کۆمسیۆنی فرۆشیار دەبێت ژمارەیەکی تەواو لە ٠ تا ١٠٬٠٠٠٬٠٠٠ دینار بێت.');return;}
+    const current=sellerFeeSettings.find(row=>row.category===category);
+    setBusyId('seller-fee:'+category);setError(null);setMessage(null);
+    try {
+      const {error:rpcError}=await supabase.rpc('update_wallet_commission_setting',{p_category:category,p_seller_fee_per_unit_iqd:fee,p_captain_fee_percent:Number(current?.captain_fee_percent??20)});
+      if(rpcError)throw rpcError;
+      setMessage('کۆمسیۆنی فرۆشیار بۆ '+(categoryLabels[category]??category)+' نوێکرایەوە. ئۆردەرە کۆنەکان ناگۆڕدرێن.');
+      await refresh();
+    } catch(e){setError(e instanceof Error?e.message:'نوێکردنەوەی کۆمسیۆنی فرۆشیار سەرکەوتوو نەبوو.');}
+    finally{setBusyId(null);}
   };
 
   const review = async (row:Topup,action:'approve'|'reject') => {
@@ -193,6 +245,19 @@ export function PrepaidWalletPage() {
         <button type="button" disabled={busyId==='default-commission'} onClick={()=>void saveCommission(null,Number(defaultCommissionDraft))} className="min-h-11 rounded-xl bg-[var(--shakh-navy)] px-4 text-xs font-black text-white disabled:opacity-40">{busyId==='default-commission'?'پاشەکەوتکردن...':'پاشەکەوتی ڕێژەی گشتی'}</button>
       </div>
       <p className="mt-2 text-xs text-black/40">ڕێژەی گشتیی ئێستا: {Number(defaultCommissionPercent).toLocaleString('en-US')}٪</p>
+      <div className="mt-5 border-t border-black/[0.06] pt-5">
+        <h3 className="text-base font-black">کۆمسیۆنی فرۆشیار بۆ هەر دانە</h3>
+        <p className="mt-1 text-xs leading-6 text-black/45">بڕی کەمکردنەوەی جزدانی فرۆشیار بەپێی جۆری پۆست ڕێکبخە. کرێ لە کاتی داواکاری گیرا و دوای تەواوبوونی فرۆشتن کۆتایی پێدێت؛ ئۆردەرە کۆنەکان ناگۆڕدرێن.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {sellerFeeSettings.map(setting=><article key={setting.category} className="rounded-2xl border border-black/[0.06] p-4">
+            <div className="font-black">{categoryLabels[setting.category]??setting.category}</div>
+            <label className="mt-3 block text-xs font-bold">کۆمسیۆن بۆ هەر دانە (د.ع)
+              <input type="number" min="0" max="10000000" step="1" value={sellerFeeDrafts[setting.category]??String(setting.seller_fee_per_unit_iqd)} onChange={e=>setSellerFeeDrafts(current=>({...current,[setting.category]:e.target.value}))} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal" />
+            </label>
+            <button type="button" disabled={busyId==='seller-fee:'+setting.category} onClick={()=>void saveSellerFee(setting.category)} className="mt-3 min-h-10 w-full rounded-xl bg-[var(--shakh-navy)] px-3 text-xs font-black text-white disabled:opacity-40">{busyId==='seller-fee:'+setting.category?'پاشەکەوتکردن...':'پاشەکەوتی کۆمسیۆن'}</button>
+          </article>)}
+        </div>
+      </div>
       <div className="mt-5 space-y-3">
         {captainCommissionOverview.map(captain=><article key={captain.captain_id} className="rounded-2xl border border-black/[0.06] p-4">
           <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-black">{captain.full_name || 'کاپتن'}</div><div className="mt-1 text-xs text-black/45" dir="ltr">{captain.phone || captain.captain_id}</div></div><span className="rounded-full bg-[var(--shakh-bg)] px-3 py-1 text-xs font-black">{captain.is_custom?'ڕێژەی تایبەتی':'ڕێژەی گشتی'} · {Number(captain.commission_percent).toLocaleString('en-US')}٪</span></div>
