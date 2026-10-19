@@ -54,6 +54,14 @@ The authoritative source-file candidate for the initial Share & Earn feature was
 - The read-only production catalog currently reports a different six-column shape for `post_share_links`: `id`, `post_id`, `sharer_id`, `is_active`, `created_at`, and `expires_at`; it does not list `token`, `click_count`, or `updated_at`. The source migration's unique token and 30-day attribution behavior also differ from later source history describing fresh 24-hour share tokens.
 - This is a material schema drift, not just a missing filename. Before any replay, recover the intermediate migrations/DDL or deployed schema changes that transformed the original table and verify dependencies of all RPCs, foreign keys, indexes, RLS policies, and financial triggers. Do not add/drop columns or replace the production table as a shortcut.
 
+
+
+## Current-main evidence — 24-hour share-link evolution
+
+The current main migration [`20261019120000_share_wallet_commissions_cod_settlement_v1.sql`](https://github.com/sardarwalikhano/shakh-delivery/blob/main/supabase/migrations/20261019120000_share_wallet_commissions_cod_settlement_v1.sql) explains part of the schema evolution: it expects `is_active` and `expires_at`, backfills a 24-hour expiry, adds active/expiry indexes, replaces `create_post_share_link(uuid)` to deactivate older links and create a fresh link per share, and drops several earlier reward/COD/captain-commission triggers to prevent duplicate financial side effects.
+
+This is strong source evidence for why the original 30-day/token/click-count migration does not match the later production catalog. It is **not proof that this migration has been applied in production**. Its explicit trigger drops and financial behavior require exact comparison with the live trigger/function inventory before any replay. The main branch also contains later financial migrations; do not infer deployment state from merge status or code presence alone.
+
 ## Read-only production catalog evidence
 
 ### `public.food_post_orders`
