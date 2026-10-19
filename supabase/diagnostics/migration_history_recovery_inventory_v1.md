@@ -25,6 +25,17 @@ This inventory records verified migration-history gaps and the evidence needed t
 
 These findings indicate incomplete/relabelled migration history; they do **not** indicate that these tables are absent from production.
 
+## Recovered source history — food order base schema
+
+A source copy of the missing initial food-order migration was found on the historical branch `feature/food-post-orders-20261012`:
+
+- File: [`20261012081736_food_post_order_flow_v1.sql`](https://github.com/sardarwalikhano/shakh-delivery/blob/feature/food-post-orders-20261012/supabase/migrations/20261012081736_food_post_order_flow_v1.sql)
+- The file creates `public.food_post_orders`, participant SELECT RLS, `create_food_post_order(...)`, `update_food_post_order_status(...)`, indexes, grants, and the Realtime publication entry.
+- It is a credible source-recovery candidate for the missing production migration version `20261012081736`; however, it is **not yet a verified complete baseline** for the current production table. Production has 49 columns and additional delivery, payment, share-attribution, seller-fee, and captain-fee accounting objects added later. The recovered historical file defines a smaller initial table and must not be replayed directly against production or treated as sufficient to bootstrap the full schema.
+- The follow-up commit [`6923b36`](https://github.com/sardarwalikhano/shakh-delivery/commit/6923b36def3a77b6ce100be1f60539e367c3d9b4) contains later `ALTER TABLE public.food_post_orders` additions and financial/delivery functions, but does not establish the missing original base schema by itself.
+
+This narrows the recovery task: preserve the historical migration as provenance, then reconstruct the complete ordered chain of later additive changes and compare it to the read-only production catalog before writing any canonical migration. The authoritative origin of `public.post_share_links` remains unresolved.
+
 ## Read-only production catalog evidence
 
 ### `public.food_post_orders`
