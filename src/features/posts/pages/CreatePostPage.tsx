@@ -352,6 +352,7 @@ export function CreatePostPage() {
           title,
           content,
           priceIqd: numericPrice,
+          referralRewardIqd: Number(referralRewardIqd || '0'),
           categoryDetails: details.values,
           location,
           deliveryLatitude: deliveryPoint.latitude,
