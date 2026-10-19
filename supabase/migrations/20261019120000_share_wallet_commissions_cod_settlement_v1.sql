@@ -424,8 +424,10 @@ begin
  if p_action not in ('paid','rejected') then raise exception using errcode='22023',message='Action must be paid or rejected'; end if;
  if length(coalesce(p_admin_note,''))>1000 or length(coalesce(p_payout_reference,''))>200 or length(coalesce(p_payout_receipt_path,''))>1000 then raise exception using errcode='22023',message='Review details are too long'; end if;
  if p_action='paid' then
-   if p_payout_receipt_path is null or (storage.foldername(p_payout_receipt_path))[1] <> 'share-withdrawals' then
-     raise exception using errcode='22023',message='Upload the payment receipt before marking this withdrawal paid';
+   if p_payout_receipt_path is null
+      or (storage.foldername(p_payout_receipt_path))[1] <> 'share-withdrawals'
+      or (storage.foldername(p_payout_receipt_path))[2] <> p_request_id::text then
+     raise exception using errcode='22023',message='Upload this withdrawal request’s payment receipt before marking it paid';
    end if;
    if not exists(select 1 from storage.objects o where o.bucket_id='share-payout-receipts' and o.name=p_payout_receipt_path) then
      raise exception using errcode='22023',message='The payout receipt file was not found in private storage';
