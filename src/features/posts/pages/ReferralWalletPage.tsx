@@ -224,7 +224,7 @@ export function ReferralWalletPage() {
           withdrawals: (summary.withdrawals ?? []).map(toWithdrawal),
           rewards: (summary.earnings ?? []).map((item) => ({
             id: item.id,
-            order_type: item.order_type === 'food_post' ? 'food' : item.order_type === 'electronics_post' ? 'electronics' : 'apparel',
+            order_type: item.order_type === 'food_post' ? 'food' : item.order_type === 'electronics_post' ? 'electronics' : item.order_type === 'apparel_post' ? 'apparel' : 'product',
             order_id: item.order_id,
             post_id: item.post_id ?? '',
             reward_iqd: item.amount_iqd,
@@ -405,7 +405,7 @@ export function ReferralWalletPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[650px] text-sm">
             <thead><tr className="border-b border-black/10 text-start text-xs text-black/45"><th className="p-3 text-start">بەروار</th><th className="p-3 text-start">جۆری داواکاری</th><th className="p-3 text-start">خەڵات</th><th className="p-3 text-start">دۆخ</th><th className="p-3 text-start">ID داواکاری</th></tr></thead>
-            <tbody>{(snapshot.rewards ?? []).map((reward) => <tr key={reward.id} className="border-b border-black/[0.05]"><td className="p-3 text-xs text-black/55">{formatDate(reward.created_at)}</td><td className="p-3 font-bold">{reward.order_type === 'food' ? 'خواردن' : 'جل‌وبەرگ'}</td><td className="p-3 font-black">{formatIQD(reward.reward_iqd)}</td><td className="p-3"><span className={'rounded-full px-2 py-1 text-[10px] font-black ' + statusTone(reward.status)}>{reward.status === 'pending' ? 'چاوەڕوانی' : reward.status === 'available' ? 'بەردەست' : 'هەڵوەشاوە'}</span></td><td className="p-3 font-mono text-[10px] text-black/45" dir="ltr">{reward.order_id}</td></tr>)}</tbody>
+            <tbody>{(snapshot.rewards ?? []).map((reward) => <tr key={reward.id} className="border-b border-black/[0.05]"><td className="p-3 text-xs text-black/55">{formatDate(reward.created_at)}</td><td className="p-3 font-bold">{reward.order_type === 'food' ? 'خواردن' : reward.order_type === 'electronics' ? 'ئەلیکترۆنیات' : reward.order_type === 'product' ? 'بەرهەمی بازاڕ' : 'جل‌وبەرگ'}</td><td className="p-3 font-black">{formatIQD(reward.reward_iqd)}</td><td className="p-3"><span className={'rounded-full px-2 py-1 text-[10px] font-black ' + statusTone(reward.status)}>{reward.status === 'pending' ? 'چاوەڕوانی' : reward.status === 'available' ? 'بەردەست' : 'هەڵوەشاوە'}</span></td><td className="p-3 font-mono text-[10px] text-black/45" dir="ltr">{reward.order_id}</td></tr>)}</tbody>
           </table>
         </div>
         {!loading && snapshot.rewards.length === 0 ? <Empty text="هێشتا هیچ خەڵاتێک بەدەست نەهاتووە."/> : null}
