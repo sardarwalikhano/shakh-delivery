@@ -146,7 +146,7 @@ begin
       set held_iqd=held_iqd+v_commission,updated_at=now()
       where user_id=v_captain;
 
-      v_key:='captain-fee-hold:'||v_type||':'||v_id::text;
+      v_key:='captain-fee-hold:'||v_type||':'||v_id::text||':'||v_captain::text;
       insert into public.prepaid_wallet_transactions(
         user_id,transaction_type,amount_iqd,reference_type,reference_id,idempotency_key,description_ku
       ) values(
@@ -550,6 +550,92 @@ alter table public.captain_delivery_earnings
 alter table public.captain_delivery_earnings
   add constraint captain_delivery_earnings_order_type_check
   check(order_type in ('store_delivery','food_post','apparel_post','product_post'));
+
+
+-- FIB is a supported payout route as well as FastPay; reserve wallet funds once.
+create or replace function public.request_share_withdrawal(
+  p_amount_iqd numeric,
+  p_payment_method text,
+  p_recipient_name text,
+  p_recipient_account text default null,
+  p_recipient_phone text default null,
+  p_user_note text default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path=pg_catalog,public,private
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_balance numeric(14,2);
+  v_balance_after numeric(14,2);
+  v_request public.share_withdrawal_requests%rowtype;
+begin
+  if v_user_id is null then
+    raise exception using errcode='42501',message='Authentication required';
+  end if;
+  if p_amount_iqd is null or p_amount_iqd<=0 or p_amount_iqd<>trunc(p_amount_iqd) or p_amount_iqd>1000000000 then
+    raise exception using errcode='22023',message='Withdrawal amount must be a positive whole IQD amount';
+  end if;
+  if p_payment_method not in ('mobile_cash','zain_cash','fastpay','fib','qi_card','bank_transfer','other') then
+    raise exception using errcode='22023',message='Unsupported withdrawal method';
+  end if;
+  if p_recipient_name is null or char_length(btrim(p_recipient_name))<2 or char_length(p_recipient_name)>160 then
+    raise exception using errcode='22023',message='Recipient name is required';
+  end if;
+  if char_length(coalesce(p_recipient_account,''))>200 or char_length(coalesce(p_recipient_phone,''))>50 or char_length(coalesce(p_user_note,''))>1000 then
+    raise exception using errcode='22023',message='Withdrawal details are too long';
+  end if;
+  if p_payment_method in ('mobile_cash','zain_cash','fastpay','fib','qi_card')
+     and nullif(btrim(coalesce(p_recipient_phone,p_recipient_account,'')),'') is null then
+    raise exception using errcode='22023',message='Recipient phone or account number is required';
+  end if;
+  if p_payment_method in ('bank_transfer','other')
+     and nullif(btrim(coalesce(p_recipient_account,'')),'') is null then
+    raise exception using errcode='22023',message='Recipient account detail is required';
+  end if;
+
+  insert into public.share_wallet_accounts(user_id)
+  values(v_user_id) on conflict(user_id) do nothing;
+
+  select balance_iqd into v_balance
+  from public.share_wallet_accounts
+  where user_id=v_user_id
+  for update;
+
+  if v_balance<p_amount_iqd then
+    raise exception using errcode='22023',message='Your available share balance is not enough';
+  end if;
+
+  update public.share_wallet_accounts
+  set balance_iqd=balance_iqd-p_amount_iqd,updated_at=now()
+  where user_id=v_user_id
+  returning balance_iqd into v_balance_after;
+
+  insert into public.share_withdrawal_requests(
+    user_id,amount_iqd,payment_method,recipient_name,recipient_account,recipient_phone,user_note
+  ) values(
+    v_user_id,p_amount_iqd,p_payment_method,btrim(p_recipient_name),
+    nullif(btrim(coalesce(p_recipient_account,'')),''),
+    nullif(btrim(coalesce(p_recipient_phone,'')),''),
+    nullif(btrim(coalesce(p_user_note,'')),'')
+  ) returning * into v_request;
+
+  insert into public.share_wallet_transactions(
+    user_id,transaction_type,amount_iqd,balance_after_iqd,reference_type,reference_id,description
+  ) values(
+    v_user_id,'withdrawal_reserved',-p_amount_iqd,v_balance_after,'withdrawal_request',v_request.id,
+    'Balance reserved for a withdrawal request'
+  );
+
+  return jsonb_build_object(
+    'id',v_request.id,'amount_iqd',v_request.amount_iqd,'payment_method',v_request.payment_method,
+    'status',v_request.status,'requested_at',v_request.requested_at,'balance_iqd',v_balance_after
+  );
+end;
+$function$;
+revoke all on function public.request_share_withdrawal(numeric,text,text,text,text,text) from public,anon;
+grant execute on function public.request_share_withdrawal(numeric,text,text,text,text,text) to authenticated;
 
 notify pgrst,'reload schema';
 commit;
