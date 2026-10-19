@@ -215,7 +215,7 @@ begin
    new.share_reward_reserved_iqd := 0; new.share_reward_reserved := false;
    return new;
  end if;
- v_reward := greatest(0,round(coalesce(v_post.share_reward_iqd,0))::bigint);
+ v_reward := greatest(0,round(coalesce(v_post.share_reward_iqd,0))::bigint)*greatest(1,coalesce(new.quantity,1));
  new.share_reward_iqd := v_reward;
  if v_reward=0 then new.share_reward_reserved_iqd:=0; new.share_reward_reserved:=false; return new; end if;
  insert into public.prepaid_wallet_accounts(user_id) values(v_seller_id) on conflict(user_id) do nothing;
@@ -520,10 +520,13 @@ begin
  if auth.uid() is null or not private.has_permission('wallets.manage') then raise exception using errcode='42501',message='Cash settlement permission required'; end if;
  if p_request_id is null or p_captain_id is null or p_amount_iqd is null or p_amount_iqd<=0 then raise exception using errcode='22023',message='Invalid settlement request'; end if;
  if length(coalesce(p_note,''))>1000 then raise exception using errcode='22023',message='Note is too long'; end if;
+ perform pg_advisory_xact_lock(hashtextextended('captain-cash-settlement:'||p_request_id::text,0));
  select * into v_existing from public.captain_cash_settlement_batches where id=p_request_id;
  if found then
    if v_existing.captain_id<>p_captain_id or v_existing.amount_iqd<>p_amount_iqd then raise exception using errcode='23505',message='Settlement idempotency key was reused with different data'; end if;
-   return jsonb_build_object('id',v_existing.id,'captain_id',v_existing.captain_id,'amount_iqd',v_existing.amount_iqd,'already_recorded',true);
+   select coalesce(sum(cash_collected_iqd-cash_remitted_iqd),0)::bigint into v_outstanding
+   from public.captain_cash_ledger where captain_id=p_captain_id and status in ('collected','partially_remitted');
+   return jsonb_build_object('id',v_existing.id,'captain_id',v_existing.captain_id,'amount_iqd',v_existing.amount_iqd,'outstanding_iqd',v_outstanding,'already_recorded',true);
  end if;
  perform pg_advisory_xact_lock(hashtextextended(p_captain_id::text||':captain-cash',0));
  select coalesce(sum(cash_collected_iqd-cash_remitted_iqd),0)::bigint into v_outstanding
