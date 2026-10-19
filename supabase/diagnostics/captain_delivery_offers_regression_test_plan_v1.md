@@ -12,7 +12,7 @@ Run only against an isolated disposable Supabase database. Do not apply this mig
 - Captain RLS policies for food/apparel/electronics already permit users with `deliveries.claim` to read confirmed, unassigned orders.
 
 ## Regression matrix
-1. Single active role: approving any role replaces the previous `user_roles.role`; an approved captain request changes a current `customer` role to `captain`; duplicate approved requests for one user reconcile to one role; pending/rejected requests do not change the active role.
+1. Single active role: approving any role replaces the previous `user_roles.role`; an approved captain request changes a current `customer` role to `captain` only when it is that user's most recent approved role request overall; a later approved request for another role must not be overwritten by an older captain request; duplicate requests reconcile deterministically; pending/rejected requests do not change the active role.
 2. Food order confirmation: pending food order does not notify; transition to confirmed with delivery pending and captain_id null inserts a `delivery_offer` for each active captain.
 3. Apparel/electronics confirmation: same behavior for both direct-post order tables.
 4. Insert already confirmed: a confirmed, unassigned order inserted directly creates offers.
