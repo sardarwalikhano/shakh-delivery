@@ -21,7 +21,7 @@ This inventory records verified migration-history gaps and the evidence needed t
 2. Production records the food cart migration as version `20261013072843`, while the source tree contains `20261013071759_food_post_cart.sql`. The source file creates `food_post_cart_items` and cart RPCs, but delegates checkout to the existing `public.create_food_post_order(...)` function; it does not create the base `food_post_orders` table.
 3. `20261013075200_food_post_captain_payment_ledger.sql` alters `food_post_orders` and adds financial logic assuming the base table already exists; it is not a base-table migration.
 4. `20261015170000_electronics_posts_checkout_share_rewards_v1.sql` creates electronics orders with a foreign key to `public.post_share_links(id)`, but the source migration tree has no identified authoritative creation migration for that table.
-5. The Oct 15 Share & Earn UI commit explicitly describes reusing a production-applied migration rather than including its authoritative schema migration: [commit 4e9f03f](https://github.com/sardarwalikhano/shakh-delivery/commit/4e9f03fdffbad3b8add62aef05d8f885be87a0ec).
+5. The Oct 15 Share & Earn UI commit explicitly describes reusing a production-applied migration rather than adding a new migration in that UI commit: [commit 4e9f03f](https://github.com/sardarwalikhano/shakh-delivery/commit/4e9f03fdffbad3b8add62aef05d8f885be87a0ec). The source SQL for that feature was subsequently recovered from its historical branch; see below.
 
 These findings indicate incomplete/relabelled migration history; they do **not** indicate that these tables are absent from production.
 
@@ -34,13 +34,25 @@ A source copy of the missing initial food-order migration was found on the histo
 - It is a credible source-recovery candidate for the missing production migration version `20261012081736`; however, it is **not yet a verified complete baseline** for the current production table. Production has 49 columns and additional delivery, payment, share-attribution, seller-fee, and captain-fee accounting objects added later. The recovered historical file defines a smaller initial table and must not be replayed directly against production or treated as sufficient to bootstrap the full schema.
 - The follow-up commit [`6923b36`](https://github.com/sardarwalikhano/shakh-delivery/commit/6923b36def3a77b6ce100be1f60539e367c3d9b4) contains later `ALTER TABLE public.food_post_orders` additions and financial/delivery functions, but does not establish the missing original base schema by itself.
 
-This narrows the recovery task: preserve the historical migration as provenance, then reconstruct the complete ordered chain of later additive changes and compare it to the read-only production catalog before writing any canonical migration. The authoritative origin of `public.post_share_links` remains unresolved.
+This narrows the recovery task: preserve the historical migration as provenance, then reconstruct the complete ordered chain of later additive changes and compare it to the read-only production catalog before writing any canonical migration. The source definition for `public.post_share_links` has now been recovered, but it does **not** match the current production catalog shape; the migration history/reconciliation path remains unresolved.
 
 ## Additional historical evidence — Share & Earn and financial follow-ups
 
 Further source-history review found commit [`6df3ac8`](https://github.com/sardarwalikhano/shakh-delivery/commit/6df3ac8af96fc520413a90ff1d08168c3fff21ae) (Oct 19, 2026), titled “Complete prepaid wallets, Share rewards, commissions and COD settlement.” Its SQL changes **alter and use** `public.post_share_links` and `public.food_post_orders`, including expiry/attribution behavior, seller-funded reward holds, wallet/commission/COD settlement, and delivery-finance triggers. The diff does not contain a `CREATE TABLE public.post_share_links` base definition. This confirms the later financial migration depends on pre-existing objects and that reconstructing only the table columns is not sufficient.
 
 The commit is useful provenance for the follow-up object graph, but its large combined diff is not a standalone clean bootstrap. Before any canonical migration is drafted, split its changes by original migration/commit boundaries and recover the actual production-applied SQL/version records. In particular, inventory every trigger on `food_post_orders` and `post_share_links` before replaying any follow-up, to avoid duplicate financial side effects.
+
+
+
+## Recovered source history — Share & Earn base migration
+
+The authoritative source-file candidate for the initial Share & Earn feature was found on historical branch `feat/post-share-rewards-referral-wallet-20261014`:
+
+- File: [`20261014162000_post_share_rewards_referral_wallet_v1.sql`](https://github.com/sardarwalikhano/shakh-delivery/blob/feat/post-share-rewards-referral-wallet-20261014/supabase/migrations/20261014162000_post_share_rewards_referral_wallet_v1.sql)
+- The migration creates `public.post_share_links`, `post_share_attributions`, referral wallet/transaction tables, referral reward and withdrawal tables, RLS policies, and RPCs. Its `post_share_links` shape is `id`, `token`, `post_id`, `sharer_id`, `click_count`, `created_at`, and `updated_at`, with uniqueness on `token` and `(post_id, sharer_id)`.
+- PR #25 records that production had applied the Share & Earn migration under version `20261014172551` (`share_rewards_referrals_wallet_v1`), whereas the recovered source file is timestamped `20261014162000`. Treat this as a migration-version/source-path discrepancy to reconcile against the actual production migration ledger, not permission to reapply the file.
+- The read-only production catalog currently reports a different six-column shape for `post_share_links`: `id`, `post_id`, `sharer_id`, `is_active`, `created_at`, and `expires_at`; it does not list `token`, `click_count`, or `updated_at`. The source migration's unique token and 30-day attribution behavior also differ from later source history describing fresh 24-hour share tokens.
+- This is a material schema drift, not just a missing filename. Before any replay, recover the intermediate migrations/DDL or deployed schema changes that transformed the original table and verify dependencies of all RPCs, foreign keys, indexes, RLS policies, and financial triggers. Do not add/drop columns or replace the production table as a shortcut.
 
 ## Read-only production catalog evidence
 
@@ -60,7 +72,7 @@ The commit is useful provenance for the follow-up object graph, but its large co
 
 ## Required recovery sequence
 
-1. Obtain a schema-only export or authoritative original SQL for the base `food_post_orders` and `post_share_links` definitions, preferably from deployment records, backups, or source-control history.
+1. Compare the recovered initial SQL for `food_post_orders` and `post_share_links` against the production schema and recover the missing intermediate/deployed DDL from deployment records, backups, or source-control history. The initial source files alone are not sufficient baselines.
 2. Recover the full related object graph: referenced enum types, constraints, indexes, RLS policies and grants, triggers, trigger functions, RPCs, and publication settings. In particular, inspect every function that touches fee holds, wallet balances, cash ledgers, share earnings, or delivery state.
 3. Record source provenance and compare each recovered definition to production catalog output. Avoid replacing existing objects merely to make a clean replay pass.
 4. Add versioned migrations or a documented bootstrap path that handles clean databases and existing production databases safely. Any baseline must be additive/idempotent where appropriate and must not duplicate already-applied production changes.
