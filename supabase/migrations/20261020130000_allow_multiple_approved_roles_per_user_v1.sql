@@ -56,11 +56,23 @@ language plpgsql
 security definer
 set search_path = pg_catalog, public, private
 as $$
+declare
+  v_full_name text := nullif(btrim(coalesce(new.raw_user_meta_data->>'full_name','')), '');
+  v_phone text := nullif(btrim(coalesce(new.raw_user_meta_data->>'phone','')), '');
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
-  on conflict (id) do nothing;
+  -- Preserve the production signup invariant: a valid mobile number is required.
+  if v_phone is null or length(regexp_replace(v_phone, '[^0-9+]', '', 'g')) < 8 then
+    raise exception 'Mobile number is required';
+  end if;
 
+  insert into public.profiles (id, email, full_name, phone)
+  values (new.id, new.email, v_full_name, v_phone)
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = coalesce(excluded.full_name, public.profiles.full_name),
+    phone = coalesce(excluded.phone, public.profiles.phone);
+
+  -- Composite PK requires the full conflict target; preserve customer default.
   insert into public.user_roles (user_id, role)
   values (new.id, 'customer'::public.app_role)
   on conflict (user_id, role) do nothing;
