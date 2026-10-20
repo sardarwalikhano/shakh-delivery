@@ -46,7 +46,10 @@ export function SuperAdminWalletCreditPage() {
         : 'باڵانس زیادکرا و مامەڵەکە لە ledger و Audit Logs تۆمار کرا.');
       setReason('');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'زیادکردنی باڵانس سەرکەوتوو نەبوو.');
+      const detail = cause && typeof cause === 'object' && 'message' in cause && typeof cause.message === 'string'
+        ? cause.message
+        : cause instanceof Error ? cause.message : null;
+      setError(detail || 'زیادکردنی باڵانس سەرکەوتوو نەبوو. تکایە هەڵەکە لە Supabase logs بپشکنە.');
     } finally {
       setBusy(false);
     }
