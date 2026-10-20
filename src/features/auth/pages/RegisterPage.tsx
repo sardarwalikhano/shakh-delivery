@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthCard, AuthPageShell, Field, PasswordField, PasswordStrength, inputClass, primaryButtonClass } from '@/features/auth/components/AuthCard';
 import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedback';
-import { authErrorMessage, validatePassword, validatePhone } from '@/lib/auth/auth';
+import { authErrorMessage, validateEmail, validatePassword, validatePhone } from '@/lib/auth/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export function RegisterPage() {
@@ -25,6 +25,11 @@ export function RegisterPage() {
 
     if (!fullName.trim()) {
       setError('ناوی تەواو پێویستە.');
+      return;
+    }
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
       return;
     }
     const phoneError = validatePhone(phone);
