@@ -653,7 +653,7 @@ export function CreatePostPage() {
           {!['fashion', 'supermarket', 'electronics'].includes(category) ? (
             <section className="rounded-2xl border border-dashed border-[var(--shakh-blue)]/20 bg-[var(--shakh-bg)] p-5">
               <h2 className="text-base font-black text-[var(--shakh-navy)]">وردەکاریی زیاتر</h2>
-              <p className="mt-2 text-sm leading-6 text-black/55">بۆ کەتەگۆری «{postCategoryLabels[category]}» خانەی تایبەتی زیاتر پێویست نییە. لە هەنگاوی دواتردا ناونیشان، وەسف و نرخ تەواو بکە.</p>
+              <p className="mt-2 text-sm leading-6 text-black/55">بۆ کەتەگۆری «{category ? postCategoryLabels[category] : 'پۆست'}» خانەی تایبەتی زیاتر پێویست نییە. لە هەنگاوی دواتردا ناونیشان، وەسف و نرخ تەواو بکە.</p>
             </section>
           ) : null}
 
