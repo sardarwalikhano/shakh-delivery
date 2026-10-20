@@ -577,7 +577,7 @@ export function CreatePostPage() {
           ) : null}
 
 
-          <Field label="بڵاوکردنەوە بە ناوی Role">
+          <Field label="ڕۆڵی پۆستکردن">
             <select
               className={inputClass}
               value={role}
@@ -601,7 +601,7 @@ export function CreatePostPage() {
 
           <section className="space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-blue)]/[0.035] p-4">
             <div>
-              <h2 className="text-base font-black">یەکەم: زۆنی گەیاندن دیاری بکە</h2>
+              <h2 className="text-base font-black">شوێنی گەیاندن</h2>
               <p className="mt-1 text-xs leading-6 text-black/50">مەودا بە کیلۆمەترە و لە ناوەندی ئەم شوێنەوە هەژمار دەکرێت. بۆ خواردن ٥ کم و بۆ بازاڕ و بەرهەمەکانی تر ١٥ کم دەستپێکە؛ دەتوانیت بە + و − بگۆڕیت.</p>
             </div>
             <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی بنەڕەتی گەیاندنی پۆستەکە" description="لە شوێنی چێشتخانە، فرۆشگا یان ئەو شوێنەوە GPS وەربگرە کە کاڵاکە لێیەوە دەنێردرێت." />
@@ -650,6 +650,12 @@ export function CreatePostPage() {
           />
           </div>
           <div hidden={wizardStep !== 2}>
+          {!['fashion', 'supermarket', 'electronics'].includes(category) ? (
+            <section className="rounded-2xl border border-dashed border-[var(--shakh-blue)]/20 bg-[var(--shakh-bg)] p-5">
+              <h2 className="text-base font-black text-[var(--shakh-navy)]">وردەکاریی زیاتر</h2>
+              <p className="mt-2 text-sm leading-6 text-black/55">بۆ کەتەگۆری «{postCategoryLabels[category]}» خانەی تایبەتی زیاتر پێویست نییە. لە هەنگاوی دواتردا ناونیشان، وەسف و نرخ تەواو بکە.</p>
+            </section>
+          ) : null}
 
           {category === 'fashion' ? (
             <section className="space-y-5 rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-4 sm:p-6">
@@ -952,7 +958,7 @@ export function CreatePostPage() {
 
           </div>
           <div hidden={wizardStep !== 3}>
-          <Field label="ناوی بەرهەم / ناونیشانی پۆست">
+          <Field label="ناونیشانی پۆست">
             <div className="relative">
               <FileText className="pointer-events-none absolute start-4 top-4 text-black/30" size={17} />
               <input className={inputClass + ' ps-11'} required value={title} onChange={(event) => setTitle(event.target.value)} maxLength={180} placeholder={category === 'fashion' ? 'ناوی جل‌وبەرگ یان بەرهەم' : 'ناونیشانی پۆست'} />
