@@ -13,6 +13,7 @@ import { postCategoryLabels, postRoleLabels } from '../labels';
 import type { ApparelAudience, ApparelCondition, ApparelSeason, ApparelType, PostTarget } from '../types';
 import { getCategoryDetailFields, getVisibleCategoryDetails, sanitizeCategoryDetails, type CategoryDetails } from '@/lib/catalog/categoryDetails';
 import { DeliveryPointPicker } from '../components/DeliveryPointPicker';
+import { PostWizardNavigation, PostWizardStepper, type PostWizardStep } from '../components/PostWizard';
 import type { DeliveryPoint } from '../deliveryZones';
 
 type ApparelColor = { name: string; hex: string };
@@ -103,6 +104,7 @@ export function CreatePostPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,6 +129,23 @@ export function CreatePostPage() {
     () => [...new Set(targets.filter((item) => item.publisher_role === role).map((item) => item.category))],
     [role, targets],
   );
+  const wizardSteps: PostWizardStep[] = category === 'cars' ? [
+    { title: 'هەڵبژاردنی جۆر و شوێن', description: 'ڕۆڵ، کەتەگۆری و زۆنی گەیاندن دیاری بکە.' },
+    { title: 'زانیاریی گشتی', description: 'ناونیشان، جۆر، براند و مۆدێلی ئۆتۆمبێل.' },
+    { title: 'زانیاریی تەکنیکی', description: 'ڕەنگ، کیلۆمەتر، سووتەمەنی و گێڕ.' },
+    { title: 'دۆخ و مێژوو', description: 'دۆخی ئۆتۆمبێل، خاوەندارێتی و ڕووداوەکان.' },
+    { title: 'کێشە و تایبەتمەندی', description: 'کێشەی ڕاستەقینە، سێرڤیس و تایبەتمەندییەکان.' },
+    { title: 'نرخ و پەیوەندی', description: 'نرخ، دراو، شوێن و ژمارەی پەیوەندی.' },
+    { title: 'وێنەکان', description: 'وێنەی ئۆتۆمبێل زیاد بکە و جۆری وێنەکان دیاری بکە.' },
+    { title: 'پێداچوونەوە', description: 'هەموو زانیارییەکان بپشکنە پێش بڵاوکردنەوە.' },
+  ] : [
+    { title: 'جۆر و شوێن', description: 'ڕۆڵ، جۆری پۆست و زۆنی گەیاندن دیاری بکە.' },
+    { title: 'وێنەکان', description: 'وێنەی ڕاستەقینەی بەرهەم زیاد بکە؛ وێنەی یەکەم سەرەکییە.' },
+    { title: 'وردەکاریی بەرهەم', description: 'تایبەتمەندیی تایبەت بە کەتەگۆریی خۆت پڕبکەرەوە.' },
+    { title: 'ناونیشان و نرخ', description: 'ناونیشان، وەسف، نرخ و شوێنی فرۆشیار پڕبکەرەوە.' },
+    { title: 'پێداچوونەوە و بڵاوکردنەوە', description: 'داتاکان بپشکنە؛ پاشان پۆستەکە بنێرە.' },
+  ];
+  const lastWizardStep = wizardSteps.length - 1;
 
   useEffect(() => {
     if (!targets.length) return;
@@ -307,7 +326,7 @@ export function CreatePostPage() {
       const vehicleError = validateVehicleListing(vehicleListing);
       if (vehicleError) return setError(vehicleError);
       if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ پۆستی ئۆتۆمبێل لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
-      if (!reviewing) { setReviewing(true); return; }
+      if (!reviewing && wizardStep < lastWizardStep) { setReviewing(true); return; }
       setBusy(true);
       try {
         const created = await createPost({
@@ -343,7 +362,7 @@ export function CreatePostPage() {
       if (images.length < 1 || images.length > MAX_POST_IMAGES) return setError('بۆ کاڵای سوپەرمارکێت لانیکەم یەک وێنە و زۆرترین ٨ وێنە هەڵبژێرە.');
       const details = sanitizeCategoryDetails('supermarket', supermarketDetails);
       if (details.error) return setError(details.error);
-      if (!reviewing) { setReviewing(true); return; }
+      if (!reviewing && wizardStep < lastWizardStep) { setReviewing(true); return; }
       setBusy(true);
       try {
         const created = await createPost({
@@ -392,7 +411,7 @@ export function CreatePostPage() {
         color_image_indexes: JSON.stringify(colorImageIndexes),
       });
       if (details.error) return setError(details.error);
-      if (!reviewing) { setReviewing(true); return; }
+      if (!reviewing && wizardStep < lastWizardStep) { setReviewing(true); return; }
       setBusy(true);
       try {
         const created = await createPost({
@@ -458,7 +477,7 @@ export function CreatePostPage() {
         };
       });
 
-      if (!reviewing) { setReviewing(true); return; }
+      if (!reviewing && wizardStep < lastWizardStep) { setReviewing(true); return; }
       setBusy(true);
       try {
         const created = await createPost({
@@ -495,7 +514,7 @@ export function CreatePostPage() {
       return;
     }
 
-    if (!reviewing) { setReviewing(true); return; }
+    if (!reviewing && wizardStep < lastWizardStep) { setReviewing(true); return; }
     setBusy(true);
     try {
       const created = await createPost({ publisherRole: role, category, title, content, priceIqd: numericPrice, referralRewardIqd: Number(referralRewardIqd || '0'), location, deliveryLatitude: deliveryPoint.latitude, deliveryLongitude: deliveryPoint.longitude, deliveryRadiusKm, images });
@@ -516,11 +535,21 @@ export function CreatePostPage() {
 
   return (
     <AuthPageShell>
-      <AuthCard title="پۆستکردنی نوێ" description="زانیاریی پۆستەکە پڕبکەرەوە؛ دەسەڵات و داتای ڕاستەقینە لە Supabase پشکنین دەکرێن.">
+      <div className="mx-auto w-full max-w-5xl" dir="rtl">
+        <header className="mb-5 flex items-center gap-4 rounded-[26px] bg-[var(--shakh-navy)] p-5 text-white shadow-sm sm:p-7">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-orange)] text-[var(--shakh-navy)]"><Tag size={23} /></div>
+          <div className="min-w-0">
+            <div className="text-xs font-black tracking-wide text-[var(--shakh-orange)]">SHAKH · POST CREATION</div>
+            <h1 className="mt-1 text-xl font-black sm:text-2xl">پۆستێکی نوێ بڵاو بکەرەوە</h1>
+            <p className="mt-1 text-xs leading-6 text-white/65 sm:text-sm">زانیاریی ڕاستەقینە پڕبکەرەوە؛ داتاکان لە Supabase پاشەکەوت دەکرێن.</p>
+          </div>
+        </header>
+        <section className="rounded-[26px] border border-black/[0.06] bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         <form className="space-y-6" onSubmit={submit} noValidate>
           <AuthFeedback error={error} />
           {success ? <AuthSuccess>پۆستەکە بە سەرکەوتوویی بڵاوکرایەوە.</AuthSuccess> : null}
-
+          <PostWizardStepper steps={wizardSteps} activeStep={wizardStep} onStepChange={(step) => { setWizardStep(step); setReviewing(false); setError(null); }} />
+          <div hidden={wizardStep !== 0}>
           {['food','fashion','electronics','general','supermarket','beauty','kids','online_stores','delivery'].includes(category) ? (
             <section className="space-y-2 rounded-2xl border border-[var(--shakh-orange)]/20 bg-[var(--shakh-orange)]/[0.045] p-4">
               <label className="block text-sm font-black" htmlFor="post-referral-reward">
@@ -548,11 +577,11 @@ export function CreatePostPage() {
           ) : null}
 
 
-          <Field label="بڵاوکردنەوە بە ناوی Role">
+          <Field label="ڕۆڵی پۆستکردن">
             <select
               className={inputClass}
               value={role}
-              onChange={(event) => setRole(event.target.value as AppRole)}
+              onChange={(event) => { setRole(event.target.value as AppRole); setWizardStep(0); setReviewing(false); }}
               disabled={busy}
             >
               {roles.map((item) => (
@@ -564,7 +593,7 @@ export function CreatePostPage() {
           <Field label="جۆری پۆست">
             <div className="relative">
               <Tag className="pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-black/35" size={17} />
-              <select className={inputClass + ' ps-11'} value={category} onChange={(event) => { const nextCategory = event.target.value as PostTarget['category']; setCategory(nextCategory); setDeliveryRadiusKm(nextCategory === 'food' ? 5 : 15); setReviewing(false); }}>
+              <select className={inputClass + ' ps-11'} value={category} onChange={(event) => { const nextCategory = event.target.value as PostTarget['category']; setCategory(nextCategory); setDeliveryRadiusKm(nextCategory === 'food' ? 5 : 15); setReviewing(false); setWizardStep(0); }}>
                 {categories.map((item) => <option key={item} value={item}>{postCategoryLabels[item]}</option>)}
               </select>
             </div>
@@ -572,7 +601,7 @@ export function CreatePostPage() {
 
           <section className="space-y-4 rounded-2xl border border-[var(--shakh-blue)]/15 bg-[var(--shakh-blue)]/[0.035] p-4">
             <div>
-              <h2 className="text-base font-black">یەکەم: زۆنی گەیاندن دیاری بکە</h2>
+              <h2 className="text-base font-black">شوێنی گەیاندن</h2>
               <p className="mt-1 text-xs leading-6 text-black/50">مەودا بە کیلۆمەترە و لە ناوەندی ئەم شوێنەوە هەژمار دەکرێت. بۆ خواردن ٥ کم و بۆ بازاڕ و بەرهەمەکانی تر ١٥ کم دەستپێکە؛ دەتوانیت بە + و − بگۆڕیت.</p>
             </div>
             <DeliveryPointPicker value={deliveryPoint} onChange={setDeliveryPoint} title="شوێنی بنەڕەتی گەیاندنی پۆستەکە" description="لە شوێنی چێشتخانە، فرۆشگا یان ئەو شوێنەوە GPS وەربگرە کە کاڵاکە لێیەوە دەنێردرێت." />
@@ -588,9 +617,10 @@ export function CreatePostPage() {
               </div>
             </div>
           </section>
+          </div>
 
           {category === 'cars' ? (
-            <VehicleListingFields
+            wizardStep > 0 ? <VehicleListingFields
               value={vehicleListing}
               onChange={setVehicleListing}
               title={title}
@@ -601,12 +631,14 @@ export function CreatePostPage() {
               onImagesChange={updateVehicleImages}
               imageKinds={vehiclePhotoKinds}
               onPhotoKindChange={updateVehiclePhotoKind}
-              reviewing={reviewing}
-              onEdit={() => setReviewing(false)}
+              activeSection={Math.min(wizardStep - 1, 5)}
+              reviewing={wizardStep === lastWizardStep || reviewing}
+              onEdit={() => { setReviewing(false); setWizardStep(lastWizardStep - 1); }}
               disabled={busy}
-            />
+            /> : null
           ) : (
             <>
+          <div hidden={wizardStep !== 1}>
           <ImageUploadField
             files={images}
             onChange={updateImages}
@@ -616,6 +648,14 @@ export function CreatePostPage() {
             label={category === 'fashion' ? 'وێنەکانی جل‌وبەرگ' : category === 'electronics' ? 'وێنەکانی ئەلیکترۆنیات' : category === 'supermarket' ? 'وێنەکانی سوپەرمارکێت' : 'وێنەکانی پۆست / بەرهەم'}
             hint="کامێرا یان گەلەری بەکاربهێنە؛ ڕیزی وێنەکان دەتوانیت بگۆڕیت، وێنەی یەکەم وێنەی سەرەکییە."
           />
+          </div>
+          <div hidden={wizardStep !== 2}>
+          {!['fashion', 'supermarket', 'electronics'].includes(category) ? (
+            <section className="rounded-2xl border border-dashed border-[var(--shakh-blue)]/20 bg-[var(--shakh-bg)] p-5">
+              <h2 className="text-base font-black text-[var(--shakh-navy)]">وردەکاریی زیاتر</h2>
+              <p className="mt-2 text-sm leading-6 text-black/55">بۆ کەتەگۆری «{category ? postCategoryLabels[category] : 'پۆست'}» خانەی تایبەتی زیاتر پێویست نییە. لە هەنگاوی دواتردا ناونیشان، وەسف و نرخ تەواو بکە.</p>
+            </section>
+          ) : null}
 
           {category === 'fashion' ? (
             <section className="space-y-5 rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-4 sm:p-6">
@@ -916,7 +956,9 @@ export function CreatePostPage() {
             </section>
           ) : null}
 
-          <Field label="ناوی بەرهەم / ناونیشانی پۆست">
+          </div>
+          <div hidden={wizardStep !== 3}>
+          <Field label="ناونیشانی پۆست">
             <div className="relative">
               <FileText className="pointer-events-none absolute start-4 top-4 text-black/30" size={17} />
               <input className={inputClass + ' ps-11'} required value={title} onChange={(event) => setTitle(event.target.value)} maxLength={180} placeholder={category === 'fashion' ? 'ناوی جل‌وبەرگ یان بەرهەم' : 'ناونیشانی پۆست'} />
@@ -941,10 +983,11 @@ export function CreatePostPage() {
               </div>
             </Field>
           </div>
+          </div>
             </>
           )}
 
-          {reviewing && category !== 'cars' ? (
+          {(reviewing || wizardStep === lastWizardStep) && category !== 'cars' ? (
             <section className="space-y-3 rounded-2xl border border-[var(--shakh-blue)]/20 bg-[var(--shakh-blue)]/[0.04] p-4" aria-live="polite">
               <h2 className="text-lg font-black">پێداچوونەوە پێش بڵاوکردنەوە</h2>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -985,14 +1028,25 @@ export function CreatePostPage() {
                 <div className="rounded-xl bg-white p-3 sm:col-span-2"><span className="text-black/45">وێنەکان بە ڕیز:</span><div className="mt-2 space-y-1">{images.map((image, index) => <div key={image.name + image.size + image.lastModified + index} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="font-bold">وێنەی {index + 1}: {image.name}</span><span className="text-black/40">{(image.size / 1024).toFixed(0)} KB{index === 0 ? ' · وێنەی سەرەکی' : ''}</span></div>)}</div></div>
               </div>
               <p className="text-xs leading-6 text-black/50">بڵاوکردنەوە داتاکە لە Supabase پاشەکەوت دەکات؛ کڕین و کۆگا لە database پشتڕاست دەکرێنەوە.</p>
-              <button type="button" onClick={() => setReviewing(false)} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
+              <button type="button" onClick={() => { setReviewing(false); setWizardStep(3); setError(null); }} className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-black">گەڕانەوە بۆ دەستکاری</button>
             </section>
           ) : null}
-          <button className={primaryButtonClass} type="submit" disabled={busy}>
-            {busy ? 'پاشەکەوت و بڵاوکردنەوە...' : <><Send size={17} /> <span className="ms-2">{reviewing ? 'پشتڕاستکردنەوە و بڵاوکردنەوە' : 'پێداچوونەوە پێش بڵاوکردنەوە'}</span></>}
-          </button>
+          {wizardStep < lastWizardStep ? (
+            <PostWizardNavigation
+              activeStep={wizardStep}
+              stepCount={wizardSteps.length}
+              onBack={() => { setWizardStep((step) => Math.max(0, step - 1)); setReviewing(false); setError(null); }}
+              onNext={() => { setWizardStep((step) => Math.min(lastWizardStep, step + 1)); setReviewing(false); setError(null); }}
+              busy={busy}
+            />
+          ) : (
+            <button className={primaryButtonClass} type="submit" disabled={busy}>
+              {busy ? 'پاشەکەوت و بڵاوکردنەوە...' : <><Send size={17} /> <span className="ms-2">بڵاوکردنەوەی پۆست</span></>}
+            </button>
+          )}
         </form>
-      </AuthCard>
+        </section>
+      </div>
     </AuthPageShell>
   );
 }

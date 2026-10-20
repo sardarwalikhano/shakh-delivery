@@ -32,6 +32,7 @@ type Props = {
   imageKinds: Map<File, VehiclePhotoKind>;
   onPhotoKindChange: (file: File, kind: VehiclePhotoKind) => void;
   reviewing: boolean;
+  activeSection: number;
   onEdit: () => void;
   disabled?: boolean;
 };
@@ -161,7 +162,7 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
 
 export function VehicleListingFields({
   value, onChange, title, onTitleChange, content, onContentChange, images, onImagesChange,
-  imageKinds, onPhotoKindChange, reviewing, onEdit, disabled = false,
+  imageKinds, onPhotoKindChange, reviewing, activeSection, onEdit, disabled = false,
 }: Props) {
   const update = <K extends keyof VehicleListingDraft>(key: K, next: VehicleListingDraft[K]) => {
     onChange({ ...value, [key]: next });
@@ -171,11 +172,6 @@ export function VehicleListingFields({
   const yearOptions = Array.from({ length: Math.max(0, yearNow + 1 - 1886 + 1) }, (_, index) => String(yearNow + 1 - index));
   const hasIssue = issueOptions.some(([key]) => value[key] === 'yes');
   const selectedFeatureLabels = VEHICLE_FEATURE_OPTIONS.filter(([key]) => value.features.includes(key)).map(([, label]) => label);
-
-  const sections = [
-    ['١', 'زانیاریی گشتی'], ['٢', 'زانیاریی تەکنیکی'], ['٣', 'دۆخی ئۆتۆمبێل'],
-    ['٤', 'کێشە و سێرڤیس'], ['٥', 'نرخ و شوێن'], ['٦', 'وێنەکان'], ['٧', 'پێداچوونەوە'],
-  ] as const;
 
   if (reviewing) {
     return (
@@ -263,11 +259,7 @@ export function VehicleListingFields({
 
   return (
     <section className="space-y-5" dir="rtl">
-      <nav className="grid grid-cols-2 gap-2 rounded-2xl bg-[var(--shakh-bg)] p-3 sm:grid-cols-4 xl:grid-cols-7" aria-label="بەشەکانی فۆڕمی ئۆتۆمبێل">
-        {sections.map(([number, label]) => <div key={number} className="flex min-w-0 items-center gap-2 rounded-xl bg-white px-2 py-2 text-xs font-black"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)]">{number}</span><span>{label}</span></div>)}
-      </nav>
-
-      <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
+      <section hidden={activeSection !== 0} className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={CarFront} title="١. زانیاریی گشتی" description="تەنها زانیاریی ڕاستەقینەی ئۆتۆمبێلەکە بنووسە؛ خانەی نەزانراو بەتاڵ بهێڵە یان «نازانم» هەڵبژێرە." />
         <CarField label="ناونیشانی پۆست / ناوی ئۆتۆمبێل *">
           <input className={inputClass} value={title} onChange={(event) => onTitleChange(event.target.value)} maxLength={180} required disabled={disabled} placeholder="ناونیشان بنووسە" />
@@ -299,7 +291,7 @@ export function VehicleListingFields({
         </CarField>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
+      <section hidden={activeSection !== 1} className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={Gauge} title="٢. زانیاریی تەکنیکی" description="ئەگەر زانیارییەک نازانیت، «نازانم» هەڵبژێرە یان زانیارییە هەڵنەزانراوەکان بەتاڵ بهێڵە." />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <OptionalTextField label="ڕەنگی دەرەوە" value={value.exterior_color} onChange={(next) => update('exterior_color', next)} maxLength={60} disabled={disabled} placeholder="ڕەنگی دەرەوە" />
@@ -313,7 +305,7 @@ export function VehicleListingFields({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
+      <section hidden={activeSection !== 2} className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={ShieldCheck} title="٣. دۆخی ئۆتۆمبێل" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <CarField label="دۆخی ئۆتۆمبێل *"><select className={inputClass} value={value.vehicle_condition} onChange={(event) => update('vehicle_condition', event.target.value)} required disabled={disabled}><option value="">هەڵبژێرە</option><option value="new">نوێ</option><option value="used">بەکارهاتوو</option><option value="unknown">نازانم</option></select></CarField>
@@ -325,7 +317,7 @@ export function VehicleListingFields({
         {value.repainted_or_replaced_parts === 'yes' ? <CarField label="وردەکاریی ڕەنگکردن / پارچەی گۆڕدراو *"><textarea className={inputClass + ' min-h-20'} value={value.repaint_replacement_details} onChange={(event) => update('repaint_replacement_details', event.target.value)} maxLength={2000} required disabled={disabled} placeholder="کامیان و لە کوێ؟" /></CarField> : null}
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
+      <section hidden={activeSection !== 3} className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={Wrench} title="٤. کێشە، چاککردنەوە و تایبەتمەندییەکان" description="بۆ هەر خانەیەک دەتوانیت بەڵێ، نەخێر یان نازانم هەڵبژێریت. بەتاڵ بەجێهێشتن واتای پشتڕاستکردنەوەی نەبوونی کێشە نییە." />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {issueOptions.map(([key, label]) => (
@@ -350,7 +342,7 @@ export function VehicleListingFields({
         </div>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
+      <section hidden={activeSection !== 4} className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={CircleDollarSign} title="٥. نرخ، شوێن و پەیوەندی" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <CarField label="نرخ *"><input className={inputClass} type="number" min="0.01" step="any" inputMode="decimal" value={value.price_amount} onChange={(event) => update('price_amount', event.target.value)} required disabled={disabled} placeholder="نرخ بنووسە" /></CarField>
@@ -368,7 +360,7 @@ export function VehicleListingFields({
         </CarField>
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
+      <section hidden={activeSection !== 5} className="space-y-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5">
         <SectionHeading icon={Camera} title="٦. وێنەکان" description="لانیکەم یەک وێنە پێویستە. دەتوانیت وێنەی پێشەوە، پاشەوە، ناوەوە، داشبۆرد و بزوێنەر زیاد بکەیت." />
         <ImageUploadField
           files={images}
