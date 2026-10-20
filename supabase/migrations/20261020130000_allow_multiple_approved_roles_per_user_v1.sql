@@ -45,5 +45,5 @@ begin
 end
 $$;
 
--- Ensure the role-request workflow can only assign the existing approved role
--- and that duplicate role rows remain impossible under the composite primary key.
+-- The composite primary key permits distinct roles per user and still prevents
+-- duplicate assignments of the same role to the same user.
