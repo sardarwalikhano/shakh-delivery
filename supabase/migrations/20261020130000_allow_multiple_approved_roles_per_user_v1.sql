@@ -47,3 +47,26 @@ $$;
 
 -- The composite primary key permits distinct roles per user and still prevents
 -- duplicate assignments of the same role to the same user.
+
+-- Keep the new-user trigger compatible with the composite key. Without this
+-- update, ON CONFLICT (user_id) would fail after the primary key is replaced.
+create or replace function private.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, new.email)
+  on conflict (id) do nothing;
+
+  insert into public.user_roles (user_id, role)
+  values (new.id, 'customer'::public.app_role)
+  on conflict (user_id, role) do nothing;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.handle_new_user() from public, anon, authenticated;
