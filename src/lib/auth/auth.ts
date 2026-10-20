@@ -16,7 +16,7 @@ export function validateEmail(email: string): string | null {
   const normalized = email.trim();
   if (!normalized) return 'ئیمەیڵ پێویستە.';
   // Deliberately basic syntax validation; Supabase remains authoritative for account validity.
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     return 'تکایە ئیمەیڵێکی دروست بنووسە، وەک name@example.com.';
   }
   return null;
