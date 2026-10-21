@@ -6,7 +6,7 @@ import { AuthFeedback, AuthSuccess } from '@/features/auth/components/AuthFeedba
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 
 export function RoleRequestsPage() {
-  const { hasPermission } = useAuthorization();
+  const { hasPermission, refresh: refreshAuthorization } = useAuthorization();
   const [requests, setRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -35,7 +35,12 @@ export function RoleRequestsPage() {
     setError(null);
     setSuccess(null);
     try {
-      await reviewRoleRequest(request.id, status);
+      const reviewed = await reviewRoleRequest(request.id, status);
+      if (status === 'approved' && reviewed.status === 'approved') {
+        // The database RPC is authoritative; reload the permission set only after
+        // the role approval transaction has returned successfully.
+        await refreshAuthorization();
+      }
       setRequests((current) => current.filter((item) => item.id !== request.id));
       setSuccess(
         status === 'approved'
