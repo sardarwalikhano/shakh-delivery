@@ -199,4 +199,3 @@ create trigger notify_food_post_delivery_status
 after update of delivery_status on public.food_post_orders
 for each row execute function private.notify_post_order_participants();
 
-grant execute on function private.notify_post_order_participants() to authenticated;
