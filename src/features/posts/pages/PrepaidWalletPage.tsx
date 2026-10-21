@@ -54,10 +54,16 @@ export function PrepaidWalletPage() {
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
-    const [accountRes,txRes,requestRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes,sellerFeeRes] = await Promise.all([
+    // Load top-up requests independently so an unrelated wallet/commission query
+    // cannot hide the very requests the super admin needs to review.
+    const requestPromise = supabase.from('prepaid_topup_requests')
+      .select('id,user_id,amount_iqd,payment_method,receipt_path,sender_reference,note,status,admin_note,requested_at')
+      .order('requested_at',{ascending:false})
+      .limit(100);
+
+    const walletDataPromise = Promise.all([
       supabase.from('prepaid_wallet_accounts').select('user_id,balance_iqd,held_iqd,lifetime_credited_iqd,lifetime_spent_iqd').eq('user_id',user.id).maybeSingle(),
       supabase.from('prepaid_wallet_transactions').select('id,transaction_type,amount_iqd,description_ku,created_at').eq('user_id',user.id).order('created_at',{ascending:false}).limit(50),
-      supabase.from('prepaid_topup_requests').select('id,user_id,amount_iqd,payment_method,receipt_path,sender_reference,note,status,admin_note,requested_at').order('requested_at',{ascending:false}).limit(100),
       supabase.from('captain_delivery_earnings').select('id,captain_id,order_type,order_id,delivery_fee_iqd,commission_iqd,net_earning_iqd,earning_day,created_at').order('earning_day',{ascending:false}).limit(100),
       supabase.from('captain_cash_ledger').select('id,captain_id,order_id,product_subtotal_iqd,delivery_fee_iqd,platform_fee_iqd,cash_collected_iqd,cash_remitted_iqd,status,collected_at,note').order('collected_at',{ascending:false}).limit(150),
       supabase.rpc('get_captain_cash_balances'),
@@ -65,7 +71,17 @@ export function PrepaidWalletPage() {
       supabase.rpc('get_captain_commission_overview'),
       supabase.from('wallet_commission_settings').select('category,seller_fee_per_unit_iqd,captain_fee_percent').order('category'),
     ]);
-    const err = accountRes.error ?? txRes.error ?? requestRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error ?? ruleRes.error ?? commissionOverviewRes.error ?? sellerFeeRes.error;
+
+    const requestRes = await requestPromise;
+    if (requestRes.error) {
+      setError(requestRes.error.message);
+    } else {
+      const rows = (requestRes.data ?? []) as Topup[];
+      setRequests(canManage ? rows : rows.filter(x=>x.user_id===user.id));
+    }
+
+    const [accountRes,txRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes,sellerFeeRes] = await walletDataPromise;
+    const err = accountRes.error ?? txRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error ?? ruleRes.error ?? commissionOverviewRes.error ?? sellerFeeRes.error;
     if (err) { setError(err.message); return; }
     setAccount(accountRes.data as Account|null);
     setTransactions((txRes.data ?? []) as Tx[]);
@@ -88,8 +104,6 @@ export function PrepaidWalletPage() {
       const {data:profiles} = await supabase.from('profiles').select('id,full_name,phone').in('id',profileIds);
       setCaptainProfiles(Object.fromEntries(((profiles ?? []) as CaptainProfile[]).map(profile=>[profile.id,profile])));
     } else setCaptainProfiles({});
-    const rows = (requestRes.data ?? []) as Topup[];
-    setRequests(canManage ? rows : rows.filter(x=>x.user_id===user.id));
   },[canManage,user]);
 
   useEffect(()=>{ void refresh(); },[refresh]);
@@ -225,6 +239,9 @@ export function PrepaidWalletPage() {
     </header>
     {error&&<div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-bold text-red-700"><CircleAlert className="me-2 inline" size={16}/>{error}</div>}
     {message&&<div role="status" className="rounded-xl bg-emerald-500/10 p-3 text-sm font-bold text-emerald-800">{message}</div>}
+    <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-black">{canManage?'داواکارییەکانی زیادکردنی باڵانسی پریپەید':'داواکارییەکانی زیادکردن'}</h2>{canManage&&<span className="rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-black text-amber-800">{requests.filter(r=>r.status==='pending').length} داواکاری لە چاوەڕوانی</span>}</div><div className="mt-4 space-y-3">{requests.map(r=><article key={r.id} className="rounded-2xl border border-black/[0.07] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-lg font-black">{fmt(r.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{methods[r.payment_method]??r.payment_method} · {date(r.requested_at)}</div>{canManage&&<div className="mt-1 break-all text-[11px] text-black/45">{r.user_id}</div>}</div><span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-black">{r.status==='pending'?'چاوەڕوان':r.status==='approved'?'پەسەندکرا':'ڕەتکراوە'}</span></div>{r.sender_reference&&<p className="mt-2 text-xs">ژمارەی مامەڵە: {r.sender_reference}</p>}{r.note&&<p className="mt-1 text-xs text-black/50">{r.note}</p>}
+      <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('wallet-payment-receipts').createSignedUrl(r.receipt_path,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-xs font-black"><FileImage size={15}/> بینینی وەسڵ (٦٠ چرکە)</button>
+      {canManage&&r.status==='pending'&&<><textarea value={adminNotes[r.id]??''} onChange={e=>setAdminNotes(s=>({...s,[r.id]:e.target.value}))} maxLength={2000} placeholder="تێبینی ئەدمین" className="mt-3 w-full rounded-xl border border-black/10 p-3 text-sm"/><div className="mt-3 flex gap-2"><button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'approve')} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white">پەسەندکردن و زیادکردنی باڵانس</button><button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'reject')} className="rounded-xl border border-red-500/20 px-4 py-2 text-xs font-black text-red-700">ڕەتکردنەوە</button></div></>}</article>)}{!requests.length&&<Empty text="داواکارییەک نییە." />}</div></section>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <Stat label="باڵانسی بەردەست" value={fmt(Math.max(0,Number(account?.balance_iqd??0)-Number(account?.held_iqd??0)))} icon={<Wallet size={18}/>}/>
       <Stat label="باڵانسی گیراو" value={fmt(account?.held_iqd??0)} icon={<Banknote size={18}/>}/>
@@ -333,9 +350,7 @@ export function PrepaidWalletPage() {
       </section>
       <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><h2 className="text-lg font-black">مێژووی مامەڵەکان</h2><div className="mt-4 space-y-2">{transactions.map(t=><div key={t.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3"><div><div className="text-sm font-bold">{t.description_ku||t.transaction_type}</div><div className="mt-1 text-[11px] text-black/40">{date(t.created_at)}</div></div><strong className="tabular-nums">{fmt(t.amount_iqd)}</strong></div>)}{!transactions.length&&<Empty text="هێشتا مامەڵەیەک نییە." />}</div></section>
     </div>
-    <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><h2 className="text-lg font-black">داواکارییەکانی زیادکردن</h2><div className="mt-4 space-y-3">{requests.map(r=><article key={r.id} className="rounded-2xl border border-black/[0.07] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-lg font-black">{fmt(r.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{methods[r.payment_method]??r.payment_method} · {date(r.requested_at)}</div>{canManage&&<div className="mt-1 break-all text-[11px] text-black/45">{r.user_id}</div>}</div><span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-black">{r.status==='pending'?'چاوەڕوان':r.status==='approved'?'پەسەندکرا':'ڕەتکراوە'}</span></div>{r.sender_reference&&<p className="mt-2 text-xs">ژمارەی مامەڵە: {r.sender_reference}</p>}{r.note&&<p className="mt-1 text-xs text-black/50">{r.note}</p>}
-      <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('wallet-payment-receipts').createSignedUrl(r.receipt_path,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-xs font-black"><FileImage size={15}/> بینینی وەسڵ (٦٠ چرکە)</button>
-      {canManage&&r.status==='pending'&&<><textarea value={adminNotes[r.id]??''} onChange={e=>setAdminNotes(s=>({...s,[r.id]:e.target.value}))} maxLength={2000} placeholder="تێبینی ئەدمین" className="mt-3 w-full rounded-xl border border-black/10 p-3 text-sm"/><div className="mt-3 flex gap-2"><button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'approve')} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white">پەسەندکردن و زیادکردنی باڵانس</button><button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'reject')} className="rounded-xl border border-red-500/20 px-4 py-2 text-xs font-black text-red-700">ڕەتکردنەوە</button></div></>}</article>)}{!requests.length&&<Empty text="داواکارییەک نییە." />}</div></section>
+
   </section>;
 }
 function Stat({label,value,icon}:{label:string;value:string;icon:React.ReactNode}){return <div className="rounded-2xl border border-black/[0.06] bg-white p-4"><div className="flex items-center gap-2 text-xs font-black text-black/45">{icon}{label}</div><div className="mt-2 text-xl font-black text-[var(--shakh-navy)]">{value}</div></div>}
