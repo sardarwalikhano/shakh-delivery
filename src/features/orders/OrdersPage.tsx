@@ -172,7 +172,7 @@ export function OrdersPage() {
                   <span className="rounded-full bg-[var(--shakh-orange)]/10 px-3 py-1.5 text-xs font-black text-[var(--shakh-orange)]">{postStatusLabel[order.status] ?? order.status}</span>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-bold">
-                  <span className="rounded-full bg-[var(--shakh-blue)]/10 px-3 py-1.5 text-[var(--shakh-blue)]">{postDeliveryStatusLabel[order.delivery_status] ?? order.delivery_status}</span>
+                  <span className="rounded-full bg-[var(--shakh-blue)]/10 px-3 py-1.5 text-[var(--shakh-blue)]">{order.status === 'pending' ? 'دوای پەسەندکردنی فرۆشیار' : (order.status === 'rejected' || order.status === 'cancelled') ? 'گەیاندن جێبەجێ ناکرێت' : (postDeliveryStatusLabel[order.delivery_status] ?? order.delivery_status)}</span>
                   <span className="rounded-full bg-black/[0.04] px-3 py-1.5">{paymentStatusLabel[order.payment_status] ?? order.payment_status}</span>
                   <span className="ms-auto text-sm font-black">{order.total_iqd.toLocaleString('en-US')} د.ع</span>
                 </div>
