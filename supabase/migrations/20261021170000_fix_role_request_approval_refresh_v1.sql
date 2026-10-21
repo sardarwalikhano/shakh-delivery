@@ -20,7 +20,6 @@ declare
   v_request public.role_requests%rowtype;
   v_status text := lower(btrim(p_status));
   v_reviewer uuid := (select auth.uid());
-  v_role_added boolean := false;
 begin
   if v_reviewer is null then
     raise exception 'Not authenticated';
@@ -57,8 +56,6 @@ begin
           updated_at = now()
       where public.user_roles.role = 'customer'::public.app_role
         and public.user_roles.role <> excluded.role;
-
-    get diagnostics v_role_added = row_count;
 
     -- If the user already has this role, approval is idempotent; if they have
     -- a different primary role, do not silently overwrite it.
