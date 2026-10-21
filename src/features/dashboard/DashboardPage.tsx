@@ -110,7 +110,7 @@ const dashboardActions: DashboardAction[] = [
   { title: 'داواکارییەکانم', description: 'بینین و بەدواداچوونی ئۆردەرەکانی خۆت.', href: '/orders', permission: 'orders.view', icon: ShoppingBag },
   { title: 'ئۆردەری فرۆشیار', description: 'پشکنین و بەڕێوەبردنی داواکارییە پەیوەندیدارەکان.', href: '/dashboard/orders', permission: 'orders.view', icon: ShoppingCart },
   { title: 'گەیاندنەکان', description: 'بینین و بەڕێوەبردنی گەیاندنە بەردەستەکان.', href: '/dashboard/deliveries', permission: 'deliveries.view', icon: Truck },
-  { title: 'جزدانی پریپەید', description: 'بینینی باڵانس و مامەڵەکانی جزدان.', href: '/dashboard/wallet', permission: 'wallets.view_own', icon: WalletCards },
+  { title: 'جزدان و داواکاریی زیادکردنی باڵانس', description: 'بینینی باڵانس، مێژووی مامەڵەکان و داواکاریی زیادکردنی پریپەید.', href: '/dashboard/wallet', permission: 'wallets.view_own', icon: WalletCards },
   { title: 'زیادکردنی باڵانسی سوپەر ئەدمین', description: 'چالاکیی زیادکردنی باڵانس بە پشتڕاستکردنەوە و تۆماری audit.', href: '/dashboard/wallet/admin-credit', permission: 'wallets.manage', icon: WalletCards },
   { title: 'شێر و قازانج', description: 'بینینی خەڵات و مامەڵەکانی شێرکردن.', href: '/dashboard/referral-wallet', permission: 'posts.view', icon: Gift },
   { title: 'داواکاریی ڕۆڵەکان', description: 'پشکنین و بڕیاردان لەسەر داواکاریی ڕۆڵ.', href: '/dashboard/role-requests', permission: 'role_requests.review', icon: ShieldCheck },
