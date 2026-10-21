@@ -20,6 +20,24 @@ const date = (v: string) => new Date(v).toLocaleString('ku-IQ',{dateStyle:'mediu
 const methods: Record<string,string> = {mobile_cash:'Mobile Cash',zain_cash:'ZainCash',fastpay:'FastPay',fib:'FIB',qi_card:'Qi Card',bank_transfer:'گواستنەوەی بانکی',other:'ڕێگای تر'};
 const categoryLabels: Record<string,string> = {food:'چێشتخانە',fashion:'جل‌وبەرگ',electronics:'ئەلیکترۆنیات',general:'بازاڕی گشتی',supermarket:'سوپەرمارکێت',beauty:'جوانکاری',kids:'کڕین بۆ منداڵان',online_stores:'فرۆشگا ئۆنلاین',delivery:'گەیاندن'};
 
+const getTopupErrorMessage = (error: unknown): string => {
+  const raw = error && typeof error === 'object' && 'message' in error
+    ? String((error as { message?: unknown }).message ?? '')
+    : error instanceof Error ? error.message : String(error ?? '');
+  const message = raw.trim();
+
+  if (/already have a pending top-up request/i.test(message)) {
+    return 'داواکارییەکی زیادکردنی باڵانس پێشتر نێردراوە و هێشتا لە چاوەڕوانیدایە. داواکاری نوێ ناتوانرێت بنێردرێت تا ئەوە پەسەند یان ڕەت بکرێتەوە.';
+  }
+  if (/payment receipt is required/i.test(message)) return 'تکایە وەسڵی پارەدان هەڵبژێرە.';
+  if (/receipt must belong to the authenticated user/i.test(message)) return 'وەسڵەکە پەیوەندی بە هەژمارەکەتەوە نییە. تکایە دووبارە باریکەوە.';
+  if (/payment receipt file was not found/i.test(message)) return 'وەسڵەکە لە شوێنی پارێزراو نەدۆزرایەوە. تکایە دووبارە باریکەوە.';
+  if (/invalid payment method/i.test(message)) return 'شێوازی پارەدان هەڵبژێردراو پشتگیری ناکرێت. تکایە شێوازێکی تر هەڵبژێرە.';
+  if (/not eligible for prepaid wallet top-ups/i.test(message)) return 'ئەم هەژمارە مۆڵەتی داوای زیادکردنی باڵانسی پریپەیدی نییە. مۆڵەتەکان پشکنین بکە.';
+  if (message) return 'ناردنی داواکاری سەرنەکەوت: ' + message;
+  return 'ناردنی داواکاری سەرنەکەوت. تکایە زانیارییەکان و پەیوەندی ئینتەرنێت بپشکنە و دووبارە هەوڵ بدەوە.';
+};
+
 export function PrepaidWalletPage() {
   const { user } = useAuth();
   const { permissions } = useAuthorization();
@@ -152,7 +170,7 @@ export function PrepaidWalletPage() {
       setReceipt(null); setReference(''); setNote('');
       const input = document.getElementById('wallet-receipt') as HTMLInputElement|null; if(input) input.value='';
       await refresh();
-    } catch(e) { setError(e instanceof Error?e.message:'ناردنی داواکاری سەرنەکەوت.'); }
+    } catch(e) { setError(getTopupErrorMessage(e)); }
     finally { setBusy(false); }
   };
 
@@ -241,6 +259,7 @@ export function PrepaidWalletPage() {
   const todayBaghdad = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Baghdad'}).format(new Date());
   const todayEarnings = dailyEarnings.filter(item=>item.earning_day===todayBaghdad && (item.captain_id===user?.id || canManage)).reduce((sum,item)=>sum+Number(item.net_earning_iqd),0);
   const ownOutstanding = cashBalances.find(row=>row.captain_id===user?.id)?.outstanding_iqd ?? 0;
+  const ownPendingTopup = requests.find(request => request.user_id === user?.id && request.status === 'pending') ?? null;
   const outstandingByCaptain = cashBalances.filter(row=>row.outstanding_iqd>0).sort((a,b)=>Number(b.outstanding_iqd)-Number(a.outstanding_iqd));
 
   return <section className="shakh-page space-y-5 py-6" dir="rtl">
@@ -349,13 +368,14 @@ export function PrepaidWalletPage() {
     </section>}
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><h2 className="text-lg font-black">داوای زیادکردنی باڵانس</h2><p className="mt-1 text-xs leading-5 text-black/45">وەسڵ باربکە و بڕەکە بنووسە. بەڵگەکە لە هەژماری تایبەتی خۆتدا هەڵدەگیرێت؛ داواکاریی نوێ تا دیاریکردنی دۆخی داواکاریی پێشوو ناتوانرێت بنێردرێت.</p>
+        {ownPendingTopup && <div role="status" className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm leading-6 text-amber-900"><div className="font-black">داواکارییەکی پێشوو لە چاوەڕوانیدایە</div><p className="mt-1">بڕ: {fmt(ownPendingTopup.amount_iqd)} · {date(ownPendingTopup.requested_at)}. تا ئەم داواکارییە پەسەند یان ڕەت نەکرێتەوە، ناردنی داواکاریی نوێ ڕێگەپێدراو نییە.</p></div>}
         <form onSubmit={submit} className="mt-4 space-y-3">
           <label className="block text-sm font-black">بڕی پارە (د.ع)<input required type="number" min="1000" max="100000000" step="1" value={amount} onChange={e=>setAmount(e.target.value)} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/></label>
           <label className="block text-sm font-black">ڕێگای پارەدان<select value={method} onChange={e=>setMethod(e.target.value)} className="mt-1 w-full rounded-xl border border-black/10 bg-white p-3 text-sm font-normal">{Object.entries(methods).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
           <label className="block text-sm font-black">وەسڵی پارەدان (JPG، PNG، WebP، PDF · تا ٥MB)<input id="wallet-receipt" required type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e=>setReceipt(e.target.files?.[0]??null)} className="mt-1 block w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/></label>
           <label className="block text-sm font-black">ژمارەی مامەڵە (ئارەزوومەندانە)<input maxLength={200} value={reference} onChange={e=>setReference(e.target.value)} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/></label>
           <label className="block text-sm font-black">تێبینی<textarea maxLength={1000} value={note} onChange={e=>setNote(e.target.value)} className="mt-1 w-full rounded-xl border border-black/10 p-3 text-sm font-normal"/></label>
-          <button disabled={busy} className="min-h-12 w-full rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy?'ناردن...':'ناردنی داواکاری'}</button>
+          <button disabled={busy||!!ownPendingTopup} title={ownPendingTopup?'داواکارییەکی پێشوو لە چاوەڕوانیدایە':''} className="min-h-12 w-full rounded-xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white disabled:opacity-50">{busy?'ناردن...':'ناردنی داواکاری'}</button>
         </form>
       </section>
       <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><h2 className="text-lg font-black">مێژووی مامەڵەکان</h2><div className="mt-4 space-y-2">{transactions.map(t=><div key={t.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3"><div><div className="text-sm font-bold">{t.description_ku||t.transaction_type}</div><div className="mt-1 text-[11px] text-black/40">{date(t.created_at)}</div></div><strong className="tabular-nums">{fmt(t.amount_iqd)}</strong></div>)}{!transactions.length&&<Empty text="هێشتا مامەڵەیەک نییە." />}</div></section>
