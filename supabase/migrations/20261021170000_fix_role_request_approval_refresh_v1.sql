@@ -48,24 +48,19 @@ begin
   end if;
 
   if v_status = 'approved' then
-    -- user_roles, not profiles.role, is the authoritative RBAC table.
+    -- user_roles is the RBAC source of truth. Preserve existing grants and
+    -- add the approved role as an additional role for this account.
     insert into public.user_roles(user_id, role)
     values (v_request.user_id, v_request.requested_role)
-    on conflict (user_id) do update
-      set role = excluded.role,
-          updated_at = now()
-      where public.user_roles.role = 'customer'::public.app_role
-        and public.user_roles.role <> excluded.role;
+    on conflict do nothing;
 
-    -- If the user already has this role, approval is idempotent; if they have
-    -- a different primary role, do not silently overwrite it.
     if not exists (
       select 1
       from public.user_roles ur
       where ur.user_id = v_request.user_id
         and ur.role = v_request.requested_role
     ) then
-      raise exception 'Cannot activate requested role: user already has a different primary role';
+      raise exception 'Requested role could not be activated';
     end if;
 
     update public.role_requests
