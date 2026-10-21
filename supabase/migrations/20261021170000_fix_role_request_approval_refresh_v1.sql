@@ -48,11 +48,28 @@ begin
   end if;
 
   if v_status = 'approved' then
-    -- user_roles is the RBAC source of truth. Preserve existing grants and
-    -- add the approved role as an additional role for this account.
-    insert into public.user_roles(user_id, role)
-    values (v_request.user_id, v_request.requested_role)
-    on conflict do nothing;
+    -- user_roles is the RBAC source of truth. Existing source migrations use
+    -- user_id as the primary key, so convert the default customer role to the
+    -- approved role. If this account has no role row, insert one; never replace
+    -- a different non-customer role automatically.
+    if not exists (
+      select 1
+      from public.user_roles ur
+      where ur.user_id = v_request.user_id
+        and ur.role = v_request.requested_role
+    ) then
+      update public.user_roles
+      set role = v_request.requested_role,
+          updated_at = now()
+      where user_id = v_request.user_id
+        and role = 'customer'::public.app_role;
+
+      if not found then
+        insert into public.user_roles(user_id, role)
+        values (v_request.user_id, v_request.requested_role)
+        on conflict do nothing;
+      end if;
+    end if;
 
     if not exists (
       select 1
@@ -60,7 +77,7 @@ begin
       where ur.user_id = v_request.user_id
         and ur.role = v_request.requested_role
     ) then
-      raise exception 'Requested role could not be activated';
+      raise exception 'Requested role could not be activated: the account already has a different role';
     end if;
 
     update public.role_requests
