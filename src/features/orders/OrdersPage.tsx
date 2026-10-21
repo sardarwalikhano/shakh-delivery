@@ -133,7 +133,8 @@ export function OrdersPage() {
   }, [user]);
 
   useEffect(() => { void refresh(); }, [refresh, params]);
-  useRealtimeCustomerOrders(user?.id, () => { void refresh(); });
+  const refreshFromRealtime = useCallback(() => { void refresh(); }, [refresh]);
+  useRealtimeCustomerOrders(user?.id, refreshFromRealtime);
 
   useEffect(() => {
     if (!user) return;
