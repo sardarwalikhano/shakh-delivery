@@ -108,6 +108,16 @@ export function PrepaidWalletPage() {
 
   useEffect(()=>{ void refresh(); },[refresh]);
 
+  // Keep the review queue live: new customer top-up requests and their review
+  // status appear without requiring the super admin to manually reload the page.
+  useEffect(()=>{
+    if (!user) return;
+    const channel=supabase.channel('prepaid-topup-requests:'+user.id)
+      .on('postgres_changes',{event:'*',schema:'public',table:'prepaid_topup_requests'},()=>{void refresh();})
+      .subscribe();
+    return ()=>{void supabase.removeChannel(channel);};
+  },[refresh,user]);
+
   useEffect(()=>{
     const prefix='shakh.pending-cash-settlement:';
     const restored:Record<string,SettlementAttempt> = {};
