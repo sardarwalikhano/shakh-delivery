@@ -149,8 +149,12 @@ export function OrderReceiptsPage() {
       });
       if (invokeError) throw invokeError;
       const result = data as { configured?: boolean; sent?: number; queued?: number; pending?: number; failed?: number; message?: string } | null;
-      if (result?.configured === false) {
+      if (Number(result?.queued ?? 0) === 0) {
+        setMessage(result?.message ?? 'هیچ وەرگرێکی واتسئاپ چالاک نییە؛ خاوەن دوکان و سوپەر ئەدمین دەبێت ڕەزامەندی و ژمارەی واتسئاپ پاشەکەوت بکەن.');
+      } else if (result?.configured === false) {
         setMessage('وەسڵەکە لە outbox پارێزرا؛ بەڵام WhatsApp Business API هێشتا ڕێکنەخراوە. پەیامەکە تا ڕێکخستنی API نانێردرێت.');
+      } else if (result?.template_configured === false) {
+        setMessage('وەسڵەکە لە outbox ماوەتەوە؛ template ـی پەسەندکراوی WhatsApp بۆ ئەم جۆرە پەیامە ڕێکنەخراوە.');
       } else if (Number(result?.sent ?? 0) > 0) {
         setMessage('پەیامی وەسڵ بە سەرکەوتوویی نێردرا بۆ ' + result?.sent + ' وەرگر.');
       } else if (Number(result?.failed ?? 0) > 0) {
