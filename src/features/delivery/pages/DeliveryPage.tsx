@@ -479,7 +479,6 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
         <h3 className="mt-2 font-black">{order.post_title} × {order.quantity}</h3>
         <div className="mt-2 space-y-1 text-sm font-bold text-black/55"><div>{order.delivery_city} · {order.delivery_address}</div><div dir="ltr" className="text-start">{order.buyer_phone}</div></div>
         {order.captain_id ? <CustomerLocationPanel latitude={order.delivery_lat} longitude={order.delivery_lng}/> : null}
-        {order.captain_id ? <CustomerLocationPanel latitude={order.delivery_lat} longitude={order.delivery_lng}/> : null}
         <div className="mt-4 grid gap-2 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm">
           <FoodAmount label="کۆی خواردن" amount={order.line_total_iqd} />
           <FoodAmount label="کرێی گەیاندن" amount={order.delivery_fee_iqd} />
@@ -502,6 +501,7 @@ function DirectPostCaptainCard({ order, busy, onAction, actionLabel }: { order: 
         <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[11px] font-black text-[var(--shakh-orange)]">{category} · {directDeliveryStatusLabel[order.delivery_status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{order.order_number}</span></div>
         <h3 className="mt-2 font-black">{order.post_title} × {order.quantity}</h3>
         <div className="mt-2 space-y-1 text-sm font-bold text-black/55"><div>{order.delivery_city} · {order.delivery_address}</div><div dir="ltr" className="text-start">{order.buyer_phone}</div></div>
+        {order.captain_id ? <CustomerLocationPanel latitude={order.delivery_lat} longitude={order.delivery_lng}/> : null}
         <div className="mt-4 grid gap-2 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm">
           <FoodAmount label="کۆی بەرهەم" amount={order.line_total_iqd}/>
           <FoodAmount label="کرێی گەیاندن" amount={order.delivery_fee_iqd}/>
