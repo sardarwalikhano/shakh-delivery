@@ -20,6 +20,8 @@ export type ElectronicsPostOrder = {
   unit_price_iqd: number;
   line_total_iqd: number;
   delivery_address: string;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   buyer_phone: string;
   customer_note: string | null;
   payment_method: 'cash_on_delivery' | 'mobile_cash';
@@ -97,7 +99,7 @@ export async function createProductPostOrder(input: {
 export async function listElectronicsPostOrders(): Promise<ElectronicsPostOrder[]> {
   const { data, error } = await supabase
     .from('electronics_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,post_category,post_title,brand,selected_color,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,captain_id,delivery_status,accepted_at,picked_up_at,on_the_way_at,arrived_at,delivered_at,payment_collected_at,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_category,post_title,brand,selected_color,product_details,quantity,unit_price_iqd,line_total_iqd,delivery_address,delivery_lat,delivery_lng,buyer_phone,customer_note,payment_method,payment_status,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,share_reward_iqd,captain_id,delivery_status,accepted_at,picked_up_at,on_the_way_at,arrived_at,delivered_at,payment_collected_at,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -133,6 +135,8 @@ export type ApparelPostOrder = {
   platform_fee_iqd: number;
   total_iqd: number;
   delivery_address: string;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   buyer_phone: string;
   customer_note: string | null;
   payment_method: 'cash_on_delivery' | 'mobile_cash';
@@ -179,7 +183,7 @@ export async function createApparelPostOrder(input: {
 export async function listApparelPostOrders(): Promise<ApparelPostOrder[]> {
   const { data, error } = await supabase
     .from('apparel_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,accepted_at,picked_up_at,on_the_way_at,arrived_at,delivered_at,payment_collected_at,created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,variant_id,post_title,color_name,color_hex,size_label,quantity,unit_price_iqd,line_total_iqd,delivery_address,delivery_lat,delivery_lng,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,accepted_at,picked_up_at,on_the_way_at,arrived_at,delivered_at,payment_collected_at,created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -203,6 +207,8 @@ export type FoodPostOrder = {
   unit_price_iqd: number;
   line_total_iqd: number;
   delivery_address: string;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   buyer_phone: string;
   customer_note: string | null;
   payment_method: 'cash_on_delivery' | 'mobile_cash';
@@ -222,7 +228,7 @@ export type FoodPostOrder = {
 export async function listFoodPostOrders(): Promise<FoodPostOrder[]> {
   const { data, error } = await supabase
     .from('food_post_orders')
-    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,payment_collected_at,payment_event:food_post_payment_events!food_post_payment_events_order_id_fkey(amount_iqd,payment_method,received_at,captain_id),created_at')
+    .select('id,order_number,buyer_id,seller_id,post_id,post_title,quantity,unit_price_iqd,line_total_iqd,delivery_address,delivery_lat,delivery_lng,buyer_phone,customer_note,payment_method,status,delivery_city,delivery_fee_iqd,platform_fee_iqd,total_iqd,captain_id,delivery_status,payment_status,payment_collected_at,payment_event:food_post_payment_events!food_post_payment_events_order_id_fkey(amount_iqd,payment_method,received_at,captain_id),created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
