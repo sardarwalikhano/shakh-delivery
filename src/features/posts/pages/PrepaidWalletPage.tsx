@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { BadgeCheck, Banknote, CircleAlert, FileImage, RefreshCw, Wallet } from 'lucide-react';
+import { BadgeCheck, Banknote, CircleAlert, FileImage, Mail, Phone, RefreshCw, UserRound, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
+import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { supabase } from '@/lib/supabase/client';
 
 type Account = { user_id: string; balance_iqd: number; held_iqd: number; lifetime_credited_iqd: number; lifetime_spent_iqd: number };
 type Topup = { id: string; user_id: string; amount_iqd: number; payment_method: string; receipt_path: string; sender_reference: string | null; note: string | null; status: 'pending'|'approved'|'rejected'; admin_note: string | null; requested_at: string };
+type TopupRequester = { id: string; email: string | null; full_name: string | null; phone: string | null; role: string | null };
 type Tx = { id: string; transaction_type: string; amount_iqd: number; description_ku: string; created_at: string };
 type CaptainEarning = { id: string; captain_id: string; order_type: string; order_id: string; delivery_fee_iqd: number; commission_iqd: number; net_earning_iqd: number; earning_day: string; created_at: string };
 type CashRow = { id: string; captain_id: string; order_id: string; product_subtotal_iqd: number; delivery_fee_iqd: number; platform_fee_iqd: number; cash_collected_iqd: number; cash_remitted_iqd: number; status: string; collected_at: string; note: string | null };
@@ -44,6 +46,7 @@ export function PrepaidWalletPage() {
   const canManage = permissions.has('wallets.manage');
   const [account,setAccount] = useState<Account|null>(null);
   const [requests,setRequests] = useState<Topup[]>([]);
+  const [requesters,setRequesters] = useState<Record<string,TopupRequester>>({});
   const [transactions,setTransactions] = useState<Tx[]>([]);
   const [dailyEarnings,setDailyEarnings] = useState<CaptainEarning[]>([]);
   const [cashLedger,setCashLedger] = useState<CashRow[]>([]);
@@ -92,10 +95,41 @@ export function PrepaidWalletPage() {
 
     const requestRes = await requestPromise;
     if (requestRes.error) {
-      setError(requestRes.error.message);
+      setRequests([]);
+      setRequesters({});
+      setError('نەتوانرا داواکارییەکانی پریپەید بخوێندرێنەوە: ' + requestRes.error.message);
     } else {
       const rows = (requestRes.data ?? []) as Topup[];
-      setRequests(canManage ? rows : rows.filter(x=>x.user_id===user.id));
+      const visibleRows = canManage ? rows : rows.filter(x=>x.user_id===user.id);
+      setRequests(visibleRows);
+
+      // The finance review queue must show who submitted each request, not only
+      // an opaque UUID. These reads stay scoped to users referenced by requests
+      // and are enabled by the wallet-manager RLS policies in the migration.
+      if (canManage && visibleRows.length) {
+        const requesterIds = [...new Set(visibleRows.map(row=>row.user_id))];
+        const [profileResult, roleResult] = await Promise.all([
+          supabase.from('profiles').select('id,email,full_name,phone').in('id', requesterIds),
+          supabase.from('user_roles').select('user_id,role').in('user_id', requesterIds),
+        ]);
+        const roleByUser = new Map<string,string>();
+        for (const row of (roleResult.data ?? []) as Array<{user_id:string;role:string}>) {
+          roleByUser.set(row.user_id, row.role);
+        }
+        const requesterMap: Record<string,TopupRequester> = {};
+        for (const profile of (profileResult.data ?? []) as Array<{id:string;email:string|null;full_name:string|null;phone:string|null}>) {
+          requesterMap[profile.id] = {
+            ...profile,
+            role: roleByUser.get(profile.id) ?? null,
+          };
+        }
+        setRequesters(requesterMap);
+        if (profileResult.error || roleResult.error) {
+          setError('داواکارییەکان خوێندرایەوە، بەڵام هەندێک زانیاریی داواکار نەتوانرا بخوێندرێتەوە.');
+        }
+      } else {
+        setRequesters({});
+      }
     }
 
     const [accountRes,txRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes,sellerFeeRes] = await walletDataPromise;
@@ -268,9 +302,75 @@ export function PrepaidWalletPage() {
     </header>
     {error&&<div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-bold text-red-700"><CircleAlert className="me-2 inline" size={16}/>{error}</div>}
     {message&&<div role="status" className="rounded-xl bg-emerald-500/10 p-3 text-sm font-bold text-emerald-800">{message}</div>}
-    <section className="rounded-[26px] border border-black/[0.06] bg-white p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-black">{canManage?'داواکارییەکانی زیادکردنی باڵانسی پریپەید':'داواکارییەکانی زیادکردن'}</h2>{canManage&&<span className="rounded-full bg-amber-500/10 px-3 py-1.5 text-xs font-black text-amber-800">{requests.filter(r=>r.status==='pending').length} داواکاری لە چاوەڕوانی</span>}</div><div className="mt-4 space-y-3">{requests.map(r=><article key={r.id} className="rounded-2xl border border-black/[0.07] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-lg font-black">{fmt(r.amount_iqd)}</div><div className="mt-1 text-xs text-black/45">{methods[r.payment_method]??r.payment_method} · {date(r.requested_at)}</div>{canManage&&<div className="mt-1 break-all text-[11px] text-black/45">{r.user_id}</div>}</div><span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-black">{r.status==='pending'?'چاوەڕوان':r.status==='approved'?'پەسەندکرا':'ڕەتکراوە'}</span></div>{r.sender_reference&&<p className="mt-2 text-xs">ژمارەی مامەڵە: {r.sender_reference}</p>}{r.note&&<p className="mt-1 text-xs text-black/50">{r.note}</p>}
-      <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('wallet-payment-receipts').createSignedUrl(r.receipt_path,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-xs font-black"><FileImage size={15}/> بینینی وەسڵ (٦٠ چرکە)</button>
-      {canManage&&r.status==='pending'&&<><textarea value={adminNotes[r.id]??''} onChange={e=>setAdminNotes(s=>({...s,[r.id]:e.target.value}))} maxLength={2000} placeholder="تێبینی ئەدمین" className="mt-3 w-full rounded-xl border border-black/10 p-3 text-sm"/><div className="mt-3 flex gap-2"><button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'approve')} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white">پەسەندکردن و زیادکردنی باڵانس</button><button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'reject')} className="rounded-xl border border-red-500/20 px-4 py-2 text-xs font-black text-red-700">ڕەتکردنەوە</button></div></>}</article>)}{!requests.length&&<Empty text="داواکارییەک نییە." />}</div></section>
+    <section className="overflow-hidden rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white shadow-[0_18px_50px_rgba(12,32,58,.055)]">
+      <div className="flex flex-wrap items-start justify-between gap-3 bg-[linear-gradient(110deg,rgba(255,122,24,.10),rgba(35,92,255,.055))] p-5 sm:p-6">
+        <div>
+          <p className="text-[10px] font-black tracking-[.16em] text-[var(--shakh-orange)]">PREPAID REVIEW QUEUE</p>
+          <h2 className="mt-1 text-lg font-black text-[var(--shakh-navy)]">{canManage?'داواکارییەکانی زیادکردنی باڵانسی پریپەید':'داواکارییەکانی زیادکردن'}</h2>
+          <p className="mt-1 text-xs leading-6 text-black/50">{canManage?'ناوی داواکار، ڕۆڵ، ژمارەی پەیوەندی، وەسڵ و مێژووی داواکاری لێرە کۆکراوەتەوە.':'دۆخی داواکارییەکانی زیادکردنی باڵانسی خۆت لێرە ببینە.'}</p>
+        </div>
+        {canManage&&<div className="min-w-28 rounded-2xl border border-amber-500/15 bg-white px-4 py-3 text-center shadow-sm">
+          <div className="text-2xl font-black tabular-nums text-amber-700">{requests.filter(r=>r.status==='pending').length}</div>
+          <div className="text-[10px] font-black text-black/45">لە چاوەڕوانی</div>
+        </div>}
+      </div>
+      <div className="space-y-3 p-4 sm:p-5">
+        {requests.map(r=>{
+          const requester=requesters[r.user_id];
+          const roleLabel=requester?.role ? (roleLabelsKu[requester.role as keyof typeof roleLabelsKu] ?? requester.role) : 'ڕۆڵ نەدۆزرایەوە';
+          return <article key={r.id} className="rounded-2xl border border-black/[0.07] bg-white p-4 transition hover:border-[var(--shakh-orange)]/35 hover:shadow-[0_10px_28px_rgba(12,32,58,.06)] sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--shakh-navy)] text-white"><Banknote size={20}/></div>
+                <div className="min-w-0">
+                  <div className="text-xl font-black tabular-nums text-[var(--shakh-navy)]">{fmt(r.amount_iqd)}</div>
+                  <div className="mt-1 text-xs text-black/50">{methods[r.payment_method]??r.payment_method} · {date(r.requested_at)}</div>
+                </div>
+              </div>
+              <span className={'rounded-full px-3 py-1.5 text-xs font-black '+(r.status==='pending'?'bg-amber-500/10 text-amber-800':r.status==='approved'?'bg-emerald-500/10 text-emerald-800':'bg-red-500/10 text-red-700')}>
+                {r.status==='pending'?'چاوەڕوان':r.status==='approved'?'پەسەندکرا':'ڕەتکراوە'}
+              </span>
+            </div>
+
+            {canManage&&<div className="mt-4 rounded-2xl border border-black/[0.05] bg-[var(--shakh-bg)]/80 p-3 sm:p-4">
+              <div className="flex items-start gap-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-[var(--shakh-blue)] shadow-sm"><UserRound size={19}/></div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-black text-[var(--shakh-navy)]">{requester?.full_name?.trim() || 'ناوی داواکار تۆمار نەکراوە'}</span>
+                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-[var(--shakh-blue)]">{roleLabel}</span>
+                  </div>
+                  <div className="mt-2 grid gap-2 text-xs text-black/55 sm:grid-cols-2">
+                    {requester?.email&&<div className="flex min-w-0 items-center gap-2"><Mail size={14} className="shrink-0"/><span className="break-all" dir="ltr">{requester.email}</span></div>}
+                    {requester?.phone&&<div className="flex items-center gap-2"><Phone size={14} className="shrink-0"/><span dir="ltr">{requester.phone}</span></div>}
+                  </div>
+                  <div className="mt-2 break-all font-mono text-[10px] text-black/35" dir="ltr">Requester ID: {r.user_id}</div>
+                </div>
+              </div>
+            </div>}
+
+            {r.sender_reference&&<p className="mt-3 rounded-xl bg-[var(--shakh-bg)] p-3 text-xs"><strong>ژمارەی مامەڵە:</strong> <span dir="ltr">{r.sender_reference}</span></p>}
+            {r.note&&<p className="mt-2 rounded-xl bg-[var(--shakh-bg)] p-3 text-xs leading-6 text-black/60"><strong>تێبینی داواکار:</strong> {r.note}</p>}
+            {r.admin_note&&<p className="mt-2 rounded-xl bg-[var(--shakh-bg)] p-3 text-xs leading-6 text-black/60"><strong>تێبینی ئەدمین:</strong> {r.admin_note}</p>}
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] pt-4">
+              <button type="button" onClick={async()=>{const {data,error:e}=await supabase.storage.from('wallet-payment-receipts').createSignedUrl(r.receipt_path,60);if(e) setError(e.message);else if(data?.signedUrl) window.open(data.signedUrl,'_blank','noopener,noreferrer')}} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-black transition hover:border-[var(--shakh-blue)]/30"><FileImage size={15}/> بینینی وەسڵ (٦٠ چرکە)</button>
+              <span className="text-[10px] text-black/35" dir="ltr">Request: {r.id}</span>
+            </div>
+            {canManage&&r.status==='pending'&&<div className="mt-4 rounded-2xl bg-[var(--shakh-bg)] p-3 sm:p-4">
+              <label className="block text-xs font-black text-[var(--shakh-navy)]">تێبینی بۆ بڕیاری ئەدمین
+                <textarea value={adminNotes[r.id]??''} onChange={e=>setAdminNotes(s=>({...s,[r.id]:e.target.value}))} maxLength={2000} placeholder="تێبینی، ژمارەی پشتڕاستکردنەوە یان هۆکاری ڕەتکردنەوە..." className="mt-2 min-h-20 w-full rounded-xl border border-black/10 bg-white p-3 text-sm font-normal outline-none transition focus:border-[var(--shakh-blue)]"/>
+              </label>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'approve')} className="min-h-11 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-40">{busyId===r.id?'تکایە چاوەڕێ بکە...':'پەسەندکردن و زیادکردنی باڵانس'}</button>
+                <button type="button" disabled={busyId===r.id} onClick={()=>void review(r,'reject')} className="min-h-11 rounded-xl border border-red-500/20 bg-white px-4 py-2 text-xs font-black text-red-700 transition hover:bg-red-50 disabled:opacity-40">{busyId===r.id?'تکایە چاوەڕێ بکە...':'ڕەتکردنەوەی داواکاری'}</button>
+              </div>
+            </div>}
+          </article>;
+        })}
+        {!requests.length&&<Empty text={canManage?'هیچ داواکارییەک بۆ پشکنین نییە. پاش ناردنی داواکاری لەلایەن بەکارهێنەر، لیستەکە بە خۆکار نوێ دەبێتەوە.':'هێشتا داواکاریی زیادکردن نییە.'}/>}
+      </div>
+    </section>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <Stat label="باڵانسی بەردەست" value={fmt(Math.max(0,Number(account?.balance_iqd??0)-Number(account?.held_iqd??0)))} icon={<Wallet size={18}/>}/>
       <Stat label="باڵانسی گیراو" value={fmt(account?.held_iqd??0)} icon={<Banknote size={18}/>}/>
