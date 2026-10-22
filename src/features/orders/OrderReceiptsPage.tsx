@@ -1,4 +1,4 @@
-import { ArrowLeft, BadgeCheck, Banknote, FileText, Mail, MessageCircle, PackageCheck, Printer, RefreshCw, ShieldCheck, Truck, UserRound } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, FileText, MessageCircle, PackageCheck, Printer, RefreshCw, ShieldCheck, Truck, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase/client';
