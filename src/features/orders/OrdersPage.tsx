@@ -1,4 +1,4 @@
-import { ChevronLeft, PackageCheck, Truck } from 'lucide-react';
+import { ChevronLeft, FileText, PackageCheck, Truck } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getMyOrders } from './api';
@@ -151,7 +151,7 @@ export function OrdersPage() {
   return (
     <section className="shakh-page py-8">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><PackageCheck size={21} /></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">Orders</div><h1 className="text-3xl font-black">داواکارییەکانم</h1><p className="mt-1 text-sm text-black/45">ئۆردەری فرۆشگا و داواکاریی پۆستەکانت لێرە دەبینیت.</p></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[var(--shakh-navy)] text-white"><PackageCheck size={21} /></div><div><div className="text-xs font-black text-[var(--shakh-blue)]">Orders</div><h1 className="text-3xl font-black">داواکارییەکانم</h1><p className="mt-1 text-sm text-black/45">ئۆردەری فرۆشگا و داواکاریی پۆستەکانت لێرە دەبینیت.</p></div></div><Link to="/receipts" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--shakh-blue)]/15 bg-white px-3 py-2 text-xs font-black text-[var(--shakh-blue)]"><FileText size={15}/> وەسڵەکانی فرۆشتن</Link></div>
         {error ? <div role="alert" className="mt-5 rounded-2xl bg-red-500/10 p-4 text-sm font-bold text-red-700">{error}</div> : null}
         {loading ? <div className="mt-6 rounded-[28px] bg-white p-10 text-center text-sm font-bold text-black/45">بارکردن...</div> : isEmpty ? <div className="mt-6 rounded-[28px] bg-white p-12 text-center"><h2 className="text-xl font-black">هێشتا داواکاری نییە</h2><Link to="/search" className="mt-5 inline-flex rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white">دەستپێکردنی کڕین</Link></div> : (
           <div className="mt-6 space-y-3">
