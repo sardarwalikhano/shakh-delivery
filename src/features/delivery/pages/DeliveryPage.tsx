@@ -80,9 +80,10 @@ async function dispatchReceiptWhatsApp(orderType:string,orderId:string):Promise<
       body:{event_type:'sale_receipt',order_type:orderType,order_id:orderId},
     });
     if(error) return ' وەسڵ تۆمار کرا، بەڵام ناردنی واتسئاپ لە ئێستادا سەرنەکەوت؛ لە outbox دەمێنێتەوە.';
-    const result=data as {configured?:boolean;queued?:number;sent?:number;failed?:number;message?:string}|null;
+    const result=data as {configured?:boolean;template_configured?:boolean;queued?:number;sent?:number;failed?:number;message?:string}|null;
     if(!result?.queued) return null;
     if(result.configured===false) return ' وەسڵ تۆمار کرا؛ ڕێکخستنی WhatsApp Business API تەواو نییە و پەیامەکە لە queue دەمێنێتەوە.';
+    if(result.template_configured===false) return ' وەسڵ تۆمار کرا؛ template ـی پەسەندکراوی WhatsApp ڕێکنەخراوە و پەیامەکە لە queue دەمێنێتەوە.';
     if(Number(result.failed??0)>0) return ' وەسڵ تۆمار کرا؛ ناردنی واتسئاپ سەرنەکەوت و هۆکارەکە بۆ دووبارە هەوڵدانەوە تۆمار کرا.';
     return Number(result.sent??0)>0 ? ' وەسڵی فرۆشتن بۆ وەرگرە ڕێگەپێدراوەکان نێردرا.' : null;
   } catch {
