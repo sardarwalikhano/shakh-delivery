@@ -43,8 +43,9 @@ const getTopupErrorMessage = (error: unknown): string => {
 
 export function PrepaidWalletPage() {
   const { user } = useAuth();
-  const { permissions } = useAuthorization();
+  const { permissions, roles } = useAuthorization();
   const canManage = permissions.has('wallets.manage');
+  const isCaptain = roles.includes('captain');
   const [account,setAccount] = useState<Account|null>(null);
   const [requests,setRequests] = useState<Topup[]>([]);
   const [requesters,setRequesters] = useState<Record<string,TopupRequester>>({});
@@ -426,11 +427,11 @@ export function PrepaidWalletPage() {
         <Stat label="کۆی پارەی زیادکراو" value={fmt(account?.lifetime_credited_iqd??0)} icon={<BadgeCheck size={18}/>}/>
         <Stat label="کۆی خەرجکراو" value={fmt(account?.lifetime_spent_iqd??0)} icon={<Banknote size={18}/>}/>
         <Stat label="کاشی ماوە بۆ ڕادەستکردن" value={fmt(ownOutstanding)} icon={<Banknote size={18}/>}/>
-        {(permissions.has('deliveries.view_all') || permissions.has('deliveries.assign')) ? <Stat label="کۆی پارەی گیراو بۆ گەڕاندنەوە بە کاپتن" value={fmt(commissionHolds.filter(x=>x.status==='reserved').reduce((sum,x)=>sum+Number(x.commission_iqd),0))} icon={<RefreshCw size={18}/>}/> : null}
+        {(isCaptain || canManage) ? <Stat label="کۆی کۆمسیۆنی گیراو" value={fmt(commissionHolds.filter(x=>x.status==='reserved' && (x.captain_id===user?.id || canManage)).reduce((sum,x)=>sum+Number(x.commission_iqd),0))} icon={<RefreshCw size={18}/>}/> : null}
       </div>
     </section>
 
-    {(permissions.has('deliveries.view_all') || permissions.has('deliveries.assign') || currentCaptainCommission !== undefined) ? <section className="overflow-hidden rounded-[26px] border border-[var(--shakh-blue)]/15 bg-white shadow-sm">
+    {(isCaptain || canManage) ? <section className="overflow-hidden rounded-[26px] border border-[var(--shakh-blue)]/15 bg-white shadow-sm">
       <div className="bg-[linear-gradient(110deg,rgba(16,38,65,.04),rgba(35,92,255,.07))] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-[10px] font-black tracking-[.14em] text-[var(--shakh-blue)]">TODAY · BAGHDAD TIME</p><h2 className="mt-1 text-lg font-black text-[var(--shakh-navy)]">قازانجی ئەمڕۆ دوای کەمکردنەوەی کۆمسیۆن</h2><p className="mt-1 text-xs leading-6 text-black/45">تەنها گەیاندنە تەواوبووەکان حساب دەکرێن؛ کۆمسیۆن بەپێی نرخ و بڕی تۆمارکراوی هەر ئۆردەرەکە کەم دەکرێتەوە.</p></div>
@@ -444,7 +445,7 @@ export function PrepaidWalletPage() {
       </div>
     </section> : null}
 
-    {(permissions.has('deliveries.view_all') || permissions.has('deliveries.assign') || activeCommissionHolds.length>0) && <section className="overflow-hidden rounded-[26px] border border-amber-500/20 bg-white shadow-sm">
+    {(isCaptain || canManage || activeCommissionHolds.length>0) && <section className="overflow-hidden rounded-[26px] border border-amber-500/20 bg-white shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3 bg-amber-50 p-5 sm:p-6">
         <div><p className="text-[10px] font-black tracking-[.14em] text-amber-700">RESERVED COMMISSION</p><h2 className="mt-1 text-lg font-black text-amber-950">کۆمسیۆنی گیراو و بڕی ئازادبوونەوە</h2><p className="mt-1 max-w-3xl text-xs leading-6 text-amber-950/65">ئەم بڕانە بۆ ئۆردەرە چالاکەکان بە کاتی وەرگرتنی گەیاندن گیراون. ئەگەر ئۆردەر ڕەت بکرێتەوە یان هەڵوەشێندرێتەوە، سیستەم بە trigger ـی داتابەیس ئەم کۆمسیۆنە ئازاد دەکاتەوە؛ بە دەستی پارە ناگۆڕدرێت.</p></div>
         <div className="rounded-2xl border border-amber-500/20 bg-white px-4 py-3"><div className="text-xs font-bold text-amber-800">کۆی گیراو</div><div className="mt-1 text-xl font-black tabular-nums text-amber-950">{fmt(activeCommissionHolds.reduce((sum,h)=>sum+Number(h.commission_iqd),0))}</div></div>
