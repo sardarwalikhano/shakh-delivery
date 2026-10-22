@@ -287,7 +287,7 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     setBusyId(order.id); setMessage(null);
     try {
       await updateFoodPostDeliveryStatus(order.id, target);
-      const receiptNotice=target==='delivered' ? (await dispatchReceiptWhatsApp('food_post',order.id))??'' : '';
+      const receiptNotice=target==='delivered' && order.payment_status==='collected' ? (await dispatchReceiptWhatsApp('food_post',order.id))??'' : '';
       await refresh();
       if(receiptNotice) setMessage('دۆخی گەیاندن نوێ کرایەوە.'+receiptNotice);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'نوێکردنەوەی گەیاندن سەرنەکەوت.'); }
@@ -320,7 +320,7 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     setBusyId(order.id); setMessage(null);
     try {
       await updateDirectPostDeliveryStatus(order.order_type,order.id,target);
-      const receiptNotice=target==='delivered' ? (await dispatchReceiptWhatsApp(order.order_type,order.id))??'' : '';
+      const receiptNotice=target==='delivered' && order.payment_status==='collected' ? (await dispatchReceiptWhatsApp(order.order_type,order.id))??'' : '';
       await refresh();
       if(receiptNotice) setMessage('دۆخی گەیاندن نوێ کرایەوە.'+receiptNotice);
     }
