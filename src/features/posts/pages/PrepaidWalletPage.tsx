@@ -319,11 +319,9 @@ export function PrepaidWalletPage() {
     commission: sum.commission + Number(item.commission_iqd),
     net: sum.net + Number(item.net_earning_iqd),
   }),{gross:0,commission:0,net:0});
-  const todayEarnings = todayEarningsSummary.net;
   const currentCaptainCommission = captainCommissionOverview.find(item=>item.captain_id===user?.id)?.commission_percent ?? defaultCommissionPercent;
   const ownOutstanding = cashBalances.find(row=>row.captain_id===user?.id)?.outstanding_iqd ?? 0;
   const activeCommissionHolds = commissionHolds.filter(hold=>(hold.captain_id===user?.id || canManage) && hold.status==='reserved');
-  const activeHoldTotal = activeCommissionHolds.reduce((sum,hold)=>sum+Number(hold.commission_iqd),0);
   const captainCommissionRateToday = todayEarningsSummary.gross > 0 ? todayEarningsSummary.commission / todayEarningsSummary.gross * 100 : Number(currentCaptainCommission);
   const ownPendingTopup = requests.find(request => request.user_id === user?.id && request.status === 'pending') ?? null;
   const outstandingByCaptain = cashBalances.filter(row=>row.outstanding_iqd>0).sort((a,b)=>Number(b.outstanding_iqd)-Number(a.outstanding_iqd));
