@@ -29,7 +29,7 @@ In Supabase Dashboard → Edge Functions → Secrets, add:
   5. Total COD cash collected
   6. COD amount still outstanding
 
-The sender uses a normal text message only when no corresponding template secret is configured. Meta only permits free-form text within an open 24-hour customer-service window; for business-initiated/out-of-window delivery, create and approve the utility templates first. Recipients must explicitly opt in from the SHAKH receipt page. Do not put access tokens in client code or commit them to this repository.
+The sender leaves messages queued unless the corresponding approved template is configured. If `WHATSAPP_ALLOW_SESSION_TEXT=true` is set, it can use free-form text instead; only use this when you know the recipient has an open 24-hour customer-service window. Meta only permits business-initiated/out-of-window delivery through approved templates. Recipients must explicitly opt in from the SHAKH receipt page. Do not put access tokens in client code or commit them to this repository.
 
 ## Operational behaviour
 
