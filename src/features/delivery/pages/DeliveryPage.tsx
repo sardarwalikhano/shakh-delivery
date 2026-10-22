@@ -60,6 +60,8 @@ type DirectCaptainOrder = {
   quantity: number;
   delivery_city: string;
   delivery_address: string;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   buyer_phone: string;
   line_total_iqd: number;
   delivery_fee_iqd: number;
@@ -71,6 +73,51 @@ type DirectCaptainOrder = {
   captain_id: string | null;
   delivery_status: DirectPostDeliveryStatus;
 };
+
+function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number):number {
+  const toRadians=(degrees:number)=>degrees*Math.PI/180;
+  const dLat=toRadians(bLat-aLat);
+  const dLng=toRadians(bLng-aLng);
+  const startLat=toRadians(aLat);
+  const endLat=toRadians(bLat);
+  const h=Math.sin(dLat/2)**2+Math.cos(startLat)*Math.cos(endLat)*Math.sin(dLng/2)**2;
+  return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(Math.max(0,1-h)));
+}
+
+function CustomerLocationPanel({latitude,longitude}:{latitude:number|null;longitude:number|null}) {
+  const [origin,setOrigin]=useState<{latitude:number;longitude:number}|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  if(latitude===null||longitude===null) {
+    return <div className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-6 text-amber-800">کڕیار GPS ـی شوێنی گەیاندن تۆمار نەکردووە. بە ناونیشانی نووسراو ڕێنمایی وەربگرە.</div>;
+  }
+  const distance=origin?distanceKm(origin.latitude,origin.longitude,latitude,longitude):null;
+  const mapUrl=origin
+    ? `https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${latitude},${longitude}&travelmode=driving`
+    : `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+  const locate=()=>{
+    if(!navigator.geolocation){setError('ئەم مۆبایل/وێبگەڕە GPS پشتگیری ناکات.');return;}
+    setBusy(true);setError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({coords})=>{setOrigin({latitude:coords.latitude,longitude:coords.longitude});setBusy(false);},
+      (positionError)=>{setError('نەتوانرا GPS وەربگیرێت: '+positionError.message);setBusy(false);},
+      {enableHighAccuracy:true,timeout:12000,maximumAge:10000}
+    );
+  };
+  return <div className="mt-3 rounded-2xl border border-[var(--shakh-blue)]/10 bg-blue-50/60 p-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2 text-xs font-black text-[var(--shakh-navy)]"><MapPin size={15}/> شوێنی GPS ـی کڕیار</div>
+      {distance!==null&&<span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-[var(--shakh-blue)]">دووری ڕاستەوخۆ: {distance<1?(distance*1000).toFixed(0)+' مەتر':distance.toFixed(1)+' کم'}</span>}
+    </div>
+    <div className="mt-2 text-[10px] text-black/40" dir="ltr">{Number(latitude).toFixed(5)}, {Number(longitude).toFixed(5)}</div>
+    <div className="mt-3 flex flex-wrap gap-2">
+      <button type="button" onClick={locate} disabled={busy} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-3 py-2 text-xs font-black text-white disabled:opacity-50"><LocateFixed size={14}/>{busy?'GPS...':'حسابکردنی دووری لە شوێنی من'}</button>
+      <a href={mapUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--shakh-blue)]/15 bg-white px-3 py-2 text-xs font-black text-[var(--shakh-blue)]"><Navigation size={14}/>{origin?'کردنەوەی ڕێگای کاپتن بۆ کڕیار':'کردنەوەی شوێنی کڕیار لە نەخشە'}</a>
+    </div>
+    {error&&<p role="status" className="mt-2 text-xs leading-5 text-red-700">{error}</p>}
+    <p className="mt-2 text-[10px] leading-5 text-black/40">دووری بە هەژمارکردنی GPS ـی ڕاستەوخۆی کاپتنە (هێڵی ڕاست)، نەک دووری شەقام. بۆ ڕێگای شەقام نەخشە بکەرەوە.</p>
+  </div>;
+}
 
 const nextDirectDeliveryStatus: Partial<Record<DirectPostDeliveryStatus, DirectPostDeliveryStatus>> = {
   accepted: 'picked_up',
@@ -93,7 +140,7 @@ function mapApparelToCaptainOrder(order: ApparelPostOrder): DirectCaptainOrder {
   return {
     id: order.id, order_type: 'apparel_post', order_number: order.order_number,
     post_title: order.post_title, quantity: order.quantity, delivery_city: order.delivery_city,
-    delivery_address: order.delivery_address, buyer_phone: order.buyer_phone,
+    delivery_address: order.delivery_address, delivery_lat: order.delivery_lat, delivery_lng: order.delivery_lng, buyer_phone: order.buyer_phone,
     line_total_iqd: order.line_total_iqd, delivery_fee_iqd: order.delivery_fee_iqd,
     platform_fee_iqd: order.platform_fee_iqd, total_iqd: order.total_iqd,
     payment_method: order.payment_method, payment_status: order.payment_status,
@@ -104,7 +151,7 @@ function mapProductToCaptainOrder(order: ElectronicsPostOrder): DirectCaptainOrd
   return {
     id: order.id, order_type: 'product_post', order_number: order.order_number,
     post_title: order.post_title, quantity: order.quantity, delivery_city: order.delivery_city,
-    delivery_address: order.delivery_address, buyer_phone: order.buyer_phone,
+    delivery_address: order.delivery_address, delivery_lat: order.delivery_lat, delivery_lng: order.delivery_lng, buyer_phone: order.buyer_phone,
     line_total_iqd: order.line_total_iqd, delivery_fee_iqd: order.delivery_fee_iqd,
     platform_fee_iqd: order.platform_fee_iqd, total_iqd: order.total_iqd,
     payment_method: order.payment_method, payment_status: order.payment_status,
@@ -389,6 +436,7 @@ function ActiveDelivery({ delivery, busy, canAdvance, onAdvance, onLocate }: { d
         <div className="flex items-start gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-[var(--shakh-navy)] shadow-sm"><MapPin size={19} /></div><div className="min-w-0"><div className="text-xs font-bold text-black/35">شوێنی گەیاندن</div><div className="mt-1 font-black leading-7">{order?.delivery_address ?? '—'}</div></div></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2"><MiniInfo label="فرۆشگا" value={order?.store?.name_ku ?? '—'} /><MiniInfo label="کۆی داواکاری" value={`${Number(order?.total_iqd ?? 0).toLocaleString('en-US')} IQD`} /></div>
         {order?.delivery_lat != null && order?.delivery_lng != null ? <a href={buildGoogleMapsDirectionsUrl({ latitude: Number(order.delivery_lat), longitude: Number(order.delivery_lng) }, delivery.last_lat != null && delivery.last_lng != null ? { latitude: Number(delivery.last_lat), longitude: Number(delivery.last_lng) } : null)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-black text-[var(--shakh-blue)]"><Navigation size={15} /> ڕێنمایی بۆ شوێنی کڕیار لە Map</a> : null}
+        {order?.delivery_lat != null && order?.delivery_lng != null && delivery.last_lat != null && delivery.last_lng != null ? <div className="mt-3 flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-[var(--shakh-blue)]"><MapPin size={15}/> دووری GPS ـی کاپتن تا کڕیار: {distanceKm(Number(delivery.last_lat),Number(delivery.last_lng),Number(order.delivery_lat),Number(order.delivery_lng))<1?(distanceKm(Number(delivery.last_lat),Number(delivery.last_lng),Number(order.delivery_lat),Number(order.delivery_lng))*1000).toFixed(0)+' مەتر':distanceKm(Number(delivery.last_lat),Number(delivery.last_lng),Number(order.delivery_lat),Number(order.delivery_lng)).toFixed(1)+' کم'} <span className="font-normal text-black/45">· دووری هێڵی ڕاست</span></div> : null}
       </div>
       <div className="grid gap-3 sm:grid-cols-2"><button disabled={busy || !canAdvance} onClick={onAdvance} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-4 py-3 text-sm font-black text-white disabled:opacity-35"><Check size={17} />{nextStatus[delivery.status] ? `گواستنەوە بۆ ${statusLabel[nextStatus[delivery.status]!]}` : 'کۆتایی'} </button><button disabled={busy} onClick={onLocate} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-black disabled:opacity-40"><LocateFixed size={17} />نوێکردنەوەی شوێن</button></div>
       {delivery.last_location_at ? <div className="text-xs font-bold text-black/35" dir="ltr">GPS: {Number(delivery.last_lat).toFixed(5)}, {Number(delivery.last_lng).toFixed(5)} · {new Date(delivery.last_location_at).toLocaleTimeString()}</div> : null}
@@ -430,6 +478,8 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
         <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[var(--shakh-orange)]/10 px-2.5 py-1 text-[11px] font-black text-[var(--shakh-orange)]">چێشتخانە · {foodDeliveryStatusLabel[order.delivery_status]}</span><span className="font-mono text-xs font-bold text-black/35" dir="ltr">{order.order_number}</span></div>
         <h3 className="mt-2 font-black">{order.post_title} × {order.quantity}</h3>
         <div className="mt-2 space-y-1 text-sm font-bold text-black/55"><div>{order.delivery_city} · {order.delivery_address}</div><div dir="ltr" className="text-start">{order.buyer_phone}</div></div>
+        {order.captain_id ? <CustomerLocationPanel latitude={order.delivery_lat} longitude={order.delivery_lng}/> : null}
+        {order.captain_id ? <CustomerLocationPanel latitude={order.delivery_lat} longitude={order.delivery_lng}/> : null}
         <div className="mt-4 grid gap-2 rounded-2xl bg-[var(--shakh-bg)] p-4 text-sm">
           <FoodAmount label="کۆی خواردن" amount={order.line_total_iqd} />
           <FoodAmount label="کرێی گەیاندن" amount={order.delivery_fee_iqd} />
