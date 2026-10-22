@@ -1,4 +1,4 @@
-import { ArrowLeft, BadgeCheck, FileText, MessageCircle, PackageCheck, Printer, RefreshCw, ShieldCheck, Truck, UserRound } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, ExternalLink, FileText, MessageCircle, PackageCheck, Printer, RefreshCw, ShieldCheck, Truck, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase/client';
@@ -66,6 +66,50 @@ const paymentLabel = (value: string | null) => {
   return value || 'دیاری نەکراو';
 };
 
+function whatsappDigits(value: string | null | undefined): string | null {
+  let digits = (value ?? '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('9640')) digits = '964' + digits.slice(4);
+  else if (digits.startsWith('0')) digits = '964' + digits.slice(1);
+  else if (/^7\d{9}$/.test(digits)) digits = '964' + digits;
+  return digits.length >= 8 && digits.length <= 15 ? digits : null;
+}
+
+function buyerReceiptWhatsAppUrl(receipt: OrderReceipt): string | null {
+  const phoneDigits = whatsappDigits(receipt.buyer_phone);
+  if (!phoneDigits) return null;
+  const itemLines = (receipt.item_lines ?? []).map(item =>
+    `• ${item.title || item.name || 'بەرهەم'} × ${Number(item.quantity ?? 1)} — ${money(item.line_total_iqd)}`
+  );
+  const receiptUrl = `https://www.daim-post.online/receipts/${encodeURIComponent(receipt.id)}`;
+  const message = [
+    'سڵاو، ئەمە وەسڵی کڕینەکەتە لە SHAKH.',
+    `ژمارەی وەسڵ: ${receipt.receipt_number}`,
+    `ژمارەی ئۆردەر: ${receipt.order_number}`,
+    'بەرهەمەکان:',
+    ...(itemLines.length ? itemLines : ['—']),
+    `کۆی بەرهەمەکان: ${money(receipt.subtotal_iqd)}`,
+    `کرێی گەیاندن: ${money(receipt.delivery_fee_iqd)}`,
+    `کرێی پلاتفۆرم: ${money(receipt.platform_fee_iqd)}`,
+    `کۆی گشتی: ${money(receipt.total_iqd)}`,
+    `پارەدان: ${paymentLabel(receipt.payment_method)} — ${receipt.payment_status}`,
+    `لینکی وەسڵ: ${receiptUrl}`,
+  ].join('\n');
+  return `https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`;
+}
+
+function whatsappDispatchStatus(data: unknown): string {
+  const result = data as { configured?: boolean; template_configured?: boolean; queued?: number; sent?: number; pending?: number; failed?: number; blocked?: number; message?: string } | null;
+  if (!result) return 'دۆخی ناردنی واتسئاپ وەڵامێکی ڕوونی نەدا؛ تکایە مێژووی ناردن بپشکنە.';
+  if (result.configured === false) return 'ژمارە/ڕەزامەندیی وەرگر پاشەکەوتە، بەڵام WhatsApp Business API ڕێکنەخراوە؛ هیچ پەیامێک بە ڕاستی نەنێردرا.';
+  if (result.template_configured === false) return 'وەسڵەکە ئامادەیە و لە queue دەمێنێتەوە؛ template ـی پەسەندکراوی WhatsApp بۆ ناردنی خۆکار ڕێکنەخراوە.';
+  if (Number(result.sent ?? 0) > 0) return `پەیامی واتسئاپ بە سەرکەوتوویی نێردرا بۆ ${Number(result.sent)} وەرگر.`;
+  if (Number(result.failed ?? 0) > 0) return 'ناردنی واتسئاپ سەرنەکەوت؛ هۆکار و کاتی دووبارە هەوڵدانەوە لە مێژووی ناردندا تۆمار کرا.';
+  if (Number(result.blocked ?? 0) > 0) return 'هەندێک پەیام ڕاگیراوە، چونکە ڕەزامەندیی واتسئاپ چالاک نییە یان ژمارەکە لەگەڵ ژمارەی پاشەکەوتکراو ناگونجێت.';
+  if (Number(result.queued ?? 0) === 0) return result.message ?? 'هیچ پەیامێکی نوێ بۆ ناردن ئامادە نییە؛ ڕەزامەندی، ژمارە و دۆخی وەسڵ بپشکنە.';
+  return result.message ?? 'پەیامەکە لە queue دەمێنێتەوە تا بتوانرێت بنێردرێت.';
+}
+
 export function OrderReceiptsPage() {
   const { id } = useParams<{ id?: string }>();
   const { user } = useAuth();
@@ -127,8 +171,21 @@ export function OrderReceiptsPage() {
       });
       if (rpcError) throw rpcError;
       setMessage(whatsappEnabled
-        ? 'ڕەزامەندی وەرگرتنی وەسڵ و پوختەی پارەدان بە واتسئاپ پاشەکەوت کرا.'
+        ? 'ڕەزامەندی و ژمارەکە پاشەکەوت کرا.'
         : 'ناردنی وەسڵی واتسئاپ ناچالاک کرا. پەیامی نوێ بۆ ئەم ژمارەیە نانێردرێت.');
+      const currentReceipt = id ? receipts.find(item => item.id === id) : null;
+      if (whatsappEnabled && currentReceipt) {
+        const { error: queueError } = await supabase.rpc('queue_order_receipt_whatsapp', { p_receipt_id: currentReceipt.id });
+        if (queueError) throw queueError;
+        const { data, error: invokeError } = await supabase.functions.invoke('dispatch-whatsapp-outbox', {
+          body: { event_type: 'sale_receipt', order_type: currentReceipt.order_type, order_id: currentReceipt.order_id },
+        });
+        if (invokeError) {
+          setMessage('ژمارە و ڕەزامەندی پاشەکەوت کرا، بەڵام پەیام لەم هەوڵەدا نەنێردرا؛ دووبارە هەوڵ بدەوە.');
+        } else {
+          setMessage(whatsappDispatchStatus(data));
+        }
+      }
       await refresh();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'پاشەکەوتکردنی ڕێکخستنی واتسئاپ سەرنەکەوت.');
@@ -148,20 +205,7 @@ export function OrderReceiptsPage() {
         body: { event_type: 'sale_receipt', order_type: receipt.order_type, order_id: receipt.order_id },
       });
       if (invokeError) throw invokeError;
-      const result = data as { configured?: boolean; template_configured?: boolean; sent?: number; queued?: number; pending?: number; failed?: number; message?: string } | null;
-      if (Number(result?.queued ?? 0) === 0) {
-        setMessage(result?.message ?? 'هیچ وەرگرێکی واتسئاپ چالاک نییە؛ خاوەن دوکان و سوپەر ئەدمین دەبێت ڕەزامەندی و ژمارەی واتسئاپ پاشەکەوت بکەن.');
-      } else if (result?.configured === false) {
-        setMessage('وەسڵەکە لە outbox پارێزرا؛ بەڵام WhatsApp Business API هێشتا ڕێکنەخراوە. پەیامەکە تا ڕێکخستنی API نانێردرێت.');
-      } else if (result?.template_configured === false) {
-        setMessage('وەسڵەکە لە outbox ماوەتەوە؛ template ـی پەسەندکراوی WhatsApp بۆ ئەم جۆرە پەیامە ڕێکنەخراوە.');
-      } else if (Number(result?.sent ?? 0) > 0) {
-        setMessage('پەیامی وەسڵ بە سەرکەوتوویی نێردرا بۆ ' + result?.sent + ' وەرگر.');
-      } else if (Number(result?.failed ?? 0) > 0) {
-        setMessage('پەیام لە واتسئاپ سەرنەکەوت؛ هۆکارەکە لە مێژووی ناردن تۆمار کرا و بۆ هەوڵدانەوە پارێزرا.');
-      } else {
-        setMessage(result?.message ?? 'پەیامی وەسڵ لە queue ـدا تۆمار کرا.');
-      }
+      setMessage(whatsappDispatchStatus(data));
       await refresh();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'ناردنی وەسڵ بۆ واتسئاپ سەرنەکەوت.');
@@ -219,7 +263,7 @@ export function OrderReceiptsPage() {
 
               <div className="grid gap-3 border-b border-black/[0.06] py-5 sm:grid-cols-2">
                 <Info label="کڕیار" value={receipt.buyer_name || '—'} icon={<UserRound size={15}/>}/>
-                <Info label="ژمارەی کڕیار" value={receipt.buyer_phone || '—'} icon={<MessageCircle size={15}/>}/>
+                <Info label="ژمارەی کڕیار" value={receipt.buyer_phone || '—'} href={buyerReceiptWhatsAppUrl(receipt)} icon={<MessageCircle size={15}/>}/>
                 <Info label="فرۆشیار / دوکان" value={receipt.seller_name || '—'} icon={<PackageCheck size={15}/>}/>
                 <Info label="ژمارەی فرۆشیار" value={receipt.seller_phone || '—'} icon={<MessageCircle size={15}/>}/>
                 <Info label="ناونیشانی گەیاندن" value={receipt.delivery_address || '—'} icon={<Truck size={15}/>}/>
@@ -249,6 +293,7 @@ export function OrderReceiptsPage() {
               <div className="mt-5 flex flex-wrap gap-2 print:hidden">
                 <button type="button" onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 text-sm font-black text-white"><Printer size={16}/> پرینت / پاشەکەوت وەک PDF</button>
                 <button type="button" disabled={dispatchingReceipt===receipt.id} onClick={()=>void dispatchReceipt(receipt)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50 px-4 text-sm font-black text-emerald-800 disabled:opacity-50"><MessageCircle size={16}/>{dispatchingReceipt===receipt.id?'ناردن...':'ناردن / دووبارە هەوڵدان بە واتسئاپ'}</button>
+                {buyerReceiptWhatsAppUrl(receipt) ? <a href={buyerReceiptWhatsAppUrl(receipt)!} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--shakh-blue)]/20 bg-blue-50 px-4 text-sm font-black text-[var(--shakh-blue)]"><ExternalLink size={16}/> ئامادەکردنی وەسڵ بۆ واتسئاپی کڕیار</a> : <span className="inline-flex items-center text-xs font-bold text-amber-700">ژمارەی کڕیار بە فۆرماتی واتسئاپ نییە.</span>}
                 <Link to="/receipts" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 px-4 text-sm font-black"><ArrowLeft size={16}/> گەڕانەوە بۆ هەموو وەسڵەکان</Link>
               </div>
             </article>
@@ -285,8 +330,8 @@ export function OrderReceiptsPage() {
   );
 }
 
-function Info({label,value,icon}:{label:string;value:string;icon:React.ReactNode}) {
-  return <div className="flex items-start gap-2 rounded-xl bg-[var(--shakh-bg)] p-3"><span className="mt-0.5 text-[var(--shakh-blue)]">{icon}</span><div className="min-w-0"><div className="text-[10px] font-bold text-black/40">{label}</div><div className="mt-1 break-words text-xs font-black leading-5">{value}</div></div></div>;
+function Info({label,value,icon,href}:{label:string;value:string;icon:React.ReactNode;href?:string|null}) {
+  return <div className="flex items-start gap-2 rounded-xl bg-[var(--shakh-bg)] p-3"><span className="mt-0.5 text-[var(--shakh-blue)]">{icon}</span><div className="min-w-0"><div className="text-[10px] font-bold text-black/40">{label}</div>{href ? <a href={href} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 break-words text-xs font-black leading-5 text-[var(--shakh-blue)] underline decoration-dotted underline-offset-2">{value}<ExternalLink size={12}/></a> : <div className="mt-1 break-words text-xs font-black leading-5">{value}</div>}</div></div>;
 }
 function AmountRow({label,amount}:{label:string;amount:number}) {
   return <div className="flex items-center justify-between gap-4 py-2 text-sm"><span className="text-black/55">{label}</span><span className="font-bold tabular-nums">{money(amount)}</span></div>;
