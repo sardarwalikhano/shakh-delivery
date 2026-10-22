@@ -203,7 +203,7 @@ Deno.serve(async (req: Request) => {
     const { data: receipt, error } = await admin.from("order_receipts").select("*")
       .eq("order_type", body.order_type).eq("order_id", body.order_id).maybeSingle();
     if (error) return respond(500, { error: "Unable to load the sale receipt." });
-    if (!receipt) return respond(404, { configured: true, queued: 0, message: "No completed-sale receipt exists yet." });
+    if (!receipt) return respond(200, { configured: true, queued: 0, sent: 0, pending: 0, message: "No completed-sale receipt exists yet." });
     const participant = [receipt.buyer_id, receipt.seller_id, receipt.captain_id].includes(user.id);
     if (!participant && !permissions.has("orders.view_all") && !permissions.has("wallets.manage")) {
       return respond(403, { error: "You are not authorized to dispatch this receipt." });
@@ -223,6 +223,30 @@ Deno.serve(async (req: Request) => {
   const templateConfigured = body.event_type === "sale_receipt"
     ? Boolean(Deno.env.get("WHATSAPP_SALE_RECEIPT_TEMPLATE"))
     : Boolean(Deno.env.get("WHATSAPP_CASH_RETURN_TEMPLATE"));
+
+  // An explicit dispatch attempt is also the supported manual retry path.
+  // Only opted-in recipients with the unchanged number may be reset from failed/blocked.
+  const eligibleRetryRows = admin.from("whatsapp_delivery_preferences").select("user_id,phone_e164")
+    .eq("enabled", true);
+  const { data: eligibleRecipients } = await eligibleRetryRows;
+  const eligibleByUser = new Map((eligibleRecipients ?? []).map((pref: {user_id:string;phone_e164:string}) => [pref.user_id,pref.phone_e164]));
+  const recipientIds = [...eligibleByUser.keys()];
+  if (recipientIds.length) {
+    let retryQuery = admin.from("whatsapp_message_outbox").update({
+      status: "pending", last_error: null, next_attempt_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    }).in("status", ["failed", "blocked"]).in("recipient_user_id", recipientIds);
+    retryQuery = receiptId ? retryQuery.eq("receipt_id", receiptId) : retryQuery.eq("settlement_batch_id", settlementBatchId);
+    const { data: retryRows } = await retryQuery.select("id,recipient_user_id,recipient_phone");
+    for (const row of retryRows ?? []) {
+      if (eligibleByUser.get(row.recipient_user_id) !== row.recipient_phone) {
+        await admin.from("whatsapp_message_outbox").update({
+          status: "blocked",
+          last_error: "Recipient changed their phone number; no message was sent.",
+          updated_at: new Date().toISOString(),
+        }).eq("id", row.id);
+      }
+    }
+  }
 
   let query = admin.from("whatsapp_message_outbox").select("*")
     .in("status", ["pending", "failed"])
