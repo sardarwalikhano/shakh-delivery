@@ -148,7 +148,7 @@ export function OrderReceiptsPage() {
         body: { event_type: 'sale_receipt', order_type: receipt.order_type, order_id: receipt.order_id },
       });
       if (invokeError) throw invokeError;
-      const result = data as { configured?: boolean; sent?: number; queued?: number; pending?: number; failed?: number; message?: string } | null;
+      const result = data as { configured?: boolean; template_configured?: boolean; sent?: number; queued?: number; pending?: number; failed?: number; message?: string } | null;
       if (Number(result?.queued ?? 0) === 0) {
         setMessage(result?.message ?? 'هیچ وەرگرێکی واتسئاپ چالاک نییە؛ خاوەن دوکان و سوپەر ئەدمین دەبێت ڕەزامەندی و ژمارەی واتسئاپ پاشەکەوت بکەن.');
       } else if (result?.configured === false) {
