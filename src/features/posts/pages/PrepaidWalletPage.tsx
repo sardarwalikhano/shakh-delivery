@@ -252,7 +252,22 @@ export function PrepaidWalletPage() {
       });
       if(rpcError)throw rpcError;
       const result=data as {amount_iqd?:number;outstanding_iqd?:number;already_recorded?:boolean}|null;
-      setMessage('گەڕاندنەوەی کاش تۆمارکرا: '+fmt(result?.amount_iqd??attempt.amount_iqd)+'. بڕی ماوە: '+fmt(result?.outstanding_iqd??Math.max(0,outstanding-attempt.amount_iqd))+'.');
+      let whatsappNotice='';
+      try {
+        const {data:whatsappData,error:whatsappError}=await supabase.functions.invoke('dispatch-whatsapp-outbox',{
+          body:{event_type:'cash_return',settlement_batch_id:attempt.id},
+        });
+        if(whatsappError) whatsappNotice=' واتسئاپ نەتوانرا پشکنین بکرێت؛ مامەڵەکە تۆمارکرا و ئەگەر پەیام لە queue بووبێت دەمێنێتەوە.';
+        else {
+          const whatsapp=whatsappData as {configured?:boolean;queued?:number;sent?:number;failed?:number}|null;
+          if(Number(whatsapp?.queued??0)>0 && whatsapp?.configured===false) whatsappNotice=' پەیامەکانی واتسئاپ لە queue ماونەتەوە؛ پێویستیان بە ڕێکخستنی WhatsApp Business API هەیە.';
+          else if(Number(whatsapp?.failed??0)>0) whatsappNotice=' هەندێک پەیامی واتسئاپ سەرنەکەوت؛ هۆکاری ناردن لە مێژوودا تۆمار کرا.';
+          else if(Number(whatsapp?.sent??0)>0) whatsappNotice=' پوختەی پارەی پێشوو و ئەمجار بۆ وەرگرە چالاکەکان نێردرا.';
+        }
+      } catch {
+        whatsappNotice=' مامەڵەکە تۆمارکرا؛ بەڵام دۆخی واتسئاپ نەتوانرا پشتڕاست بکرێتەوە.';
+      }
+      setMessage('گەڕاندنەوەی کاش تۆمارکرا: '+fmt(result?.amount_iqd??attempt.amount_iqd)+'. بڕی ماوە: '+fmt(result?.outstanding_iqd??Math.max(0,outstanding-attempt.amount_iqd))+'.'+whatsappNotice);
       try { window.sessionStorage.removeItem(storageKey); } catch { /* Ignore unavailable session storage. */ }
       setSettlementAttempts(current=>{const next={...current};delete next[captainId];return next;});
       setSettlementAmounts(current=>({...current,[captainId]:''}));
