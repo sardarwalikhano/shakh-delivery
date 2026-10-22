@@ -10,7 +10,7 @@ In Supabase Dashboard → Edge Functions → Secrets, add:
 - `WHATSAPP_PHONE_NUMBER_ID`: the sender phone-number ID from the WhatsApp Business account.
 - `WHATSAPP_GRAPH_API_VERSION`: optional; defaults to `v26.0`.
 - `WHATSAPP_TEMPLATE_LANGUAGE_CODE`: the exact language code approved for both templates, e.g. `en_US` if that is the language used when approving the templates.
-- `WHATSAPP_SALE_RECEIPT_TEMPLATE`: approved utility-template name with ten body placeholders in this order:
+- `WHATSAPP_SALE_RECEIPT_TEMPLATE`: approved utility-template name with eleven body placeholders in this order:
   1. Receipt number
   2. Order number
   3. Buyer name
@@ -21,6 +21,7 @@ In Supabase Dashboard → Edge Functions → Secrets, add:
   8. Total IQD
   9. Payment method and status
   10. Completion date/time
+  11. Receipt URL (`https://www.daim-post.online/receipts/<receipt-id>`)
 - `WHATSAPP_CASH_RETURN_TEMPLATE`: approved utility-template name with six body placeholders in this order:
   1. Captain name
   2. Settlement batch ID
@@ -38,3 +39,5 @@ The sender leaves messages queued unless the corresponding approved template is 
 - Outbox keys are idempotent. Failed sends retain the provider error and a retry time.
 - If API credentials are absent, the dispatcher leaves messages in the queue and returns `configured: false` rather than falsely reporting successful delivery.
 - The user-facing receipt page offers an explicit retry after the WhatsApp preference has been enabled.
+- Customer phone numbers are clickable and open a prefilled WhatsApp draft containing itemized receipt details and the receipt URL. The sender must press Send in WhatsApp; the page does not falsely report this draft as sent.
+- If a buyer enables their own WhatsApp preference, the queue includes that buyer as well as opted-in seller and Super Admin recipients. Actual business-initiated delivery still requires valid Meta credentials and an approved template.
