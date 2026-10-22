@@ -26,6 +26,7 @@ import { CheckoutPage } from '@/features/checkout/CheckoutPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { VendorOrdersPage } from '@/features/orders/VendorOrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
+import { OrderReceiptsPage } from '@/features/orders/OrderReceiptsPage';
 import { NotificationsPage } from '@/features/notifications/pages/NotificationsPage';
 import { RoleRequestsPage } from '@/features/role-requests/pages/RoleRequestsPage';
 import { PostsPage } from '@/features/posts/pages/PostsPage';
@@ -67,6 +68,8 @@ export function App() {
         <Route path="/food-post-checkout" element={<RequireAuth><FoodPostCheckoutPage /></RequireAuth>} />
         <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
         <Route path="/orders/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+        <Route path="/receipts" element={<RequireAuth><OrderReceiptsPage /></RequireAuth>} />
+        <Route path="/receipts/:id" element={<RequireAuth><OrderReceiptsPage /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
         <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
         <Route path="/403" element={<ForbiddenPage />} />
