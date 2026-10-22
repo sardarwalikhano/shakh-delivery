@@ -125,7 +125,7 @@ create table if not exists public.whatsapp_message_outbox (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   sent_at timestamptz,
-  check ((receipt_id is not null)::integer + (settlement_batch_id is not null)::integer = 1)
+  check ((receipt_id is not null) <> (settlement_batch_id is not null))
 );
 create index if not exists whatsapp_outbox_pending_idx
   on public.whatsapp_message_outbox(status,next_attempt_at,created_at)
@@ -154,7 +154,7 @@ begin
   select string_agg(
     coalesce(nullif(item->>'title',''),nullif(item->>'name',''),'بەرهەم')
     || ' × ' || coalesce(item->>'quantity','1')
-    || case when nullif(item->>'variant','') is not null then ' ('||item->>'variant'||')' else '' end
+    || case when nullif(item->>'variant','') is not null then ' (' || (item->>'variant') || ')' else '' end
     || ' — ' || to_char(coalesce(nullif(item->>'line_total_iqd','')::numeric,0),'FM999,999,999,999') || ' د.ع',
     E'\n'
   ) into v_items
@@ -162,7 +162,7 @@ begin
 
   v_payment := case
     when v_receipt.payment_method in ('cash_on_delivery','cod') then 'کاش لە کاتی گەیاندن'
-    when v_receipt.payment_method in ('mobile_cash','mobile_cash') then 'Mobile Cash'
+    when v_receipt.payment_method = 'mobile_cash' then 'Mobile Cash'
     else coalesce(v_receipt.payment_method,'نەناسراو')
   end;
 
