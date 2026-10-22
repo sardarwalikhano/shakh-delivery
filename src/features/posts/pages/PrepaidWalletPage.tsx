@@ -3,6 +3,7 @@ import { BadgeCheck, Banknote, CircleAlert, FileImage, Mail, Phone, RefreshCw, U
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
+import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { supabase } from '@/lib/supabase/client';
 
 type Account = { user_id: string; balance_iqd: number; held_iqd: number; lifetime_credited_iqd: number; lifetime_spent_iqd: number };
