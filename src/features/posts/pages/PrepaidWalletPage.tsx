@@ -11,6 +11,7 @@ type TopupRequester = { id: string; email: string | null; full_name: string | nu
 type Tx = { id: string; transaction_type: string; amount_iqd: number; description_ku: string; created_at: string };
 type CaptainEarning = { id: string; captain_id: string; order_type: string; order_id: string; delivery_fee_iqd: number; commission_iqd: number; net_earning_iqd: number; earning_day: string; created_at: string };
 type CashRow = { id: string; captain_id: string; order_id: string; product_subtotal_iqd: number; delivery_fee_iqd: number; platform_fee_iqd: number; cash_collected_iqd: number; cash_remitted_iqd: number; status: string; collected_at: string; note: string | null };
+type CaptainCommissionHold = { id: string; captain_id: string; order_type: string; order_id: string; delivery_fee_iqd: number; commission_iqd: number; status: 'reserved'|'charged'|'released'; created_at: string; settled_at: string | null };
 type CaptainProfile = { id: string; full_name: string | null; phone: string | null };
 type CashBalance = { captain_id: string; outstanding_iqd: number; collected_iqd: number; remitted_iqd: number; last_collected_at: string | null };
 type CommissionRule = { captain_id: string | null; commission_percent: number };
@@ -50,6 +51,7 @@ export function PrepaidWalletPage() {
   const [transactions,setTransactions] = useState<Tx[]>([]);
   const [dailyEarnings,setDailyEarnings] = useState<CaptainEarning[]>([]);
   const [cashLedger,setCashLedger] = useState<CashRow[]>([]);
+  const [commissionHolds,setCommissionHolds] = useState<CaptainCommissionHold[]>([]);
   const [cashBalances,setCashBalances] = useState<CashBalance[]>([]);
   const [defaultCommissionPercent,setDefaultCommissionPercent] = useState(20);
   const [defaultCommissionDraft,setDefaultCommissionDraft] = useState('20');
@@ -91,6 +93,7 @@ export function PrepaidWalletPage() {
       supabase.from('captain_commission_rules').select('captain_id,commission_percent'),
       supabase.rpc('get_captain_commission_overview'),
       supabase.from('wallet_commission_settings').select('category,seller_fee_per_unit_iqd,captain_fee_percent').order('category'),
+      supabase.from('captain_delivery_commission_holds').select('id,captain_id,order_type,order_id,delivery_fee_iqd,commission_iqd,status,created_at,settled_at').order('created_at',{ascending:false}).limit(100),
     ]);
 
     const requestRes = await requestPromise;
@@ -132,25 +135,43 @@ export function PrepaidWalletPage() {
       }
     }
 
-    const [accountRes,txRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes,sellerFeeRes] = await walletDataPromise;
-    const err = accountRes.error ?? txRes.error ?? earningRes.error ?? cashRes.error ?? balanceRes.error ?? ruleRes.error ?? commissionOverviewRes.error ?? sellerFeeRes.error;
-    if (err) { setError(err.message); return; }
-    setAccount(accountRes.data as Account|null);
-    setTransactions((txRes.data ?? []) as Tx[]);
-    const earnings = (earningRes.data ?? []) as CaptainEarning[];
-    const cashRows = (cashRes.data ?? []) as CashRow[];
+    const [accountRes,txRes,earningRes,cashRes,balanceRes,ruleRes,commissionOverviewRes,sellerFeeRes,holdRes] = await walletDataPromise;
+
+    // Keep wallet balance visible even if a secondary finance report fails.
+    // The backend remains the source of truth; each failed panel reports its own data issue.
+    setAccount(accountRes.error ? null : accountRes.data as Account|null);
+    setTransactions(txRes.error ? [] : (txRes.data ?? []) as Tx[]);
+    const earnings = (earningRes.error ? [] : (earningRes.data ?? [])) as CaptainEarning[];
+    const cashRows = (cashRes.error ? [] : (cashRes.data ?? [])) as CashRow[];
     setDailyEarnings(earnings);
     setCashLedger(cashRows);
-    setCashBalances((balanceRes.data ?? []) as CashBalance[]);
-    const rules = (ruleRes.data ?? []) as CommissionRule[];
+    setCashBalances(balanceRes.error ? [] : (balanceRes.data ?? []) as CashBalance[]);
+    setCommissionHolds(holdRes.error ? [] : (holdRes.data ?? []) as CaptainCommissionHold[]);
+
+    const rules = (ruleRes.error ? [] : (ruleRes.data ?? [])) as CommissionRule[];
     const defaultRule = rules.find(rule => rule.captain_id === null);
     const defaultPercent = Number(defaultRule?.commission_percent ?? 20);
     setDefaultCommissionPercent(defaultPercent);
     setDefaultCommissionDraft(String(defaultPercent));
-    setCaptainCommissionOverview((commissionOverviewRes.data ?? []) as CaptainCommissionOverview[]);
-    const sellerFees = (sellerFeeRes.data ?? []) as SellerCommissionSetting[];
+    setCaptainCommissionOverview((commissionOverviewRes.error ? [] : (commissionOverviewRes.data ?? [])) as CaptainCommissionOverview[]);
+    const sellerFees = (sellerFeeRes.error ? [] : (sellerFeeRes.data ?? [])) as SellerCommissionSetting[];
     setSellerFeeSettings(sellerFees);
     setSellerFeeDrafts(current => { const next = {...current}; for (const row of sellerFees) if (next[row.category] === undefined) next[row.category] = String(row.seller_fee_per_unit_iqd); return next; });
+
+    const financeErrors = [
+      accountRes.error && 'باڵانسی جزدان',
+      txRes.error && 'مێژووی مامەڵەکان',
+      earningRes.error && 'قازانجی گەیاندن',
+      cashRes.error && 'حسابی کاش',
+      balanceRes.error && 'کاشی ماوە',
+      ruleRes.error && 'ڕێژەی کۆمسیۆن',
+      commissionOverviewRes.error && 'پڕۆفایلی کۆمسیۆنی کاپتن',
+      sellerFeeRes.error && 'کۆمسیۆنی کاتەگۆری',
+      holdRes.error && 'کۆمسیۆنی گیراو',
+    ].filter(Boolean);
+    if (financeErrors.length) {
+      setError('هەندێک بەشی دارایی نەتوانرا بخوێندرێتەوە: ' + financeErrors.join('، ') + '. باڵانس و ئەو بەشانەی بە سەرکەوتوویی هاتوون هەر پیشان دەدرێن.');
+    }
     const profileIds = [...new Set(cashRows.map(row=>row.captain_id))];
     if (canManage && profileIds.length) {
       const {data:profiles} = await supabase.from('profiles').select('id,full_name,phone').in('id',profileIds);
@@ -291,8 +312,18 @@ export function PrepaidWalletPage() {
   };
 
   const todayBaghdad = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Baghdad'}).format(new Date());
-  const todayEarnings = dailyEarnings.filter(item=>item.earning_day===todayBaghdad && (item.captain_id===user?.id || canManage)).reduce((sum,item)=>sum+Number(item.net_earning_iqd),0);
+  const todaysCaptainRows = dailyEarnings.filter(item=>item.earning_day===todayBaghdad && (item.captain_id===user?.id || canManage));
+  const todayEarningsSummary = todaysCaptainRows.reduce((sum,item)=>({
+    gross: sum.gross + Number(item.delivery_fee_iqd),
+    commission: sum.commission + Number(item.commission_iqd),
+    net: sum.net + Number(item.net_earning_iqd),
+  }),{gross:0,commission:0,net:0});
+  const todayEarnings = todayEarningsSummary.net;
+  const currentCaptainCommission = captainCommissionOverview.find(item=>item.captain_id===user?.id)?.commission_percent ?? defaultCommissionPercent;
   const ownOutstanding = cashBalances.find(row=>row.captain_id===user?.id)?.outstanding_iqd ?? 0;
+  const activeCommissionHolds = commissionHolds.filter(hold=>(hold.captain_id===user?.id || canManage) && hold.status==='reserved');
+  const activeHoldTotal = activeCommissionHolds.reduce((sum,hold)=>sum+Number(hold.commission_iqd),0);
+  const captainCommissionRateToday = todayEarningsSummary.gross > 0 ? todayEarningsSummary.commission / todayEarningsSummary.gross * 100 : Number(currentCaptainCommission);
   const ownPendingTopup = requests.find(request => request.user_id === user?.id && request.status === 'pending') ?? null;
   const outstandingByCaptain = cashBalances.filter(row=>row.outstanding_iqd>0).sort((a,b)=>Number(b.outstanding_iqd)-Number(a.outstanding_iqd));
 
@@ -371,14 +402,61 @@ export function PrepaidWalletPage() {
         {!requests.length&&<Empty text={canManage?'هیچ داواکارییەک بۆ پشکنین نییە. پاش ناردنی داواکاری لەلایەن بەکارهێنەر، لیستەکە بە خۆکار نوێ دەبێتەوە.':'هێشتا داواکاریی زیادکردن نییە.'}/>}
       </div>
     </section>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-      <Stat label="باڵانسی بەردەست" value={fmt(Math.max(0,Number(account?.balance_iqd??0)-Number(account?.held_iqd??0)))} icon={<Wallet size={18}/>}/>
-      <Stat label="باڵانسی گیراو" value={fmt(account?.held_iqd??0)} icon={<Banknote size={18}/>}/>
-      <Stat label="کۆی پارەی زیادکراو" value={fmt(account?.lifetime_credited_iqd??0)} icon={<BadgeCheck size={18}/>}/>
-      <Stat label="کۆی خەرجکراو" value={fmt(account?.lifetime_spent_iqd??0)} icon={<Banknote size={18}/>}/>
-      <Stat label="قازانجی ئەمڕۆی کاپتن" value={fmt(todayEarnings)} icon={<BadgeCheck size={18}/>}/>
-      <Stat label="کاشی ماوەی کاپتن" value={fmt(ownOutstanding)} icon={<Banknote size={18}/>}/>
-    </div>
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div><p className="text-[10px] font-black tracking-[.14em] text-[var(--shakh-orange)]">WALLET BALANCE</p><h2 className="mt-1 text-lg font-black text-[var(--shakh-navy)]">کورتەی ڕوونی جزدان</h2></div>
+        <span className="text-[10px] text-black/40">داتای ڕاستەقینەی Supabase · نوێکردنەوە بە دوگمەی سەرەوە</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl bg-[linear-gradient(130deg,#102641,#194c82)] p-4 text-white shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-bold text-white/65"><Wallet size={17}/> کۆی باڵانسی جزدان</div>
+          <div className="mt-3 text-2xl font-black tabular-nums">{fmt(account?.balance_iqd??0)}</div>
+          <div className="mt-1 text-[10px] text-white/55">بڕی تۆمارکراو پێش جیاکردنەوەی پارەی گیراو</div>
+        </div>
+        <div className="rounded-2xl border border-emerald-600/15 bg-emerald-50 p-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-800"><Wallet size={17}/> باڵانسی بەردەست</div>
+          <div className="mt-3 text-2xl font-black tabular-nums text-emerald-800">{fmt(Math.max(0,Number(account?.balance_iqd??0)-Number(account?.held_iqd??0)))}</div>
+          <div className="mt-1 text-[10px] text-emerald-800/65">دەتوانرێت بۆ مامەڵەی نوێ بەکاربهێنرێت</div>
+        </div>
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-50 p-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-900"><Banknote size={17}/> کۆی پارەی گیراو</div>
+          <div className="mt-3 text-2xl font-black tabular-nums text-amber-900">{fmt(account?.held_iqd??0)}</div>
+          <div className="mt-1 text-[10px] text-amber-900/65">کۆمسیۆنی ئۆردەری هێشتا تەواونەبووەکان</div>
+        </div>
+        <Stat label="کۆی پارەی زیادکراو" value={fmt(account?.lifetime_credited_iqd??0)} icon={<BadgeCheck size={18}/>}/>
+        <Stat label="کۆی خەرجکراو" value={fmt(account?.lifetime_spent_iqd??0)} icon={<Banknote size={18}/>}/>
+        <Stat label="کاشی ماوە بۆ ڕادەستکردن" value={fmt(ownOutstanding)} icon={<Banknote size={18}/>}/>
+        {(permissions.has('deliveries.view_all') || permissions.has('deliveries.assign')) ? <Stat label="کۆی پارەی گیراو بۆ گەڕاندنەوە بە کاپتن" value={fmt(commissionHolds.filter(x=>x.status==='reserved').reduce((sum,x)=>sum+Number(x.commission_iqd),0))} icon={<RefreshCw size={18}/>}/> : null}
+      </div>
+    </section>
+
+    {(permissions.has('deliveries.view_all') || permissions.has('deliveries.assign') || currentCaptainCommission !== undefined) ? <section className="overflow-hidden rounded-[26px] border border-[var(--shakh-blue)]/15 bg-white shadow-sm">
+      <div className="bg-[linear-gradient(110deg,rgba(16,38,65,.04),rgba(35,92,255,.07))] p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="text-[10px] font-black tracking-[.14em] text-[var(--shakh-blue)]">TODAY · BAGHDAD TIME</p><h2 className="mt-1 text-lg font-black text-[var(--shakh-navy)]">قازانجی ئەمڕۆ دوای کەمکردنەوەی کۆمسیۆن</h2><p className="mt-1 text-xs leading-6 text-black/45">تەنها گەیاندنە تەواوبووەکان حساب دەکرێن؛ کۆمسیۆن بەپێی نرخ و بڕی تۆمارکراوی هەر ئۆردەرەکە کەم دەکرێتەوە.</p></div>
+          <span className="rounded-full border border-[var(--shakh-blue)]/15 bg-white px-3 py-1.5 text-xs font-black text-[var(--shakh-blue)]">ڕێژەی کۆمسیۆن: {Number(captainCommissionRateToday).toLocaleString('en-US',{maximumFractionDigits:2})}٪</span>
+        </div>
+      </div>
+      <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-5">
+        <div className="rounded-2xl bg-[var(--shakh-bg)] p-4"><div className="text-xs font-bold text-black/50">کۆی کرێی گەیاندن (پێش کۆمسیۆن)</div><div className="mt-2 text-xl font-black tabular-nums">{fmt(todayEarningsSummary.gross)}</div></div>
+        <div className="rounded-2xl border border-red-500/10 bg-red-50 p-4"><div className="text-xs font-bold text-red-700">کۆمسیۆنی کەمکراوە</div><div className="mt-2 text-xl font-black tabular-nums text-red-700">− {fmt(todayEarningsSummary.commission)}</div></div>
+        <div className="rounded-2xl border border-emerald-600/15 bg-emerald-50 p-4"><div className="text-xs font-bold text-emerald-800">قازانجی خاوێن (دوای کۆمسیۆن)</div><div className="mt-2 text-2xl font-black tabular-nums text-emerald-800">{fmt(todayEarningsSummary.net)}</div></div>
+      </div>
+    </section> : null}
+
+    {(permissions.has('deliveries.view_all') || permissions.has('deliveries.assign') || activeCommissionHolds.length>0) && <section className="overflow-hidden rounded-[26px] border border-amber-500/20 bg-white shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 bg-amber-50 p-5 sm:p-6">
+        <div><p className="text-[10px] font-black tracking-[.14em] text-amber-700">RESERVED COMMISSION</p><h2 className="mt-1 text-lg font-black text-amber-950">کۆمسیۆنی گیراو و بڕی ئازادبوونەوە</h2><p className="mt-1 max-w-3xl text-xs leading-6 text-amber-950/65">ئەم بڕانە بۆ ئۆردەرە چالاکەکان بە کاتی وەرگرتنی گەیاندن گیراون. ئەگەر ئۆردەر ڕەت بکرێتەوە یان هەڵوەشێندرێتەوە، سیستەم بە trigger ـی داتابەیس ئەم کۆمسیۆنە ئازاد دەکاتەوە؛ بە دەستی پارە ناگۆڕدرێت.</p></div>
+        <div className="rounded-2xl border border-amber-500/20 bg-white px-4 py-3"><div className="text-xs font-bold text-amber-800">کۆی گیراو</div><div className="mt-1 text-xl font-black tabular-nums text-amber-950">{fmt(activeCommissionHolds.reduce((sum,h)=>sum+Number(h.commission_iqd),0))}</div></div>
+      </div>
+      <div className="space-y-2 p-4 sm:p-5">
+        {activeCommissionHolds.map(hold=><article key={hold.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/10 p-3">
+          <div className="min-w-0"><div className="text-xs font-black text-[var(--shakh-navy)]">{hold.order_type==='food_post'?'چێشتخانە':hold.order_type==='apparel_post'?'جل‌وبەرگ':hold.order_type==='product_post'?'بەرهەم':'فرۆشگا'} · {hold.status==='reserved'?'چاوەڕوانی تەواوبوونی گەیاندن':'دۆخی گیراو'}</div><div className="mt-1 break-all font-mono text-[10px] text-black/40" dir="ltr">{hold.order_id}</div><div className="mt-1 text-xs text-black/50">کرێی گەیاندن: {fmt(hold.delivery_fee_iqd)} · {date(hold.created_at)}</div></div>
+          <div className="text-end"><div className="text-sm font-black text-amber-900">{fmt(hold.commission_iqd)}</div><div className="mt-1 text-[10px] text-black/45">کۆمسیۆنی گیراو</div></div>
+        </article>)}
+        {!activeCommissionHolds.length&&<Empty text="هیچ کۆمسیۆنێکی گیراوی چاوەڕوان نییە."/>}
+      </div>
+    </section>}
 
 
     {canManage && <section className="rounded-[26px] border border-[var(--shakh-orange)]/20 bg-white p-5 shadow-sm sm:p-6">
