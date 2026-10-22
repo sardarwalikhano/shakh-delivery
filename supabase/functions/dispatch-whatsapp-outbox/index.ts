@@ -230,22 +230,12 @@ Deno.serve(async (req: Request) => {
     .eq("enabled", true);
   const { data: eligibleRecipients } = await eligibleRetryRows;
   const eligibleByUser = new Map((eligibleRecipients ?? []).map((pref: {user_id:string;phone_e164:string}) => [pref.user_id,pref.phone_e164]));
-  const recipientIds = [...eligibleByUser.keys()];
-  if (recipientIds.length) {
+  for (const [recipientId, phone] of eligibleByUser.entries()) {
     let retryQuery = admin.from("whatsapp_message_outbox").update({
       status: "pending", last_error: null, next_attempt_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-    }).in("status", ["failed", "blocked"]).in("recipient_user_id", recipientIds);
+    }).eq("recipient_user_id", recipientId).eq("recipient_phone", phone).in("status", ["failed", "blocked"]);
     retryQuery = receiptId ? retryQuery.eq("receipt_id", receiptId) : retryQuery.eq("settlement_batch_id", settlementBatchId);
-    const { data: retryRows } = await retryQuery.select("id,recipient_user_id,recipient_phone");
-    for (const row of retryRows ?? []) {
-      if (eligibleByUser.get(row.recipient_user_id) !== row.recipient_phone) {
-        await admin.from("whatsapp_message_outbox").update({
-          status: "blocked",
-          last_error: "Recipient changed their phone number; no message was sent.",
-          updated_at: new Date().toISOString(),
-        }).eq("id", row.id);
-      }
-    }
+    await retryQuery;
   }
 
   let query = admin.from("whatsapp_message_outbox").select("*")
