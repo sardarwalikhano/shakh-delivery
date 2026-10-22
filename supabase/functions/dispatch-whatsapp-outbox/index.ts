@@ -258,6 +258,16 @@ Deno.serve(async (req: Request) => {
       message: "WhatsApp credentials are missing; messages remain safely queued.",
     });
   }
+  if (!templateConfigured && Deno.env.get("WHATSAPP_ALLOW_SESSION_TEXT") !== "true") {
+    return respond(200, {
+      configured: true,
+      template_configured: false,
+      queued: rows.length,
+      sent: 0,
+      pending: rows.length,
+      message: "An approved message template is required for reliable business-initiated WhatsApp delivery; messages remain queued.",
+    });
+  }
   if (!rows.length) {
     return respond(200, {
       configured: true, template_configured: templateConfigured,
