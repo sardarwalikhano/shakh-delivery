@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
+import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { label: 'داواکاریی جل‌وبەرگ', href: '/post-orders', icon: ShoppingCart, permission: 'posts.view', section: 'operations' },
   { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view', section: 'marketplace' },
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view', section: 'operations' },
+  { label: 'وەسڵەکانی فرۆشتن', href: '/receipts', icon: FileText, permission: 'orders.view', section: 'operations' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view', section: 'operations' },
   { label: 'پارەدان', href: '/dashboard/payments', icon: WalletCards, permission: 'payments.view', section: 'finance' },
   { label: 'بەکارهێنەران', href: '/dashboard/users', icon: Users, permission: 'users.view', section: 'management' },
