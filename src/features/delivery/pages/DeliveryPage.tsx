@@ -74,6 +74,22 @@ type DirectCaptainOrder = {
   delivery_status: DirectPostDeliveryStatus;
 };
 
+async function dispatchReceiptWhatsApp(orderType:string,orderId:string):Promise<string|null> {
+  try {
+    const {data,error}=await supabase.functions.invoke('dispatch-whatsapp-outbox',{
+      body:{event_type:'sale_receipt',order_type:orderType,order_id:orderId},
+    });
+    if(error) return ' وەسڵ تۆمار کرا، بەڵام ناردنی واتسئاپ لە ئێستادا سەرنەکەوت؛ لە outbox دەمێنێتەوە.';
+    const result=data as {configured?:boolean;queued?:number;sent?:number;failed?:number;message?:string}|null;
+    if(!result?.queued) return null;
+    if(result.configured===false) return ' وەسڵ تۆمار کرا؛ ڕێکخستنی WhatsApp Business API تەواو نییە و پەیامەکە لە queue دەمێنێتەوە.';
+    if(Number(result.failed??0)>0) return ' وەسڵ تۆمار کرا؛ ناردنی واتسئاپ سەرنەکەوت و هۆکارەکە بۆ دووبارە هەوڵدانەوە تۆمار کرا.';
+    return Number(result.sent??0)>0 ? ' وەسڵی فرۆشتن بۆ وەرگرە ڕێگەپێدراوەکان نێردرا.' : null;
+  } catch {
+    return ' وەسڵ تۆمار کرا، بەڵام دۆخی ناردنی واتسئاپ نەتوانرا پشتڕاست بکرێتەوە.';
+  }
+}
+
 function distanceKm(aLat:number,aLng:number,bLat:number,bLng:number):number {
   const toRadians=(degrees:number)=>degrees*Math.PI/180;
   const dLat=toRadians(bLat-aLat);
@@ -211,7 +227,13 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     const target = nextStatus[delivery.status];
     if (!target) return;
     setBusyId(delivery.id); setMessage(null);
-    try { await updateCaptainDelivery(delivery.id, target); await refresh(); }
+    try {
+      await updateCaptainDelivery(delivery.id, target);
+      let receiptNotice='';
+      if(target==='delivered' && delivery.order_id) receiptNotice=(await dispatchReceiptWhatsApp('store_order',delivery.order_id))??'';
+      await refresh();
+      setMessage('دۆخی گەیاندن نوێ کرایەوە.'+receiptNotice);
+    }
     catch (error) { setMessage(error instanceof Error ? error.message : 'گۆڕینی دۆخ سەرنەکەوت.'); }
     finally { setBusyId(null); }
   };
@@ -264,14 +286,21 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     setBusyId(order.id); setMessage(null);
     try {
       await updateFoodPostDeliveryStatus(order.id, target);
+      const receiptNotice=target==='delivered' ? (await dispatchReceiptWhatsApp('food_post',order.id))??'' : '';
       await refresh();
+      if(receiptNotice) setMessage('دۆخی گەیاندن نوێ کرایەوە.'+receiptNotice);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'نوێکردنەوەی گەیاندن سەرنەکەوت.'); }
     finally { setBusyId(null); }
   };
 
   const recordFoodPayment = async (order: FoodPostOrder) => {
     setBusyId(order.id); setMessage(null);
-    try { await recordFoodPostPayment(order.id, Number(order.total_iqd)); await refresh(); }
+    try {
+      await recordFoodPostPayment(order.id, Number(order.total_iqd));
+      const receiptNotice=(await dispatchReceiptWhatsApp('food_post',order.id))??'';
+      await refresh();
+      setMessage('وەرگرتنی پارە تۆمار کرا.'+receiptNotice);
+    }
     catch (error) { setMessage(error instanceof Error ? error.message : 'تۆمارکردنی وەرگرتنی پارە سەرنەکەوت.'); }
     finally { setBusyId(null); }
   };
@@ -288,14 +317,24 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     const target=nextDirectDeliveryStatus[order.delivery_status];
     if(!target) return;
     setBusyId(order.id); setMessage(null);
-    try { await updateDirectPostDeliveryStatus(order.order_type,order.id,target); await refresh(); }
+    try {
+      await updateDirectPostDeliveryStatus(order.order_type,order.id,target);
+      const receiptNotice=target==='delivered' ? (await dispatchReceiptWhatsApp(order.order_type,order.id))??'' : '';
+      await refresh();
+      if(receiptNotice) setMessage('دۆخی گەیاندن نوێ کرایەوە.'+receiptNotice);
+    }
     catch(error) { setMessage(error instanceof Error ? error.message : 'نوێکردنەوەی دۆخی گەیاندن سەرنەکەوت.'); }
     finally { setBusyId(null); }
   };
 
   const recordDirectPayment = async (order: DirectCaptainOrder) => {
     setBusyId(order.id); setMessage(null);
-    try { await recordDirectPostPayment(order.order_type,order.id,Number(order.total_iqd)); await refresh(); }
+    try {
+      await recordDirectPostPayment(order.order_type,order.id,Number(order.total_iqd));
+      const receiptNotice=(await dispatchReceiptWhatsApp(order.order_type,order.id))??'';
+      await refresh();
+      setMessage('وەرگرتنی پارە تۆمار کرا.'+receiptNotice);
+    }
     catch(error) { setMessage(error instanceof Error ? error.message : 'تۆمارکردنی پارەی کاش سەرنەکەوت.'); }
     finally { setBusyId(null); }
   };
