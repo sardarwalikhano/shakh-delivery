@@ -78,6 +78,7 @@ function saleTemplateParameters(receipt: Record<string, unknown>) {
     money(receipt.total_iqd),
     `${payment} / ${status}`,
     completed,
+    `https://www.daim-post.online/receipts/${encodeURIComponent(String(receipt.id ?? ""))}`,
   ];
 }
 
