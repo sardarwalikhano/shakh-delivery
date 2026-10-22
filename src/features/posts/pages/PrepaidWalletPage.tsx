@@ -259,8 +259,9 @@ export function PrepaidWalletPage() {
         });
         if(whatsappError) whatsappNotice=' واتسئاپ نەتوانرا پشکنین بکرێت؛ مامەڵەکە تۆمارکرا و ئەگەر پەیام لە queue بووبێت دەمێنێتەوە.';
         else {
-          const whatsapp=whatsappData as {configured?:boolean;queued?:number;sent?:number;failed?:number}|null;
+          const whatsapp=whatsappData as {configured?:boolean;template_configured?:boolean;queued?:number;sent?:number;failed?:number}|null;
           if(Number(whatsapp?.queued??0)>0 && whatsapp?.configured===false) whatsappNotice=' پەیامەکانی واتسئاپ لە queue ماونەتەوە؛ پێویستیان بە ڕێکخستنی WhatsApp Business API هەیە.';
+          else if(Number(whatsapp?.queued??0)>0 && whatsapp?.template_configured===false) whatsappNotice=' پەیامەکان لە queue ماونەتەوە؛ template ـی پەسەندکراوی WhatsApp پێویستە.';
           else if(Number(whatsapp?.failed??0)>0) whatsappNotice=' هەندێک پەیامی واتسئاپ سەرنەکەوت؛ هۆکاری ناردن لە مێژوودا تۆمار کرا.';
           else if(Number(whatsapp?.sent??0)>0) whatsappNotice=' پوختەی پارەی پێشوو و ئەمجار بۆ وەرگرە چالاکەکان نێردرا.';
         }
