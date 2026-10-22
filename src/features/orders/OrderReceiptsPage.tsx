@@ -244,7 +244,7 @@ export function OrderReceiptsPage() {
               </div>
               <div className="mt-5 flex flex-wrap gap-2 print:hidden">
                 <button type="button" onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-navy)] px-4 text-sm font-black text-white"><Printer size={16}/> پرینت / پاشەکەوت وەک PDF</button>
-                <button type="button" disabled={dispatchingReceipt===receipt.id} onClick={()=>void dispatchReceipt(receipt)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50 px-4 text-sm font-black text-emerald-800 disabled:opacity-50"><MessageCircle size={16}/>{dispatchingReceipt===receipt.id?'ناردن...':'ناردن / دووبارە ناردن بە واتسئاپ'}</button>
+                <button type="button" disabled={dispatchingReceipt===receipt.id} onClick={()=>void dispatchReceipt(receipt)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-700/15 bg-emerald-50 px-4 text-sm font-black text-emerald-800 disabled:opacity-50"><MessageCircle size={16}/>{dispatchingReceipt===receipt.id?'ناردن...':'ناردن / دووبارە هەوڵدان بە واتسئاپ'}</button>
                 <Link to="/receipts" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 px-4 text-sm font-black"><ArrowLeft size={16}/> گەڕانەوە بۆ هەموو وەسڵەکان</Link>
               </div>
             </article>
