@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
+import { useAuthorization, type AppRole } from '@/lib/permissions/AuthorizationContext';
 
-export function RequirePermission({ permission, children }: { permission: string; children: ReactNode }) {
-  const { loading, error, refresh, hasPermission } = useAuthorization();
+export function RequirePermission({ permission, allowedRoles, children }: { permission: string; allowedRoles?: AppRole[]; children: ReactNode }) {
+  const { loading, error, refresh, hasPermission, roles } = useAuthorization();
   const location = useLocation();
 
   if (loading) {
@@ -28,7 +28,7 @@ export function RequirePermission({ permission, children }: { permission: string
     );
   }
 
-  if (!hasPermission(permission)) {
+  if (!hasPermission(permission) || (allowedRoles && !roles.some((role) => allowedRoles.includes(role)))) {
     return <Navigate to="/403" replace state={{ from: `${location.pathname}${location.search}${location.hash}` }} />;
   }
 
