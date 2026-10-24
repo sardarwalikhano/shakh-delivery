@@ -93,7 +93,9 @@ const rolePresentation: Record<AppRole, RolePresentation> = {
   },
 };
 
+type DashboardSection = 'marketplace' | 'requests' | 'finance';
 type DashboardAction = {
+  section: DashboardSection;
   title: string;
   description: string;
   href: string;
@@ -102,21 +104,21 @@ type DashboardAction = {
 };
 
 const dashboardActions: DashboardAction[] = [
-  { title: 'پۆستی نوێ', description: 'زیادکردنی پۆست بەپێی کاتەگۆری و ڕۆڵی ڕێگەپێدراو.', href: '/dashboard/posts/new', permission: 'posts.create', icon: PlusCircle },
-  { title: 'پۆستەکان', description: 'بینین و گەڕان لە پۆستە چالاکەکانی بازاڕ.', href: '/posts', permission: 'posts.view', icon: Package },
-  { title: 'بەڕێوەبردنی پۆستەکان', description: 'دەستکاری و چاودێری پۆستەکانی خۆت و بەشە ڕێگەپێدراوەکان.', href: '/dashboard/posts/manage', permission: 'posts.update_own', icon: ClipboardList },
-  { title: 'فرۆشگا', description: 'بینین و بەڕێوەبردنی خزمەتگوزاریی فرۆشگا.', href: '/dashboard/store', permission: 'vendors.view', icon: Store },
-  { title: 'بەرهەمەکان', description: 'کردنەوەی بەشی بەرهەم و بەڕێوەبردنی کۆگا.', href: '/dashboard/products', permission: 'products.manage', icon: Boxes },
-  { title: 'داواکارییەکانم', description: 'بینین و بەدواداچوونی ئۆردەرەکانی خۆت.', href: '/orders', permission: 'orders.view', icon: ShoppingBag },
-  { title: 'ئۆردەری فرۆشیار', description: 'پشکنین و بەڕێوەبردنی داواکارییە پەیوەندیدارەکان.', href: '/dashboard/orders', permission: 'orders.view', icon: ShoppingCart },
-  { title: 'داواکاریی پۆستەکان', description: 'داواکاریی پۆستەکانی کڕیار بەپێی ڕۆڵ و دەسەڵات بەڕێوەببە.', href: '/post-orders', permission: 'posts.view', icon: ShoppingCart },
-  { title: 'وەسڵەکانی فرۆشتن', description: 'بینین، پرینت/PDF و دووبارە ناردنی وەسڵی فرۆشتنی تەواوبوو.', href: '/receipts', permission: 'orders.view', icon: FileText },
-  { title: 'گەیاندنەکان', description: 'بینین و بەڕێوەبردنی گەیاندنە بەردەستەکان.', href: '/dashboard/deliveries', permission: 'deliveries.view', icon: Truck },
-  { title: 'جزدان و داواکاریی زیادکردنی باڵانس', description: 'بینینی باڵانس، مێژووی مامەڵەکان و داواکاریی زیادکردنی پریپەید.', href: '/dashboard/wallet', permission: 'wallets.view_own', icon: WalletCards },
-  { title: 'زیادکردنی باڵانسی سوپەر ئەدمین', description: 'چالاکیی زیادکردنی باڵانس بە پشتڕاستکردنەوە و تۆماری audit.', href: '/dashboard/wallet/admin-credit', permission: 'wallets.manage', icon: WalletCards },
-  { title: 'شێر و قازانج', description: 'بینینی خەڵات و مامەڵەکانی شێرکردن.', href: '/dashboard/referral-wallet', permission: 'posts.view', icon: Gift },
-  { title: 'داواکاریی ڕۆڵەکان', description: 'پشکنین و بڕیاردان لەسەر داواکاریی ڕۆڵ.', href: '/dashboard/role-requests', permission: 'role_requests.review', icon: ShieldCheck },
-  { title: 'ئاگادارکردنەوەکان', description: 'بینین و بەدواداچوونی ئاگادارکردنەوەکان.', href: '/dashboard/notifications', permission: 'notifications.view_own', icon: Bell },
+  { section: 'marketplace', title: 'پۆستی نوێ', description: 'زیادکردنی پۆست بەپێی کاتەگۆری و ڕۆڵی ڕێگەپێدراو.', href: '/dashboard/posts/new', permission: 'posts.create', icon: PlusCircle },
+  { section: 'marketplace', title: 'پۆستەکان', description: 'بینین و گەڕان لە پۆستە چالاکەکانی بازاڕ.', href: '/posts', permission: 'posts.view', icon: Package },
+  { section: 'marketplace', title: 'بەڕێوەبردنی پۆستەکان', description: 'دەستکاری و چاودێری پۆستەکانی خۆت و بەشە ڕێگەپێدراوەکان.', href: '/dashboard/posts/manage', permission: 'posts.update_own', icon: ClipboardList },
+  { section: 'marketplace', title: 'فرۆشگا', description: 'بینین و بەڕێوەبردنی خزمەتگوزاریی فرۆشگا.', href: '/dashboard/store', permission: 'vendors.view', icon: Store },
+  { section: 'marketplace', title: 'بەرهەمەکان', description: 'کردنەوەی بەشی بەرهەم و بەڕێوەبردنی کۆگا.', href: '/dashboard/products', permission: 'products.manage', icon: Boxes },
+  { section: 'requests', title: 'داواکارییەکانم', description: 'بینین و بەدواداچوونی ئۆردەرەکانی خۆت.', href: '/orders', permission: 'orders.view', icon: ShoppingBag },
+  { section: 'requests', title: 'ئۆردەری فرۆشیار', description: 'پشکنین و بەڕێوەبردنی داواکارییە پەیوەندیدارەکان.', href: '/dashboard/orders', permission: 'orders.view', icon: ShoppingCart },
+  { section: 'requests', title: 'داواکاریی پۆستەکان', description: 'داواکاریی پۆستەکانی کڕیار بەپێی ڕۆڵ و دەسەڵات بەڕێوەببە.', href: '/post-orders', permission: 'posts.view', icon: ShoppingCart },
+  { section: 'requests', title: 'وەسڵەکانی فرۆشتن', description: 'بینین، پرینت/PDF و دووبارە ناردنی وەسڵی فرۆشتنی تەواوبوو.', href: '/receipts', permission: 'orders.view', icon: FileText },
+  { section: 'requests', title: 'گەیاندنەکان', description: 'بینین و بەڕێوەبردنی گەیاندنە بەردەستەکان.', href: '/dashboard/deliveries', permission: 'deliveries.view', icon: Truck },
+  { section: 'finance', title: 'جزدان و داواکاریی زیادکردنی باڵانس', description: 'بینینی باڵانس، مێژووی مامەڵەکان و داواکاریی زیادکردنی پریپەید.', href: '/dashboard/wallet', permission: 'wallets.view_own', icon: WalletCards },
+  { section: 'finance', title: 'زیادکردنی باڵانسی سوپەر ئەدمین', description: 'چالاکیی زیادکردنی باڵانس بە پشتڕاستکردنەوە و تۆماری audit.', href: '/dashboard/wallet/admin-credit', permission: 'wallets.manage', icon: WalletCards },
+  { section: 'finance', title: 'شێر و قازانج', description: 'بینینی خەڵات و مامەڵەکانی شێرکردن.', href: '/dashboard/referral-wallet', permission: 'posts.view', icon: Gift },
+  { section: 'requests', title: 'داواکاریی ڕۆڵەکان', description: 'پشکنین و بڕیاردان لەسەر داواکاریی ڕۆڵ.', href: '/dashboard/role-requests', permission: 'role_requests.review', icon: ShieldCheck },
+  { section: 'requests', title: 'ئاگادارکردنەوەکان', description: 'بینین و بەدواداچوونی ئاگادارکردنەوەکان.', href: '/dashboard/notifications', permission: 'notifications.view_own', icon: Bell },
 ];
 
 export function DashboardPage() {
@@ -145,6 +147,14 @@ export function DashboardPage() {
     permissions.has(action.permission) &&
     (actionRoles[action.href]?.some((allowedRole) => roles.includes(allowedRole)) ?? false)
   );
+  const dashboardSectionLabels: Record<DashboardSection, string> = {
+    marketplace: 'بازاڕ و بەڕێوەبردنی پۆست و بەرهەم',
+    requests: 'داواکاری، ئۆردەر، گەیاندن و ئاگادارکردنەوە',
+    finance: 'پارە، جزدان و خەڵات',
+  };
+  const visibleActionGroups = (Object.keys(dashboardSectionLabels) as DashboardSection[])
+    .map((section) => ({ section, actions: visibleActions.filter((action) => action.section === section) }))
+    .filter((group) => group.actions.length > 0);
 
   return (
     <div className="space-y-6">
@@ -181,22 +191,33 @@ export function DashboardPage() {
         </div>
 
         {visibleActions.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleActions.map((action) => (
-              <Link
-                key={action.href}
-                to={action.href}
-                className="group flex min-h-36 items-start gap-4 rounded-2xl border border-[var(--shakh-border)] bg-white p-4 shadow-[0_8px_24px_rgba(16,38,65,.035)] transition duration-150 hover:-translate-y-0.5 hover:border-[var(--shakh-orange)]/40 hover:shadow-[0_15px_30px_rgba(16,38,65,.08)] sm:p-5"
-              >
-                <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)] transition group-hover:bg-[var(--shakh-orange)] group-hover:text-white">
-                  <action.icon size={21} strokeWidth={2.1} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-black text-[var(--shakh-ink)]">{action.title}</span>
-                  <span className="mt-2 block text-xs leading-6 text-black/50">{action.description}</span>
-                </span>
-                <ArrowUpLeft size={17} className="mt-1 shrink-0 text-black/25 transition group-hover:text-[var(--shakh-orange)]" />
-              </Link>
+          <div className="space-y-6">
+            {visibleActionGroups.map(({ section, actions }) => (
+              <section key={section} aria-label={dashboardSectionLabels[section]} className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-black text-[var(--shakh-ink)]">{dashboardSectionLabels[section]}</h3>
+                  <span className="h-px flex-1 bg-[var(--shakh-border)]" />
+                  <span className="text-xs tabular-nums text-black/40">{actions.length}</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {actions.map((action) => (
+                    <Link
+                      key={action.href}
+                      to={action.href}
+                      className="group flex min-h-36 items-start gap-4 rounded-2xl border border-[var(--shakh-border)] bg-white p-4 shadow-[0_8px_24px_rgba(16,38,65,.035)] transition duration-150 hover:-translate-y-0.5 hover:border-[var(--shakh-orange)]/40 hover:shadow-[0_15px_30px_rgba(16,38,65,.08)] sm:p-5"
+                    >
+                      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)] transition group-hover:bg-[var(--shakh-orange)] group-hover:text-white">
+                        <action.icon size={21} strokeWidth={2.1} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-black text-[var(--shakh-ink)]">{action.title}</span>
+                        <span className="mt-2 block text-xs leading-6 text-black/50">{action.description}</span>
+                      </span>
+                      <ArrowUpLeft size={17} className="mt-1 shrink-0 text-black/25 transition group-hover:text-[var(--shakh-orange)]" />
+                    </Link>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         ) : (
