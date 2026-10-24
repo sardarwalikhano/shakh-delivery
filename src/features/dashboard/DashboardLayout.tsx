@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
+import { Bell, Boxes, ChevronLeft, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, WalletCards, X } from 'lucide-react';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -27,13 +27,8 @@ const navItems: NavItem[] = [
   { label: 'داواکارییەکانم', href: '/orders', icon: ShoppingCart, permission: 'orders.view', section: 'operations', allowedRoles: ['customer'] },
   { label: 'وەسڵەکانی فرۆشتن', href: '/receipts', icon: FileText, permission: 'orders.view', section: 'operations', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'] },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view', section: 'operations', allowedRoles: ['super_admin','admin','captain','restaurant_vendor'] },
-  { label: 'پارەدان', href: '/dashboard/payments', icon: WalletCards, permission: 'payments.view', section: 'finance', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'] },
-  { label: 'بەکارهێنەران', href: '/dashboard/users', icon: Users, permission: 'users.view', section: 'management', allowedRoles: ['super_admin','admin','support'] },
-  { label: 'ڕاپۆرتەکان', href: '/dashboard/reports', icon: BarChart3, permission: 'reports.view', section: 'management', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'] },
   { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.view_own', section: 'management', allowedRoles: allRoles },
-  { label: 'پشتیوانی', href: '/dashboard/support', icon: CircleHelp, permission: 'support.manage', section: 'management', allowedRoles: ['super_admin','admin','support'] },
   { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review', section: 'management', allowedRoles: platformManagers },
-  { label: 'Audit Logs', href: '/dashboard/audit', icon: ShieldCheck, permission: 'audit.view', section: 'management', allowedRoles: platformManagers },
 ];;
 
 export function DashboardLayout() {
