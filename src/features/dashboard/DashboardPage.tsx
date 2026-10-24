@@ -193,7 +193,7 @@ export function DashboardPage() {
         {visibleActions.length > 0 ? (
           <div className="space-y-6">
             {visibleActionGroups.map(({ section, actions }) => (
-              <section key={section} aria-label={dashboardSectionLabels[section]} className="space-y-3">
+              <div key={section} role="group" aria-label={dashboardSectionLabels[section]} className="space-y-3">
                 <div className="flex items-center gap-3">
                   <h3 className="text-sm font-black text-[var(--shakh-ink)]">{dashboardSectionLabels[section]}</h3>
                   <span className="h-px flex-1 bg-[var(--shakh-border)]" />
@@ -217,7 +217,7 @@ export function DashboardPage() {
                     </Link>
                   ))}
                 </div>
-              </section>
+              </div>
             ))}
           </div>
         ) : (
