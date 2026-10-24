@@ -1,6 +1,5 @@
 import {
   ArrowUpLeft,
-  BarChart3,
   Bell,
   Boxes,
   ClipboardList,
@@ -118,7 +117,6 @@ const dashboardActions: DashboardAction[] = [
   { title: 'شێر و قازانج', description: 'بینینی خەڵات و مامەڵەکانی شێرکردن.', href: '/dashboard/referral-wallet', permission: 'posts.view', icon: Gift },
   { title: 'داواکاریی ڕۆڵەکان', description: 'پشکنین و بڕیاردان لەسەر داواکاریی ڕۆڵ.', href: '/dashboard/role-requests', permission: 'role_requests.review', icon: ShieldCheck },
   { title: 'ئاگادارکردنەوەکان', description: 'بینین و بەدواداچوونی ئاگادارکردنەوەکان.', href: '/dashboard/notifications', permission: 'notifications.view_own', icon: Bell },
-  { title: 'ڕاپۆرتەکان', description: 'کردنەوەی بەشی ڕاپۆرت بەپێی دەسەڵاتی هەژمارەکەت.', href: '/dashboard/reports', permission: 'reports.view', icon: BarChart3 },
 ];
 
 export function DashboardPage() {
@@ -142,11 +140,10 @@ export function DashboardPage() {
     '/dashboard/referral-wallet': ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'],
     '/dashboard/role-requests': ['super_admin','admin'],
     '/dashboard/notifications': ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'],
-    '/dashboard/reports': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'],
   };
   const visibleActions = dashboardActions.filter((action) =>
     permissions.has(action.permission) &&
-    (actionRoles[action.href]?.some((allowedRole) => roles.includes(allowedRole)) ?? true)
+    (actionRoles[action.href]?.some((allowedRole) => roles.includes(allowedRole)) ?? false)
   );
 
   return (
