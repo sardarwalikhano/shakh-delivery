@@ -66,27 +66,27 @@ export function App() {
         <Route path="/product/:slug" element={<ProductDetailPage />} />
         <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
         <Route path="/food-post-checkout" element={<RequireAuth><FoodPostCheckoutPage /></RequireAuth>} />
-        <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+        <Route path="/orders" element={<RequireAuth><RequirePermission permission="orders.view" allowedRoles={['customer', 'super_admin', 'admin']}><OrdersPage /></RequirePermission></RequireAuth>} />
         <Route path="/orders/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
-        <Route path="/receipts" element={<RequireAuth><OrderReceiptsPage /></RequireAuth>} />
-        <Route path="/receipts/:id" element={<RequireAuth><OrderReceiptsPage /></RequireAuth>} />
+        <Route path="/receipts" element={<RequireAuth><RequirePermission permission="orders.view" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor']}><OrderReceiptsPage /></RequirePermission></RequireAuth>} />
+        <Route path="/receipts/:id" element={<RequireAuth><RequirePermission permission="orders.view" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor']}><OrderReceiptsPage /></RequirePermission></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
         <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
         <Route path="/403" element={<ForbiddenPage />} />
 
         <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
           <Route path="/dashboard" element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
-          <Route path="/dashboard/store" element={<RequirePermission permission="vendors.view"><VendorStorePage /></RequirePermission>} />
-          <Route path="/dashboard/products" element={<RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission>} />
-          <Route path="/dashboard/orders" element={<RequirePermission permission="orders.view"><VendorOrdersPage /></RequirePermission>} />
-          <Route path="/dashboard/deliveries" element={<RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission>} />
+          <Route path="/dashboard/store" element={<RequirePermission permission="vendors.view" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'supermarket_vendor']}><VendorStorePage /></RequirePermission>} />
+          <Route path="/dashboard/products" element={<RequirePermission permission="products.manage" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor']}><VendorProductsPage /></RequirePermission>} />
+          <Route path="/dashboard/orders" element={<RequirePermission permission="orders.view" allowedRoles={['super_admin', 'admin', 'restaurant_vendor']}><VendorOrdersPage /></RequirePermission>} />
+          <Route path="/dashboard/deliveries" element={<RequirePermission permission="deliveries.view" allowedRoles={['super_admin', 'admin', 'captain', 'restaurant_vendor']}><DeliveryPage /></RequirePermission>} />
           <Route path="/dashboard/notifications" element={<RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission>} />
-          <Route path="/dashboard/role-requests" element={<RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission>} />
-          <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission>} />
+          <Route path="/dashboard/role-requests" element={<RequirePermission permission="role_requests.review" allowedRoles={['super_admin', 'admin']}><RoleRequestsPage /></RequirePermission>} />
+          <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor', 'car_dealer', 'umrah_agency']}><MyPostsPage /></RequirePermission>} />
           <Route path="/dashboard/referral-wallet" element={<RequirePermission permission="posts.view"><ReferralWalletPage /></RequirePermission>} />
           <Route path="/dashboard/wallet" element={<RequirePermission permission="wallets.view_own"><PrepaidWalletPage /></RequirePermission>} />
-          <Route path="/dashboard/wallet/admin-credit" element={<RequirePermission permission="wallets.manage"><SuperAdminWalletCreditPage /></RequirePermission>} />
-          <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission>} />
+          <Route path="/dashboard/wallet/admin-credit" element={<RequirePermission permission="wallets.manage" allowedRoles={['super_admin']}><SuperAdminWalletCreditPage /></RequirePermission>} />
+          <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor', 'car_dealer', 'umrah_agency']}><CreatePostPage /></RequirePermission>} />
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
           <Route path="/post-orders" element={<RequirePermission permission="posts.view" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor']}><ApparelPostOrdersPage /></RequirePermission>} />
