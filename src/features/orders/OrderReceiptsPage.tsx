@@ -217,14 +217,14 @@ export function OrderReceiptsPage() {
   const receipt = id ? receipts[0] : null;
 
   return (
-    <section className="shakh-page min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] py-7 sm:py-10" dir="rtl">
-      <div className="mx-auto max-w-5xl space-y-5 px-4 sm:px-6">
-        <header className="overflow-hidden rounded-[30px] bg-[linear-gradient(120deg,#102641,#174878_68%,#235cff)] p-5 text-white shadow-[0_22px_55px_rgba(16,38,65,.13)] sm:p-7">
+    <section className="shakh-page min-h-[calc(100dvh-8rem)] bg-[var(--shakh-bg)] px-0 py-4 sm:py-8" dir="rtl">
+      <div className="mx-auto max-w-6xl space-y-4 px-3 sm:space-y-6 sm:px-6 lg:px-8">
+        <header className="overflow-hidden rounded-2xl border border-white/10 bg-[linear-gradient(120deg,#102641,#174878_68%,#235cff)] p-4 text-white shadow-[0_16px_40px_rgba(16,38,65,.12)] sm:rounded-3xl sm:p-7">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-[10px] font-black tracking-[.16em] text-[var(--shakh-orange)]">SHAKH · SALE RECEIPTS</p>
-              <h1 className="mt-2 text-2xl font-black sm:text-3xl">{id ? 'وەسڵی فرۆشتن' : 'وەسڵ و مێژووی مامەڵەکان'}</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-white/70">وەسڵەکان لە داتابەیسی ڕاستەقینەوە دەخوێندرێنەوە. زانیاریی بەرهەم، کرێی گەیاندن، کۆی گشتی و دۆخی پارەدان لێرە دیارە.</p>
+              <h1 className="mt-2 text-xl font-black leading-tight sm:text-3xl">{id ? 'وەسڵی فرۆشتن' : 'وەسڵ و مێژووی مامەڵەکان'}</h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/80 sm:leading-7">وەسڵەکان لە داتابەیسی ڕاستەقینەوە دەخوێندرێنەوە. زانیاریی بەرهەم، کرێی گەیاندن، کۆی گشتی و دۆخی پارەدان لێرە دیارە.</p>
             </div>
             <button type="button" onClick={() => void refresh()} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white disabled:opacity-50"><RefreshCw size={16} className={loading ? 'animate-spin' : ''}/> نوێکردنەوە</button>
           </div>
@@ -233,24 +233,24 @@ export function OrderReceiptsPage() {
         {error && <div role="alert" className="rounded-2xl border border-red-500/15 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>}
         {message && <div role="status" className="rounded-2xl border border-emerald-600/15 bg-emerald-50 p-4 text-sm font-bold leading-6 text-emerald-800">{message}</div>}
 
-        <section className="overflow-hidden rounded-[26px] border border-[var(--shakh-blue)]/15 bg-white shadow-sm">
-          <div className="flex items-start gap-3 border-b border-black/[0.06] bg-blue-50/60 p-4 sm:p-5">
+        <section className="overflow-hidden rounded-2xl border border-[var(--shakh-blue)]/15 bg-white shadow-[0_8px_26px_rgba(16,38,65,.045)] sm:rounded-3xl">
+          <div className="flex items-start gap-3 border-b border-black/[0.06] bg-gradient-to-l from-blue-50/80 to-white p-4 sm:p-5">
             <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-[var(--shakh-blue)] shadow-sm"><MessageCircle size={21}/></span>
             <div className="min-w-0 flex-1">
-              <h2 className="font-black text-[var(--shakh-navy)]">وەرگرتنی وەسڵ و پوختەی پارەدان بە واتسئاپ</h2>
-              <p className="mt-1 text-xs leading-6 text-black/55">ژمارەکەت بە کۆدی وڵات بنووسە و ڕەزامەندی بدە. ئەگەر خاوەنی دوکان یان سوپەر ئەدمین بیت، وەسڵەکانی فرۆشتن و پوختەی گەڕاندنەوەی پارە بەو ژمارەیە دەنێردرێت. دۆخی ناردن لە خوارەوە بەردەستە.</p>
+              <h2 className="text-base font-black leading-6 text-[var(--shakh-navy)] sm:text-lg">وەرگرتنی وەسڵ و پوختەی پارەدان بە واتسئاپ</h2>
+              <p className="mt-1 text-sm leading-6 text-black/60">ژمارەکەت بە کۆدی وڵات بنووسە و ڕەزامەندی بدە. ئەگەر خاوەنی دوکان یان سوپەر ئەدمین بیت، وەسڵەکانی فرۆشتن و پوختەی گەڕاندنەوەی پارە بەو ژمارەیە دەنێردرێت. دۆخی ناردن لە خوارەوە بەردەستە.</p>
             </div>
           </div>
-          <div className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-end sm:p-5">
+          <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(260px,auto)] sm:items-end sm:p-5">
             <label className="block text-sm font-black">ژمارەی واتسئاپ (E.164)
-              <input value={phone} onChange={event=>setPhone(event.target.value)} inputMode="tel" dir="ltr" placeholder="+9647xxxxxxxxx" className="mt-2 min-h-12 w-full rounded-xl border border-black/10 bg-white p-3 text-sm font-normal outline-none focus:border-[var(--shakh-blue)]"/>
+              <input value={phone} onChange={event=>setPhone(event.target.value)} inputMode="tel" dir="ltr" placeholder="+9647xxxxxxxxx" className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white p-3 text-base font-medium outline-none transition placeholder:text-slate-400 focus:border-[var(--shakh-blue)] focus:ring-4 focus:ring-blue-500/10"/>
             </label>
             <div className="flex flex-col gap-2">
-              <label className="flex min-h-11 items-center gap-2 rounded-xl bg-[var(--shakh-bg)] px-3 text-xs font-bold"><input type="checkbox" checked={whatsappEnabled} onChange={event=>setWhatsappEnabled(event.target.checked)} className="size-4 accent-emerald-700"/> ڕەزامەندی ناردنی وەسڵ و ڕاپۆرت</label>
-              <button type="button" disabled={savingPreference} onClick={()=>void saveWhatsAppPreference()} className="min-h-11 rounded-xl bg-[var(--shakh-navy)] px-5 text-xs font-black text-white disabled:opacity-50">{savingPreference?'پاشەکەوتکردن...':'پاشەکەوتی ڕێکخستن'}</button>
+              <label className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-100 bg-[var(--shakh-bg)] px-3 text-sm font-bold"><input type="checkbox" checked={whatsappEnabled} onChange={event=>setWhatsappEnabled(event.target.checked)} className="size-4 accent-emerald-700"/> ڕەزامەندی ناردنی وەسڵ و ڕاپۆرت</label>
+              <button type="button" disabled={savingPreference} onClick={()=>void saveWhatsAppPreference()} className="min-h-12 rounded-xl bg-[var(--shakh-navy)] px-5 text-sm font-black text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">{savingPreference?'پاشەکەوتکردن...':'پاشەکەوتی ڕێکخستن'}</button>
             </div>
           </div>
-          <p className="px-4 pb-4 text-[10px] leading-5 text-black/40 sm:px-5">ڕەزامەندی تۆمار دەکرێت و دەتوانیت هەر کات ناچالاکی بکەیت. ناردنی خۆکار پێویستی بە WhatsApp Business Cloud API و، بۆ ناردنی دەرەوەی ماوەی گفتوگۆ، پەسەندکردنی template ـی Meta هەیە.</p>
+          <p className="px-4 pb-4 text-xs leading-6 text-black/50 sm:px-5">ڕەزامەندی تۆمار دەکرێت و دەتوانیت هەر کات ناچالاکی بکەیت. ناردنی خۆکار پێویستی بە WhatsApp Business Cloud API و، بۆ ناردنی دەرەوەی ماوەی گفتوگۆ، پەسەندکردنی template ـی Meta هەیە.</p>
         </section>
 
         {id ? (
@@ -300,12 +300,12 @@ export function OrderReceiptsPage() {
           )
         ) : (
           <section className="space-y-3">
-            <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black tracking-[.14em] text-[var(--shakh-orange)]">RECEIPT HISTORY</p><h2 className="mt-1 text-xl font-black text-[var(--shakh-navy)]">وەسڵەکانی فرۆشتن</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-black/45">{receipts.length} وەسڵ</span></div>
+            <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black tracking-[.14em] text-[var(--shakh-orange)]">RECEIPT HISTORY</p><h2 className="mt-1 text-xl font-black text-[var(--shakh-navy)] sm:text-2xl">وەسڵەکانی فرۆشتن</h2></div><span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-black/45">{receipts.length} وەسڵ</span></div>
             {loading ? <Empty>بارکردن...</Empty> : receipts.map(receipt=>(
-              <Link key={receipt.id} to={'/receipts/'+receipt.id} className="block rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_8px_24px_rgba(16,38,65,.035)] transition hover:-translate-y-0.5 hover:border-[var(--shakh-orange)]/30 hover:shadow-md sm:p-5">
+              <Link key={receipt.id} to={'/receipts/'+receipt.id} className="block rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_6px_20px_rgba(16,38,65,.04)] transition duration-200 hover:-translate-y-0.5 hover:border-[var(--shakh-orange)]/40 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-orange-500/10 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0"><div className="text-[10px] font-black tracking-wide text-[var(--shakh-orange)]">{orderTypeLabel[receipt.order_type]??receipt.order_type}</div><div className="mt-1 break-all font-mono text-sm font-black" dir="ltr">{receipt.receipt_number}</div><div className="mt-1 text-xs text-black/45">ئۆردەر: {receipt.order_number} · {dateLabel(receipt.completed_at)}</div><div className="mt-2 text-sm font-bold">{receipt.seller_name||'فرۆشیار'} <span className="text-black/25">←</span> {receipt.buyer_name||'کڕیار'}</div></div>
-                  <div className="text-end"><div className="text-lg font-black tabular-nums text-[var(--shakh-navy)]">{money(receipt.total_iqd)}</div><div className="mt-1 text-[10px] text-black/40">{paymentLabel(receipt.payment_method)}</div><span className="mt-2 inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black text-emerald-800">{receipt.payment_status==='collected'?'پارە وەرگیراوە':'دۆخی پارەدان: '+receipt.payment_status}</span></div>
+                  <div className="text-end"><div className="text-xl font-black tabular-nums text-[var(--shakh-navy)] sm:text-2xl">{money(receipt.total_iqd)}</div><div className="mt-1 text-[10px] text-black/40">{paymentLabel(receipt.payment_method)}</div><span className={'mt-2 inline-flex rounded-full px-3 py-1.5 text-xs font-black '+(receipt.payment_status==='collected'?'bg-emerald-50 text-emerald-800':receipt.payment_status==='refunded'?'bg-slate-100 text-slate-700':'bg-amber-50 text-amber-800')}>{receipt.payment_status==='collected'?'پارە وەرگیراوە':'دۆخی پارەدان: '+receipt.payment_status}</span></div>
                 </div>
               </Link>
             ))}
@@ -313,11 +313,11 @@ export function OrderReceiptsPage() {
           </section>
         )}
 
-        <section className="rounded-[24px] border border-black/[0.06] bg-white p-4 sm:p-5">
-          <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-[var(--shakh-blue)]"/><h2 className="font-black">دۆخی ناردنی واتسئاپ</h2></div>
-          <p className="mt-1 text-xs leading-6 text-black/45">ناردن، شکستی ناردن و هۆکاری ڕەتکردنەوە لێرە تۆمار دەکرێت. پەیامی نەنێردراو لە مێژوودا دەمێنێتەوە بۆ پشکنین.</p>
+        <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_26px_rgba(16,38,65,.04)] sm:rounded-3xl sm:p-5">
+          <div className="flex items-center gap-2"><ShieldCheck size={18} className="text-[var(--shakh-blue)]"/><h2 className="text-base font-black text-[var(--shakh-navy)] sm:text-lg">دۆخی ناردنی واتسئاپ</h2></div>
+          <p className="mt-1 text-sm leading-6 text-black/55">ناردن، شکستی ناردن و هۆکاری ڕەتکردنەوە لێرە تۆمار دەکرێت. پەیامی نەنێردراو لە مێژوودا دەمێنێتەوە بۆ پشکنین.</p>
           <div className="mt-3 space-y-2">
-            {outbox.map(item=><div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-[var(--shakh-bg)] p-3">
+            {outbox.map(item=><div key={item.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-100 bg-[var(--shakh-bg)] p-3 sm:p-4">
               <div className="min-w-0"><div className="text-xs font-black">{item.event_type==='sale_receipt'?'وەسڵی فرۆشتن':'ڕادەستکردنی کاش'}</div><div className="mt-1 text-[10px] text-black/40">{dateLabel(item.created_at)}{item.sent_at?' · نێردرا: '+dateLabel(item.sent_at):''}</div>{item.last_error&&<div className="mt-2 break-words text-xs text-red-700">{item.last_error}</div>}{item.provider_message_id&&<div className="mt-1 break-all font-mono text-[10px] text-black/35" dir="ltr">Provider ID: {item.provider_message_id}</div>}</div>
               <span className={'rounded-full px-2.5 py-1 text-[10px] font-black '+(item.status==='sent'?'bg-emerald-500/10 text-emerald-800':item.status==='failed'?'bg-red-500/10 text-red-700':item.status==='blocked'?'bg-black/5 text-black/50':'bg-amber-500/10 text-amber-800')}>{item.status==='sent'?'نێردراوە':item.status==='failed'?'ناردن سەرنەکەوت':item.status==='blocked'?'ناچالاک کراوە':item.status==='sending'?'لە ناردندایە':'لە چاوەڕوانیدایە'}</span>
             </div>)}
