@@ -110,6 +110,7 @@ const dashboardActions: DashboardAction[] = [
   { title: 'بەرهەمەکان', description: 'کردنەوەی بەشی بەرهەم و بەڕێوەبردنی کۆگا.', href: '/dashboard/products', permission: 'products.manage', icon: Boxes },
   { title: 'داواکارییەکانم', description: 'بینین و بەدواداچوونی ئۆردەرەکانی خۆت.', href: '/orders', permission: 'orders.view', icon: ShoppingBag },
   { title: 'ئۆردەری فرۆشیار', description: 'پشکنین و بەڕێوەبردنی داواکارییە پەیوەندیدارەکان.', href: '/dashboard/orders', permission: 'orders.view', icon: ShoppingCart },
+  { title: 'داواکاریی پۆستەکان', description: 'داواکاریی پۆستەکانی کڕیار بەپێی ڕۆڵ و دەسەڵات بەڕێوەببە.', href: '/post-orders', permission: 'posts.view', icon: ShoppingCart },
   { title: 'وەسڵەکانی فرۆشتن', description: 'بینین، پرینت/PDF و دووبارە ناردنی وەسڵی فرۆشتنی تەواوبوو.', href: '/receipts', permission: 'orders.view', icon: FileText },
   { title: 'گەیاندنەکان', description: 'بینین و بەڕێوەبردنی گەیاندنە بەردەستەکان.', href: '/dashboard/deliveries', permission: 'deliveries.view', icon: Truck },
   { title: 'جزدان و داواکاریی زیادکردنی باڵانس', description: 'بینینی باڵانس، مێژووی مامەڵەکان و داواکاریی زیادکردنی پریپەید.', href: '/dashboard/wallet', permission: 'wallets.view_own', icon: WalletCards },
@@ -125,7 +126,28 @@ export function DashboardPage() {
   const { roles, permissions } = useAuthorization();
   const displayRole = roles.find((item) => item !== 'customer') ?? roles[0] ?? null;
   const presentation = displayRole ? rolePresentation[displayRole] : null;
-  const visibleActions = dashboardActions.filter((action) => permissions.has(action.permission));
+  const actionRoles: Record<string, AppRole[]> = {
+    '/dashboard/posts/new': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency'],
+    '/posts': ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'],
+    '/dashboard/posts/manage': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency'],
+    '/dashboard/store': ['super_admin','admin','restaurant_vendor','supermarket_vendor'],
+    '/dashboard/products': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'],
+    '/orders': ['customer'],
+    '/dashboard/orders': ['super_admin','admin','restaurant_vendor'],
+    '/post-orders': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'],
+    '/receipts': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'],
+    '/dashboard/deliveries': ['super_admin','admin','captain','restaurant_vendor'],
+    '/dashboard/wallet': ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'],
+    '/dashboard/wallet/admin-credit': ['super_admin'],
+    '/dashboard/referral-wallet': ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'],
+    '/dashboard/role-requests': ['super_admin','admin'],
+    '/dashboard/notifications': ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'],
+    '/dashboard/reports': ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'],
+  };
+  const visibleActions = dashboardActions.filter((action) =>
+    permissions.has(action.permission) &&
+    (actionRoles[action.href]?.some((allowedRole) => roles.includes(allowedRole)) ?? true)
+  );
 
   return (
     <div className="space-y-6">
