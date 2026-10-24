@@ -6,7 +6,7 @@ import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>;
-type NavSection = 'overview' | 'marketplace' | 'operations' | 'finance' | 'management';
+type NavSection = 'overview' | 'marketplace' | 'requests' | 'finance';
 type AppRole = 'super_admin' | 'admin' | 'customer' | 'captain' | 'restaurant_vendor' | 'fashion_vendor' | 'supermarket_vendor' | 'car_dealer' | 'umrah_agency' | 'support';
 type NavItem = { label: string; href: string; icon: Icon; permission: string; section: NavSection; allowedRoles: AppRole[] };
 const allRoles: AppRole[] = ['super_admin','admin','customer','captain','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency','support'];
@@ -18,18 +18,20 @@ const navItems: NavItem[] = [
   { label: 'بەرهەمەکان', href: '/dashboard/products', icon: Boxes, permission: 'products.manage', section: 'marketplace', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'] },
   { label: 'پۆستەکان', href: '/posts', icon: Package, permission: 'posts.view', section: 'marketplace', allowedRoles: allRoles },
   { label: 'بەڕێوەبردنی پۆستەکان', href: '/dashboard/posts/manage', icon: Package, permission: 'posts.update_own', section: 'marketplace', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor','car_dealer','umrah_agency'] },
+  { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view', section: 'marketplace', allowedRoles: ['super_admin','admin','restaurant_vendor','supermarket_vendor'] },
+
+  { label: 'داواکارییەکان (پۆستەکان)', href: '/post-orders', icon: ShoppingCart, permission: 'posts.view', section: 'requests', allowedRoles: postOrderRoles },
+  { label: 'ئۆردەرەکانی فرۆشگا', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view', section: 'requests', allowedRoles: ['super_admin','admin','restaurant_vendor'] },
+  { label: 'داواکارییەکانم', href: '/orders', icon: ShoppingCart, permission: 'orders.view', section: 'requests', allowedRoles: ['customer'] },
+  { label: 'وەسڵەکانی فرۆشتن', href: '/receipts', icon: FileText, permission: 'orders.view', section: 'requests', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'] },
+  { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view', section: 'requests', allowedRoles: ['super_admin','admin','captain','restaurant_vendor'] },
+  { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.view_own', section: 'requests', allowedRoles: allRoles },
+  { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review', section: 'requests', allowedRoles: platformManagers },
+
   { label: 'شێر و قازانج', href: '/dashboard/referral-wallet', icon: Gift, permission: 'posts.view', section: 'finance', allowedRoles: allRoles },
   { label: 'جزدان و داواکاریی زیادکردنی باڵانس', href: '/dashboard/wallet', icon: WalletCards, permission: 'wallets.view_own', section: 'finance', allowedRoles: allRoles },
   { label: 'زیادکردنی باڵانسی سوپەر ئەدمین', href: '/dashboard/wallet/admin-credit', icon: WalletCards, permission: 'wallets.manage', section: 'finance', allowedRoles: ['super_admin'] },
-  { label: 'داواکارییەکان (پۆستەکان)', href: '/post-orders', icon: ShoppingCart, permission: 'posts.view', section: 'operations', allowedRoles: postOrderRoles },
-  { label: 'فرۆشگا', href: '/dashboard/store', icon: Store, permission: 'vendors.view', section: 'marketplace', allowedRoles: ['super_admin','admin','restaurant_vendor','supermarket_vendor'] },
-  { label: 'ئۆردەرەکانی فرۆشگا', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view', section: 'operations', allowedRoles: ['super_admin','admin','restaurant_vendor'] },
-  { label: 'داواکارییەکانم', href: '/orders', icon: ShoppingCart, permission: 'orders.view', section: 'operations', allowedRoles: ['customer'] },
-  { label: 'وەسڵەکانی فرۆشتن', href: '/receipts', icon: FileText, permission: 'orders.view', section: 'operations', allowedRoles: ['super_admin','admin','restaurant_vendor','fashion_vendor','supermarket_vendor'] },
-  { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view', section: 'operations', allowedRoles: ['super_admin','admin','captain','restaurant_vendor'] },
-  { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.view_own', section: 'management', allowedRoles: allRoles },
-  { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review', section: 'management', allowedRoles: platformManagers },
-];;
+];
 
 export function DashboardLayout() {
   const { roles, permissions } = useAuthorization();
@@ -41,9 +43,8 @@ export function DashboardLayout() {
   const sectionLabels: Record<NavSection, string> = {
     overview: 'گشتی',
     marketplace: 'بازاڕ و فرۆشتن',
-    operations: 'ئۆردەر و گەیاندن',
+    requests: 'داواکاری، ئۆردەر و ئاگادارکردنەوە',
     finance: 'پارە و جزدان',
-    management: 'بەڕێوەبردن',
   };
   const visibleSections = (Object.keys(sectionLabels) as NavSection[])
     .map((section) => ({ section, items: visibleItems.filter((item) => item.section === section) }))
