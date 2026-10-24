@@ -89,7 +89,7 @@ export function App() {
           <Route path="/dashboard/posts/new" element={<RequirePermission permission="posts.create"><CreatePostPage /></RequirePermission>} />
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
-          <Route path="/post-orders" element={<RequirePermission permission="posts.view"><ApparelPostOrdersPage /></RequirePermission>} />
+          <Route path="/post-orders" element={<RequirePermission permission="posts.view" allowedRoles={['super_admin', 'admin', 'restaurant_vendor', 'fashion_vendor', 'supermarket_vendor']}><ApparelPostOrdersPage /></RequirePermission>} />
           <Route path="/dashboard/*" element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
