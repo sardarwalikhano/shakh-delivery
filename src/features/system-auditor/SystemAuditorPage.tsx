@@ -209,7 +209,6 @@ export function SystemAuditorPage() {
           <div className="mt-5 space-y-3">
             {checks.map((check) => {
               const verified = check.ok && check.severity !== 'review';
-              const tone = verified ? 'emerald' : check.severity === 'review' ? 'amber' : 'red';
               return (
                 <article key={check.id} className={`rounded-xl border p-4 ${verified ? 'border-emerald-200 bg-emerald-50/60' : check.severity === 'review' ? 'border-amber-200 bg-amber-50/60' : 'border-red-200 bg-red-50/60'}`}>
                   <div className="flex items-start gap-3">
