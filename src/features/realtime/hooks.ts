@@ -56,7 +56,7 @@ export function useRealtimeCustomerOrders(userId: string | undefined, onChange: 
       .channel(`customer-orders-realtime:${userId}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'orders', filter: `customer_id=eq.${userId}` },
         () => onChange(),
       )
       .subscribe();
