@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
+import { Activity, BarChart3, Bell, Boxes, ChevronLeft, CircleHelp, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, Users, WalletCards, X } from 'lucide-react';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { label: 'پشتیوانی', href: '/dashboard/support', icon: CircleHelp, permission: 'support.manage', section: 'management' },
   { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review', section: 'management' },
   { label: 'Audit Logs', href: '/dashboard/audit', icon: ShieldCheck, permission: 'audit.view', section: 'management' },
+  { label: 'پشکنینی سیستەم', href: '/dashboard/system-auditor', icon: Activity, permission: 'audit.view', section: 'management' },
 ];
 
 export function DashboardLayout() {
