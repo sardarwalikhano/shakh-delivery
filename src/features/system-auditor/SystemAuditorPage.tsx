@@ -207,21 +207,35 @@ export function SystemAuditorPage() {
           </div>
         ) : (
           <div className="mt-5 space-y-3">
-            {checks.map((check) => (
-              <article key={check.id} className={`rounded-xl border p-4 ${check.ok ? 'border-emerald-200 bg-emerald-50/60' : check.severity === 'review' ? 'border-amber-200 bg-amber-50/60' : 'border-red-200 bg-red-50/60'}`}>
-                <div className="flex items-start gap-3">
-                  <StatusIcon status={check.ok ? 'verified' : check.severity === 'review' ? 'review' : 'failed'} />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-black text-slate-900">{check.label}</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{check.detail}</p>
-                    {check.trend ? <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${check.trend === 'resolved' ? 'bg-emerald-100 text-emerald-800' : check.trend === 'recurring' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`>{check.trend === 'resolved' ? 'چارەسەر بە بەڵگەی scan نوێ پشتڕاست کراوە' : check.trend === 'recurring' ? 'کێشەکە بەردەوامە — چارەسەری پێویستە' : 'کێشەی نوێ لەم scan ـەدا دۆزرایەوە'}</p> : null}
-                    {check.ok && check.severity !== 'review' ? <p className="mt-2 text-xs font-semibold text-emerald-800">بەڵگە: تاقیکردنەوەکە لە ئەنجامی ئەم scan ـەدا سەرکەوتووە.</p> : null}
-                    {(!check.ok || check.severity === 'review') ? <p className="mt-3 rounded-lg bg-white/80 p-3 text-sm leading-6 text-slate-700"><strong>هەنگاوی دواتر:</strong> {check.nextStep ?? (check.id === 'super-admin-role' ? 'ڕۆڵی super_admin و مێژووی ڕۆڵەکان لە Supabase بپشکنە.' : check.id === 'audit-permission' ? 'پۆلیسی مۆڵەتەکان بپشکنە و تەنها بە پەسەندی دەسەڵاتدار چاکی بکە.' : 'هۆکاری هەڵەکە بپشکنە، پاش چاکسازی دووبارە scan بکە.')}</p> : null}
+            {checks.map((check) => {
+              const verified = check.ok && check.severity !== 'review';
+              const tone = verified ? 'emerald' : check.severity === 'review' ? 'amber' : 'red';
+              return (
+                <article key={check.id} className={`rounded-xl border p-4 ${verified ? 'border-emerald-200 bg-emerald-50/60' : check.severity === 'review' ? 'border-amber-200 bg-amber-50/60' : 'border-red-200 bg-red-50/60'}`}>
+                  <div className="flex items-start gap-3">
+                    <StatusIcon status={verified ? 'verified' : check.severity === 'review' ? 'review' : 'failed'} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-black text-slate-900">{check.label}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{check.detail}</p>
+                      {check.trend ? (
+                        <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${check.trend === 'resolved' ? 'bg-emerald-100 text-emerald-800' : check.trend === 'recurring' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                          {check.trend === 'resolved' ? 'چارەسەر بە بەڵگەی scan نوێ پشتڕاست کراوە' : check.trend === 'recurring' ? 'کێشەکە بەردەوامە — چارەسەری پێویستە' : 'کێشەی نوێ لەم scan ـەدا دۆزرایەوە'}
+                        </p>
+                      ) : null}
+                      {verified ? <p className="mt-2 text-xs font-semibold text-emerald-800">بەڵگە: تاقیکردنەوەکە لە ئەنجامی ئەم scan ـەدا سەرکەوتووە.</p> : null}
+                      {!verified ? (
+                        <p className="mt-3 rounded-lg bg-white/80 p-3 text-sm leading-6 text-slate-700">
+                          <strong>هەنگاوی دواتر:</strong> {check.nextStep ?? (check.id === 'super-admin-role' ? 'ڕۆڵی super_admin و مێژووی ڕۆڵەکان لە Supabase بپشکنە.' : check.id === 'audit-permission' ? 'پۆلیسی مۆڵەتەکان بپشکنە و تەنها بە پەسەندی دەسەڵاتدار چاکی بکە.' : 'هۆکاری هەڵەکە بپشکنە، پاش چاکسازی دووبارە scan بکە.')}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${verified ? 'bg-emerald-100 text-emerald-800' : check.severity === 'review' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
+                      {check.severity === 'review' ? 'پێویستی بە پشکنین' : verified ? 'پشتڕاستکراوە' : 'پێویستی بە چارەسەر'}
+                    </span>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${check.ok ? 'bg-emerald-100 text-emerald-800' : check.severity === 'review' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>{check.severity === 'review' ? 'پێویستی بە پشکنین' : check.ok ? 'پشتڕاستکراوە' : 'پێویستی بە چارەسەر'}</span>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
