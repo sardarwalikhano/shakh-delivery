@@ -83,6 +83,38 @@ export function SystemAuditorPage() {
       results.push({ id: 'permissions-consistency', label: 'یەکگرتوویی Permission ـەکان', ok: false, detail: message });
     }
 
+    // Read-only schema/API reachability probes. These do not read business records.
+    const tableProbes = [
+      { id: 'profiles-access', label: 'دەستگەیشتن بە profiles', table: 'profiles', column: 'id' },
+      { id: 'permissions-access', label: 'دەستگەیشتن بە permissions', table: 'permissions', column: 'code' },
+      { id: 'orders-access', label: 'دەستگەیشتن بە orders', table: 'orders', column: 'id' },
+      { id: 'deliveries-access', label: 'دەستگەیشتن بە deliveries', table: 'deliveries', column: 'id' },
+      { id: 'products-access', label: 'دەستگەیشتن بە products', table: 'products', column: 'id' },
+      { id: 'posts-access', label: 'دەستگەیشتن بە posts', table: 'posts', column: 'id' },
+    ] as const;
+
+    const probeResults = await Promise.all(tableProbes.map(async (probe) => {
+      try {
+        const response = await supabase.from(probe.table).select(probe.column, { head: true, count: 'exact' }).limit(0);
+        if (response.error) throw response.error;
+        return {
+          id: probe.id,
+          label: probe.label,
+          ok: true,
+          detail: 'API و schema ـی خشتەکە وەڵامی سەرکەوتوویان دایەوە. هیچ تۆمارێکی بازرگانی نەخوێندرایەوە.',
+        };
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : 'هەڵەی نەناسراو';
+        return {
+          id: probe.id,
+          label: probe.label,
+          ok: false,
+          detail: `پشکنینی دەستگەیشتن سەرکەوتوو نەبوو: ${message}`,
+        };
+      }
+    }));
+    results.push(...probeResults);
+
     const passCount = results.filter((item) => item.ok).length;
     for (const item of results) {
       if (item.ok) continue;
@@ -113,7 +145,7 @@ export function SystemAuditorPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold"><Activity size={15} /> SHAKH SYSTEM HEALTH</div>
             <h1 className="mt-4 text-2xl font-black sm:text-3xl">پشکنینی سیستەمی شاخ</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/75">پشکنینی خوێندنەوەی ڕۆڵ و مۆڵەت و پەیوەندی Supabase. ئەم وەشانە تەنها پشکنینی بێ‌گۆڕانکاری ئەنجام دەدات.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-white/75">پشکنینی Session، ڕۆڵ، مۆڵەت و دەستگەیشتنی API ـی خشتە سەرەکییەکان؛ بە شێوەی read-only و بەبێ خوێندنەوەی تۆمارە بازرگانییەکان.</p>
           </div>
           <button type="button" onClick={() => void runScan()} disabled={running} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-black text-white shadow-lg transition hover:bg-orange-600 disabled:cursor-wait disabled:opacity-60">
             <RefreshCw size={17} className={running ? 'animate-spin' : ''} /> {running ? 'پشکنین دەکرێت...' : 'پشکنینی نوێ ئەنجام بدە'}
@@ -168,7 +200,7 @@ export function SystemAuditorPage() {
           <Database className="mt-0.5 shrink-0 text-amber-700" size={21} />
           <div>
             <h2 className="font-black text-amber-950">سنوری ئەم وەشانە</h2>
-            <p className="mt-1 text-sm leading-7 text-amber-900">ئەم مۆدیولە هێشتا پشکنینی خشتە و پۆلیسی RLS، دەقی SECURITY DEFINER، مامەڵە داراییەکان، ڕێڕەوەکان و build بە شێوەی سەرتاسەری ناکات و مێژووی scan لە داتابەیس پاشەکەوت ناکات. ئەم بەشانە پێویستیان بە RPC ـی پارێزراوی Supabase، migration و تاقیکردنەوەی CI هەیە؛ لەم وەشانەدا بە شێوەی ساختە وەک سەرکەوتوو نیشان نادرێن.</p>
+            <p className="mt-1 text-sm leading-7 text-amber-900">ئەم وەشانە دەستگەیشتنی API/schema ـی هەندێک خشتە دەپشکنێت، بەڵام ناوەڕۆکی پۆلیسی RLS، دەقی SECURITY DEFINER، تەواوی مامەڵە داراییەکان، ڕێڕەوەکان و build بە شێوەی سەرتاسەری هێشتا ناو پشکنینەکەدا نین. مێژووی scan هێشتا لە داتابەیس پاشەکەوت ناکرێت. بۆ ئەوانە RPC ـی پارێزراو، migration و تاقیکردنەوەی CI پێویستن؛ هیچ بەشێک بەبێ بەڵگە وەک سەرکەوتوو نیشان نادرێت.</p>
           </div>
         </div>
       </section>
