@@ -1,5 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, CircleDashed, Clock3, Database, RefreshCw, ShieldCheck, ShieldAlert, Wrench } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, CircleDashed, Clock3, Database, RefreshCw, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
@@ -100,6 +100,10 @@ export function SystemAuditorPage() {
   const failedCount = checks.filter((item) => !item.ok).length;
   const successCount = checks.filter((item) => item.ok).length;
   const criticalCount = checks.filter((item) => !item.ok && (item.id === 'super-admin-role' || item.id === 'audit-permission')).length;
+
+  if (!roles.includes('super_admin')) {
+    return <main className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900" dir="rtl"><h1 className="text-xl font-black">دەستگەیشتن ڕەتکرایەوە</h1><p className="mt-2 text-sm leading-7">ئەم بەشە تەنها بۆ سوپەر ئەدمینە. ئەگەر ئەم هەژمارە ڕۆڵی super_admin ـی نییە، بەڕێوەبەری دەسەڵاتدار پەیوەندی پێوە بکە.</p></main>;
+  }
 
   return (
     <main className="space-y-6" dir="rtl">
