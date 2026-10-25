@@ -24,14 +24,17 @@ export function SystemAuditorPage() {
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
 
   const loadHistory = useCallback(async (): Promise<AuditHistoryItem[]> => {
-    const response = await supabase.rpc('get_system_audit_history');
-    if (response.error) {
+    try {
+      const response = await supabase.rpc('get_system_audit_history');
+      if (response.error) throw response.error;
+      const rows = Array.isArray(response.data) ? response.data as AuditHistoryItem[] : [];
+      setHistory(rows);
+      return rows;
+    } catch {
+      // A rejected network request must not leave a scan stuck in its loading state.
       setError('نەتوانرا مێژووی پشکنین لە Supabase بخوێندرێتەوە. مێژوو و trend ـەکان لەوانەیە نوێ نەبن.');
       return [];
     }
-    const rows = Array.isArray(response.data) ? response.data as AuditHistoryItem[] : [];
-    setHistory(rows);
-    return rows;
   }, []);
 
   useEffect(() => {
