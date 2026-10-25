@@ -23,9 +23,15 @@ export function SystemAuditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (): Promise<AuditHistoryItem[]> => {
     const response = await supabase.rpc('get_system_audit_history');
-    if (!response.error && Array.isArray(response.data)) setHistory(response.data as AuditHistoryItem[]);
+    if (response.error) {
+      setError('نەتوانرا مێژووی پشکنین لە Supabase بخوێندرێتەوە. مێژوو و trend ـەکان لەوانەیە نوێ نەبن.');
+      return [];
+    }
+    const rows = Array.isArray(response.data) ? response.data as AuditHistoryItem[] : [];
+    setHistory(rows);
+    return rows;
   }, []);
 
   useEffect(() => {
@@ -36,8 +42,12 @@ export function SystemAuditorPage() {
     setRunning(true);
     setError(null);
     const results: ScanResult[] = [];
-    const priorChecks = history[0]?.checks ?? [];
     const startedAt = new Date().toISOString();
+    let completedAt = startedAt;
+    // Refresh history immediately before scanning; React state may otherwise be stale
+    // when this callback runs just after a previous scan.
+    const latestHistory = await loadHistory();
+    const priorChecks = latestHistory[0]?.checks ?? [];
 
     results.push({
       id: 'auth-session',
@@ -133,7 +143,7 @@ export function SystemAuditorPage() {
       const payload = serverScan.data as { checks?: ScanResult[]; scanned_at?: string } | null;
       if (!payload || !Array.isArray(payload.checks)) throw new Error('فۆرماتی ئەنجامی پشکنین دروست نییە.');
       results.push(...payload.checks);
-      if (payload.scanned_at) setLastRun(payload.scanned_at);
+      completedAt = payload.scanned_at ?? new Date().toISOString();
       await loadHistory();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'هەڵەی نەناسراو';
@@ -151,7 +161,7 @@ export function SystemAuditorPage() {
     const passCount = evidencedChecks.filter((item) => item.ok && item.severity !== 'review').length;
 
     setChecks(evidencedChecks);
-    setLastRun(startedAt);
+    setLastRun(completedAt);
     setRunning(false);
     void refreshAuthorization();
     // Database findings and scan history are written only by the protected server RPC.
