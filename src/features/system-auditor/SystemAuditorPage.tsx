@@ -5,8 +5,8 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 
 type FindingStatus = 'verified' | 'review' | 'failed';
-type ScanResult = { id: string; label: string; ok: boolean; detail: string; severity?: 'critical' | 'review' | 'info'; nextStep?: string };
-type AuditHistoryItem = { id: string; created_at: string; summary: { total?: number; critical?: number; review?: number; passed?: number } };
+type ScanResult = { id: string; label: string; ok: boolean; detail: string; severity?: 'critical' | 'review' | 'info'; nextStep?: string; trend?: 'new' | 'recurring' | 'resolved' };
+type AuditHistoryItem = { id: string; scan_id?: string; created_at: string; summary: { total?: number; critical?: number; review?: number; passed?: number }; checks?: ScanResult[]; open_finding_ids?: string[] };
 
 function StatusIcon({ status }: { status: FindingStatus }) {
   if (status === 'verified') return <CheckCircle2 className="text-emerald-600" size={20} />;
@@ -36,6 +36,7 @@ export function SystemAuditorPage() {
     setRunning(true);
     setError(null);
     const results: ScanResult[] = [];
+    const priorChecks = history[0]?.checks ?? [];
     const startedAt = new Date().toISOString();
 
     results.push({
@@ -139,12 +140,17 @@ export function SystemAuditorPage() {
       results.push({ id: 'database-audit-rpc', label: 'پشکنینی پارێزراوی داتابەیس', ok: false, detail: 'RPC ـی پشکنینی داتابەیس بەردەست نەبوو: ' + message + '. migration ـی v3 بپشکنە.' });
     }
 
-    const passCount = results.filter((item) => item.ok).length;
-    for (const item of results) {
-      if (item.ok) continue;
-    }
+    const previousById = new Map(priorChecks.map((item) => [item.id, item]));
+    const evidencedChecks = results.map((item) => {
+      const previous = previousById.get(item.id);
+      const wasOpen = Boolean(previous && (!previous.ok || previous.severity === 'review'));
+      const isOpen = !item.ok || item.severity === 'review';
+      const trend: ScanResult['trend'] = isOpen ? (wasOpen ? 'recurring' : 'new') : (wasOpen ? 'resolved' : undefined);
+      return { ...item, trend };
+    });
+    const passCount = evidencedChecks.filter((item) => item.ok && item.severity !== 'review').length;
 
-    setChecks(results);
+    setChecks(evidencedChecks);
     setLastRun(startedAt);
     setRunning(false);
     void refreshAuthorization();
@@ -152,8 +158,8 @@ export function SystemAuditorPage() {
     return passCount;
   }, [loadHistory, permissions, refreshAuthorization, roles, user?.id]);
 
-  const failedCount = checks.filter((item) => !item.ok).length;
-  const successCount = checks.filter((item) => item.ok).length;
+  const failedCount = checks.filter((item) => !item.ok || item.severity === 'review').length;
+  const successCount = checks.filter((item) => item.ok && item.severity !== 'review').length;
   const criticalCount = checks.filter((item) => !item.ok && (item.severity === 'critical' || item.id === 'super-admin-role' || item.id === 'audit-permission')).length;
 
   if (!roles.includes('super_admin')) {
@@ -208,6 +214,8 @@ export function SystemAuditorPage() {
                   <div className="min-w-0 flex-1">
                     <h3 className="font-black text-slate-900">{check.label}</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{check.detail}</p>
+                    {check.trend ? <p className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${check.trend === 'resolved' ? 'bg-emerald-100 text-emerald-800' : check.trend === 'recurring' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`>{check.trend === 'resolved' ? 'چارەسەر بە بەڵگەی scan نوێ پشتڕاست کراوە' : check.trend === 'recurring' ? 'کێشەکە بەردەوامە — چارەسەری پێویستە' : 'کێشەی نوێ لەم scan ـەدا دۆزرایەوە'}</p> : null}
+                    {check.ok && check.severity !== 'review' ? <p className="mt-2 text-xs font-semibold text-emerald-800">بەڵگە: تاقیکردنەوەکە لە ئەنجامی ئەم scan ـەدا سەرکەوتووە.</p> : null}
                     {(!check.ok || check.severity === 'review') ? <p className="mt-3 rounded-lg bg-white/80 p-3 text-sm leading-6 text-slate-700"><strong>هەنگاوی دواتر:</strong> {check.nextStep ?? (check.id === 'super-admin-role' ? 'ڕۆڵی super_admin و مێژووی ڕۆڵەکان لە Supabase بپشکنە.' : check.id === 'audit-permission' ? 'پۆلیسی مۆڵەتەکان بپشکنە و تەنها بە پەسەندی دەسەڵاتدار چاکی بکە.' : 'هۆکاری هەڵەکە بپشکنە، پاش چاکسازی دووبارە scan بکە.')}</p> : null}
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${check.ok ? 'bg-emerald-100 text-emerald-800' : check.severity === 'review' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>{check.severity === 'review' ? 'پێویستی بە پشکنین' : check.ok ? 'پشتڕاستکراوە' : 'پێویستی بە چارەسەر'}</span>
@@ -220,7 +228,7 @@ export function SystemAuditorPage() {
 
       <section className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-700"><Clock3 size={20} /></div><div><h2 className="font-black text-slate-900">مێژووی پشکنین</h2><p className="mt-1 text-sm text-slate-500">دوایین ٢٠ پشکنین لە Supabase پاشەکەوت دەکرێن.</p></div></div>
-        {history.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">هێشتا پشکنینێک پاشەکەوت نەکراوە یان migration ـی v3 جێبەجێ نەکراوە.</p> : <div className="mt-4 space-y-2">{history.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3"><div><p className="text-sm font-bold text-slate-800">{new Date(item.created_at).toLocaleString('ckb-IQ')}</p><p className="mt-1 text-xs text-slate-500">کۆ: {item.summary.total ?? 0} · سەرکەوتوو: {item.summary.passed ?? 0}</p></div><div className="flex gap-2 text-xs font-bold"><span className="rounded-full bg-red-50 px-2 py-1 text-red-700">مەترسی: {item.summary.critical ?? 0}</span><span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">پشکنین: {item.summary.review ?? 0}</span></div></div>)}</div>}
+        {history.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">هێشتا پشکنینێک پاشەکەوت نەکراوە یان migration ـی v3 جێبەجێ نەکراوە.</p> : <div className="mt-4 space-y-2">{history.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3"><div><p className="text-sm font-bold text-slate-800">{new Date(item.created_at).toLocaleString('ckb-IQ')}</p><p className="mt-1 text-xs text-slate-500">Scan ID: {(item.scan_id ?? item.id).slice(0, 8)} · کۆ: {item.summary.total ?? 0} · سەرکەوتوو: {item.summary.passed ?? 0} · کێشەی کراوە: {item.open_finding_ids?.length ?? '—'}</p></div><div className="flex gap-2 text-xs font-bold"><span className="rounded-full bg-red-50 px-2 py-1 text-red-700">مەترسی: {item.summary.critical ?? 0}</span><span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">پشکنین: {item.summary.review ?? 0}</span></div></div>)}</div>}
       </section>
 
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
