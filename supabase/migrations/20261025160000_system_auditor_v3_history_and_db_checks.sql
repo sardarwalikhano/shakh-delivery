@@ -74,9 +74,9 @@ begin
     'checks',v_checks,
     'summary',jsonb_build_object(
       'total',jsonb_array_length(v_checks),
-      'critical',(select count(*) from jsonb_array_elements(v_checks) x where x->>'severity'='critical'),
-      'review',(select count(*) from jsonb_array_elements(v_checks) x where x->>'severity'='review'),
-      'passed',(select count(*) from jsonb_array_elements(v_checks) x where x->>'ok'='true' and x->>'severity' <> 'review')
+      'critical',(select count(*) from jsonb_array_elements(v_checks) as elem(value) where value->>'severity'='critical'),
+      'review',(select count(*) from jsonb_array_elements(v_checks) as elem(value) where value->>'severity'='review'),
+      'passed',(select count(*) from jsonb_array_elements(v_checks) as elem(value) where value->>'ok'='true' and value->>'severity' <> 'review')
     )
   );
 
