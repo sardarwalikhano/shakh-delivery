@@ -6,6 +6,15 @@ import type { Order } from './types';
 import { useRealtimeDelivery, useRealtimeOrder } from '@/features/realtime/hooks';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/maps/navigation';
 
+const orderSteps: Array<{ key: Order['status']; label: string }> = [
+  { key: 'pending', label: 'داواکاری تۆمارکرا' },
+  { key: 'confirmed', label: 'خاوەن فرۆشگا پەسەندی کرد' },
+  { key: 'preparing', label: 'بەرهەم ئامادە دەکرێت' },
+  { key: 'ready', label: 'ئامادەی وەرگرتنە' },
+  { key: 'out_for_delivery', label: 'سپێردرا بە گەیاندن' },
+  { key: 'delivered', label: 'داواکاری گەیەنرا' },
+];
+
 const deliverySteps: Array<{ key: NonNullable<Order['delivery']>['status']; label: string }> = [
   { key: 'assigned', label: 'کاپتن دیاری کرا' },
   { key: 'accepted', label: 'کاپتن وەریگرت' },
@@ -36,6 +45,18 @@ export function OrderDetailPage() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <Link to="/orders" className="inline-flex items-center gap-2 text-sm font-black text-black/45 hover:text-black"><ArrowLeft size={17} /> داواکارییەکان</Link>
         <div className="mt-5 flex flex-wrap items-start justify-between gap-4"><div><div className="text-xs font-black text-[var(--shakh-blue)]">داواکاری</div><h1 className="mt-1 text-3xl font-black" dir="ltr">{order.order_number}</h1><div className="mt-2 text-sm font-bold text-black/45">{order.store?.name_ku ?? 'فرۆشگا'}</div></div><div className="rounded-2xl bg-white px-4 py-3 text-end shadow-sm"><div className="text-xs text-black/40">کۆی گشتی</div><div className="mt-1 text-xl font-black">{order.total_iqd.toLocaleString('en-US')} د.ع</div></div></div>
+
+        <div className="mt-5 rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.035)] sm:p-6">
+          <div className="flex items-center gap-3"><PackageCheck size={19} className="text-[var(--shakh-blue)]" /><h2 className="text-lg font-black">دۆخی داواکاری</h2></div>
+          {order.status === 'cancelled' ? <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">ئەم داواکارییە هەڵوەشێنراوەتەوە.</p> : <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{orderSteps.map((step, index) => {
+            const currentOrderIndex = orderSteps.findIndex((item) => item.key === order.status);
+            const complete = currentOrderIndex >= 0 && index <= currentOrderIndex;
+            return <div key={step.key} className="flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] px-4 py-3">
+              <span className={`grid size-8 shrink-0 place-items-center rounded-full ${complete ? 'bg-[var(--shakh-navy)] text-white' : 'bg-black/5 text-black/35'}`}>{complete ? <CheckCircle2 size={16} /> : <CircleDot size={16} />}</span>
+              <span className={`text-sm font-bold ${complete ? 'text-black' : 'text-black/40'}`}>{step.label}</span>
+            </div>;
+          })}</div>}
+        </div>
 
         {order.delivery ? <div className="mt-5 rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_35px_rgba(16,22,35,.035)] sm:p-6"><div className="flex items-center gap-3"><Truck size={19} className="text-[var(--shakh-orange)]" /><h2 className="text-lg font-black">شوێنی گەیاندن</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2">{deliverySteps.map((step, index) => <div key={step.key} className="flex items-center gap-3 rounded-2xl bg-[var(--shakh-bg)] px-4 py-3"><span className={`grid size-8 place-items-center rounded-full ${index <= currentIndex ? 'bg-[var(--shakh-navy)] text-white' : 'bg-black/5 text-black/35'}`}>{index <= currentIndex ? <CheckCircle2 size={16} /> : <CircleDot size={16} />}</span><span className={`text-sm font-bold ${index <= currentIndex ? 'text-black' : 'text-black/35'}`}>{step.label}</span></div>)}</div>{order.delivery.last_lat && order.delivery.last_lng ? <div className="mt-4 flex items-center gap-2 text-xs font-bold text-black/45"><MapPin size={15} /> GPS: {order.delivery.last_lat.toFixed(5)}, {order.delivery.last_lng.toFixed(5)}</div> : null}</div> : null}
 
