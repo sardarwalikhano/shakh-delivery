@@ -1,18 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, CircleDashed, Clock3, Database, RefreshCw, ShieldCheck, ShieldAlert, Wrench } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 
 type FindingStatus = 'verified' | 'review' | 'failed';
-type AuditFinding = {
-  id: string;
-  title: string;
-  detail: string;
-  status: FindingStatus;
-  severity: 'critical' | 'high' | 'review' | 'info';
-  nextStep: string;
-};
 type ScanResult = { id: string; label: string; ok: boolean; detail: string };
 
 function StatusIcon({ status }: { status: FindingStatus }) {
@@ -33,7 +25,6 @@ export function SystemAuditorPage() {
     setRunning(true);
     setError(null);
     const results: ScanResult[] = [];
-    const findings: AuditFinding[] = [];
     const startedAt = new Date().toISOString();
 
     results.push({
@@ -95,18 +86,6 @@ export function SystemAuditorPage() {
     const passCount = results.filter((item) => item.ok).length;
     for (const item of results) {
       if (item.ok) continue;
-      findings.push({
-        id: item.id,
-        title: item.label,
-        detail: item.detail,
-        status: 'failed',
-        severity: item.id === 'super-admin-role' || item.id === 'audit-permission' ? 'critical' : 'high',
-        nextStep: item.id === 'super-admin-role'
-          ? 'لە user_roles ڕۆڵی هەژمارەکە و فلووی Authorization بپشکنە؛ ڕۆڵ بە دەستی لە UI زیاد مەکە.'
-          : item.id === 'audit-permission'
-            ? 'پۆلیسی role_permissions و مۆڵەتی audit.view لە Supabase بپشکنە؛ تەنها بە پەسەندی دەسەڵاتدار بیگۆڕە.'
-            : 'پەیوەندی Supabase، RLS و پۆلیسی خوێندنەوەی هەژمارەکە بپشکنە و پاشان پشکنین دووبارە بکەرەوە.',
-      });
     }
 
     setChecks(results);
@@ -193,7 +172,7 @@ export function SystemAuditorPage() {
   );
 }
 
-function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: 'green' | 'red' | 'neutral' }) {
+function Metric({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: 'green' | 'red' | 'neutral' }) {
   const toneClass = tone === 'green' ? 'bg-emerald-50 text-emerald-700' : tone === 'red' ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-slate-700';
   return <div className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm"><div className={`grid size-10 place-items-center rounded-xl ${toneClass}`}>{icon}</div><div className="mt-3 text-sm font-bold text-slate-500">{label}</div><div className="mt-1 text-2xl font-black text-slate-900">{value}</div></div>;
 }
