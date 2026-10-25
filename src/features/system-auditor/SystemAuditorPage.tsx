@@ -1,11 +1,12 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, CircleDashed, Clock3, Database, RefreshCw, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 
 type FindingStatus = 'verified' | 'review' | 'failed';
-type ScanResult = { id: string; label: string; ok: boolean; detail: string };
+type ScanResult = { id: string; label: string; ok: boolean; detail: string; severity?: 'critical' | 'review' | 'info'; nextStep?: string };
+type AuditHistoryItem = { id: string; created_at: string; summary: { total?: number; critical?: number; review?: number; passed?: number } };
 
 function StatusIcon({ status }: { status: FindingStatus }) {
   if (status === 'verified') return <CheckCircle2 className="text-emerald-600" size={20} />;
@@ -20,6 +21,16 @@ export function SystemAuditorPage() {
   const [lastRun, setLastRun] = useState<string | null>(null);
   const [checks, setChecks] = useState<ScanResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<AuditHistoryItem[]>([]);
+
+  const loadHistory = useCallback(async () => {
+    const response = await supabase.rpc('get_system_audit_history');
+    if (!response.error && Array.isArray(response.data)) setHistory(response.data as AuditHistoryItem[]);
+  }, []);
+
+  useEffect(() => {
+    if (roles.includes('super_admin') && permissions.has('audit.view')) void loadHistory();
+  }, [loadHistory, permissions, roles]);
 
   const runScan = useCallback(async () => {
     setRunning(true);
@@ -115,6 +126,19 @@ export function SystemAuditorPage() {
     }));
     results.push(...probeResults);
 
+    try {
+      const serverScan = await supabase.rpc('run_system_audit');
+      if (serverScan.error) throw serverScan.error;
+      const payload = serverScan.data as { checks?: ScanResult[]; scanned_at?: string } | null;
+      if (!payload || !Array.isArray(payload.checks)) throw new Error('فۆرماتی ئەنجامی پشکنین دروست نییە.');
+      results.push(...payload.checks);
+      if (payload.scanned_at) setLastRun(payload.scanned_at);
+      await loadHistory();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'هەڵەی نەناسراو';
+      results.push({ id: 'database-audit-rpc', label: 'پشکنینی پارێزراوی داتابەیس', ok: false, detail: 'RPC ـی پشکنینی داتابەیس بەردەست نەبوو: ' + message + '. migration ـی v3 بپشکنە.' });
+    }
+
     const passCount = results.filter((item) => item.ok).length;
     for (const item of results) {
       if (item.ok) continue;
@@ -124,14 +148,13 @@ export function SystemAuditorPage() {
     setLastRun(startedAt);
     setRunning(false);
     void refreshAuthorization();
-    // This first release performs read-only checks only. It intentionally does not
-    // write audit records or change database/security settings.
+    // Database findings and scan history are written only by the protected server RPC.
     return passCount;
-  }, [permissions, refreshAuthorization, roles, user?.id]);
+  }, [loadHistory, permissions, refreshAuthorization, roles, user?.id]);
 
   const failedCount = checks.filter((item) => !item.ok).length;
   const successCount = checks.filter((item) => item.ok).length;
-  const criticalCount = checks.filter((item) => !item.ok && (item.id === 'super-admin-role' || item.id === 'audit-permission')).length;
+  const criticalCount = checks.filter((item) => !item.ok && (item.severity === 'critical' || item.id === 'super-admin-role' || item.id === 'audit-permission')).length;
 
   if (!roles.includes('super_admin')) {
     return <main className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900" dir="rtl"><h1 className="text-xl font-black">دەستگەیشتن ڕەتکرایەوە</h1><p className="mt-2 text-sm leading-7">ئەم بەشە تەنها بۆ سوپەر ئەدمینە. ئەگەر ئەم هەژمارە ڕۆڵی super_admin ـی نییە، بەڕێوەبەری دەسەڵاتدار پەیوەندی پێوە بکە.</p></main>;
@@ -179,20 +202,25 @@ export function SystemAuditorPage() {
         ) : (
           <div className="mt-5 space-y-3">
             {checks.map((check) => (
-              <article key={check.id} className={`rounded-xl border p-4 ${check.ok ? 'border-emerald-200 bg-emerald-50/60' : 'border-red-200 bg-red-50/60'}`}>
+              <article key={check.id} className={`rounded-xl border p-4 ${check.ok ? 'border-emerald-200 bg-emerald-50/60' : check.severity === 'review' ? 'border-amber-200 bg-amber-50/60' : 'border-red-200 bg-red-50/60'}`}>
                 <div className="flex items-start gap-3">
-                  <StatusIcon status={check.ok ? 'verified' : 'failed'} />
+                  <StatusIcon status={check.ok ? 'verified' : check.severity === 'review' ? 'review' : 'failed'} />
                   <div className="min-w-0 flex-1">
                     <h3 className="font-black text-slate-900">{check.label}</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{check.detail}</p>
-                    {!check.ok ? <p className="mt-3 rounded-lg bg-white/80 p-3 text-sm leading-6 text-slate-700"><strong>هەنگاوی دواتر:</strong> {check.id === 'super-admin-role' ? 'ڕۆڵی super_admin و مێژووی ڕۆڵەکان لە Supabase بپشکنە.' : check.id === 'audit-permission' ? 'پۆلیسی مۆڵەتەکان بپشکنە و تەنها بە پەسەندی دەسەڵاتدار چاکی بکە.' : 'هۆکاری هەڵەکە بپشکنە، پاش چاکسازی دووبارە scan بکە.'}</p> : null}
+                    {(!check.ok || check.severity === 'review') ? <p className="mt-3 rounded-lg bg-white/80 p-3 text-sm leading-6 text-slate-700"><strong>هەنگاوی دواتر:</strong> {check.nextStep ?? (check.id === 'super-admin-role' ? 'ڕۆڵی super_admin و مێژووی ڕۆڵەکان لە Supabase بپشکنە.' : check.id === 'audit-permission' ? 'پۆلیسی مۆڵەتەکان بپشکنە و تەنها بە پەسەندی دەسەڵاتدار چاکی بکە.' : 'هۆکاری هەڵەکە بپشکنە، پاش چاکسازی دووبارە scan بکە.')}</p> : null}
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${check.ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{check.ok ? 'پشتڕاستکراوە' : 'پێویستی بە چارەسەر'}</span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${check.ok ? 'bg-emerald-100 text-emerald-800' : check.severity === 'review' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>{check.severity === 'review' ? 'پێویستی بە پشکنین' : check.ok ? 'پشتڕاستکراوە' : 'پێویستی بە چارەسەر'}</span>
                 </div>
               </article>
             ))}
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-black/5 bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-700"><Clock3 size={20} /></div><div><h2 className="font-black text-slate-900">مێژووی پشکنین</h2><p className="mt-1 text-sm text-slate-500">دوایین ٢٠ پشکنین لە Supabase پاشەکەوت دەکرێن.</p></div></div>
+        {history.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">هێشتا پشکنینێک پاشەکەوت نەکراوە یان migration ـی v3 جێبەجێ نەکراوە.</p> : <div className="mt-4 space-y-2">{history.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3"><div><p className="text-sm font-bold text-slate-800">{new Date(item.created_at).toLocaleString('ckb-IQ')}</p><p className="mt-1 text-xs text-slate-500">کۆ: {item.summary.total ?? 0} · سەرکەوتوو: {item.summary.passed ?? 0}</p></div><div className="flex gap-2 text-xs font-bold"><span className="rounded-full bg-red-50 px-2 py-1 text-red-700">مەترسی: {item.summary.critical ?? 0}</span><span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">پشکنین: {item.summary.review ?? 0}</span></div></div>)}</div>}
       </section>
 
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
