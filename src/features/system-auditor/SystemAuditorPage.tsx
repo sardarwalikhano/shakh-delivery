@@ -115,6 +115,18 @@ export function SystemAuditorPage() {
     }));
     results.push(...probeResults);
 
+    try {
+      const serverScan = await supabase.rpc('run_system_audit');
+      if (serverScan.error) throw serverScan.error;
+      const payload = serverScan.data as { checks?: ScanResult[]; scanned_at?: string } | null;
+      if (!payload || !Array.isArray(payload.checks)) throw new Error('فۆرماتی ئەنجامی پشکنین دروست نییە.');
+      results.push(...payload.checks);
+      if (payload.scanned_at) setLastRun(payload.scanned_at);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'هەڵەی نەناسراو';
+      results.push({ id: 'database-audit-rpc', label: 'پشکنینی پارێزراوی داتابەیس', ok: false, detail: 'RPC ـی پشکنینی داتابەیس بەردەست نەبوو: ' + message + '. migration ـی v3 بپشکنە.' });
+    }
+
     const passCount = results.filter((item) => item.ok).length;
     for (const item of results) {
       if (item.ok) continue;
@@ -124,8 +136,7 @@ export function SystemAuditorPage() {
     setLastRun(startedAt);
     setRunning(false);
     void refreshAuthorization();
-    // This first release performs read-only checks only. It intentionally does not
-    // write audit records or change database/security settings.
+    // Database findings and scan history are written only by the protected server RPC.
     return passCount;
   }, [permissions, refreshAuthorization, roles, user?.id]);
 
