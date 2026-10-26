@@ -576,3 +576,20 @@ $function$;
 
 revoke all on function public.update_store_order_status(uuid, public.order_status) from public, anon;
 grant execute on function public.update_store_order_status(uuid, public.order_status) to authenticated;
+
+
+-- Limit direct profile/role reads to the signed-in user's own row.
+-- Dispatchers now use get_available_captains(); role review uses its guarded RPC.
+-- Wallet managers retain access through the separate wallets.manage policies,
+-- which are required by the existing top-up and captain settlement screens.
+drop policy if exists profiles_select_scoped on public.profiles;
+create policy profiles_select_scoped
+  on public.profiles
+  for select to authenticated
+  using ((select auth.uid()) = id);
+
+drop policy if exists user_roles_select_scoped on public.user_roles;
+create policy user_roles_select_scoped
+  on public.user_roles
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
