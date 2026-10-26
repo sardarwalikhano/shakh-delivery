@@ -221,12 +221,24 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     let cancelled = false;
     void getMyCaptainPresence(userId).then(async (presence) => {
       if (cancelled) return;
-      setIsOnline(presence.is_online);
-      if (presence.is_online) {
-        try { await setCaptainPresence(true); } catch { /* stale heartbeat makes this captain unavailable to dispatch */ }
+      if (!presence.is_online) {
+        setIsOnline(false);
+        return;
+      }
+      try {
+        const renewed = await setCaptainPresence(true);
+        if (!cancelled) setIsOnline(renewed.is_online);
+      } catch {
+        if (!cancelled) {
+          setIsOnline(false);
+          setMessage('دۆخی ئۆنلاین نوێ نەکرایەوە؛ بۆ وەرگرتنی داواکاری دووبارە ئۆنلاین ببە.');
+        }
       }
     }).catch(() => {
-      if (!cancelled) setMessage('نەتوانرا دۆخی ئۆنلاین لە Supabase بخوێندرێتەوە.');
+      if (!cancelled) {
+        setIsOnline(false);
+        setMessage('نەتوانرا دۆخی ئۆنلاین لە Supabase بخوێندرێتەوە.');
+      }
     }).finally(() => { if (!cancelled) setPresenceLoaded(true); });
     return () => { cancelled = true; };
   }, [role, userId]);
