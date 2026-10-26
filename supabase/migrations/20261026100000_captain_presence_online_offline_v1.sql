@@ -334,3 +334,81 @@ create index if not exists share_withdrawals_reviewed_by_idx
 
 create index if not exists wallet_commission_settings_updated_by_idx
   on public.wallet_commission_settings (updated_by);
+
+
+-- A seller marking an electronics/product order delivered is not payment evidence.
+-- Keep payment_status unchanged here; COD collection is recorded by the assigned
+-- captain only after delivery and exact-amount validation, and Mobile Cash must
+-- use a trusted payment confirmation path.
+create or replace function public.update_electronics_post_order_status(p_order_id uuid, p_status text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_user_id uuid := (select auth.uid());
+  v_order public.electronics_post_orders%rowtype;
+  v_stock integer;
+begin
+  if v_user_id is null then
+    raise exception using errcode='42501', message='Authentication required';
+  end if;
+  if p_status not in ('confirmed','rejected','delivered','cancelled') then
+    raise exception using errcode='22023', message='Invalid electronics order status';
+  end if;
+
+  select * into v_order
+  from public.electronics_post_orders
+  where id=p_order_id
+  for update;
+  if not found then
+    raise exception using errcode='P0002', message='Electronics order not found';
+  end if;
+
+  if v_user_id=v_order.buyer_id then
+    if v_order.status <> 'pending' or p_status <> 'cancelled' then
+      raise exception using errcode='42501', message='Buyers may only cancel pending electronics orders';
+    end if;
+  elsif v_user_id=v_order.seller_id or (select private.has_permission('posts.manage')) then
+    if not (
+      (v_order.status='pending' and p_status in ('confirmed','rejected','cancelled'))
+      or (v_order.status='confirmed' and p_status in ('delivered','cancelled'))
+    ) then
+      raise exception using errcode='22023', message='Invalid electronics order status transition';
+    end if;
+  else
+    raise exception using errcode='42501', message='You cannot manage this electronics order';
+  end if;
+
+  if p_status in ('rejected','cancelled') and v_order.status in ('pending','confirmed') then
+    select coalesce(nullif(category_details->>'stock_quantity','')::integer,0)
+      into v_stock
+    from public.posts
+    where id=v_order.post_id
+    for update;
+    update public.posts
+    set category_details=jsonb_set(
+      category_details,
+      '{stock_quantity}',
+      to_jsonb(coalesce(v_stock,0)+v_order.quantity),
+      true
+    )
+    where id=v_order.post_id and category='electronics'::public.post_category;
+  end if;
+
+  update public.electronics_post_orders
+  set status=p_status
+  where id=p_order_id
+  returning * into v_order;
+
+  return jsonb_build_object(
+    'id',p_order_id,
+    'status',v_order.status,
+    'payment_status',v_order.payment_status
+  );
+end;
+$function$;
+
+revoke all on function public.update_electronics_post_order_status(uuid,text) from public, anon;
+grant execute on function public.update_electronics_post_order_status(uuid,text) to authenticated;
