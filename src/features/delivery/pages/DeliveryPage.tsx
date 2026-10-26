@@ -502,6 +502,12 @@ function DispatchView({ userId }: { userId: string; role: string | null }) {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    const channel = supabase.channel('dispatch-captain-presence')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => { void refresh(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [refresh]);
 
   const doAssign = async (delivery: Delivery) => {
     const captain = selectedCaptain[delivery.id];
