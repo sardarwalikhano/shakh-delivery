@@ -97,15 +97,18 @@ as $guard$
 begin
   if new.captain_id is not null
      and (tg_op = 'INSERT' or old.captain_id is distinct from new.captain_id) then
-    if not exists (
-      select 1
-      from public.user_roles ur
-      join public.profiles p on p.id = ur.user_id
-      where ur.user_id = new.captain_id
-        and ur.role = 'captain'::public.app_role
-        and p.is_online = true
-        and p.last_seen_at >= pg_catalog.now() - interval '2 minutes'
-    ) then
+    -- Lock the captain profile so an offline toggle and a new assignment cannot
+    -- race each other; the assignment sees the committed presence state.
+    perform 1
+    from public.profiles p
+    join public.user_roles ur on ur.user_id = p.id
+    where p.id = new.captain_id
+      and ur.role = 'captain'::public.app_role
+      and p.is_online = true
+      and p.last_seen_at >= pg_catalog.clock_timestamp() - interval '2 minutes'
+    for update of p;
+
+    if not found then
       raise exception 'Captain is offline or heartbeat is stale'
         using errcode = '23514';
     end if;
