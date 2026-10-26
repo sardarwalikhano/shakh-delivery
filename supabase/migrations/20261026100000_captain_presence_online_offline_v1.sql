@@ -412,3 +412,102 @@ $function$;
 
 revoke all on function public.update_electronics_post_order_status(uuid,text) from public, anon;
 grant execute on function public.update_electronics_post_order_status(uuid,text) to authenticated;
+
+
+-- The application uses update_product_post_order_status for electronics and
+-- other eligible direct-post orders. Seller status completion is not proof of
+-- payment collection; preserve payment_status until a verified COD/mobile-cash
+-- confirmation path records it.
+create or replace function public.update_product_post_order_status(p_order_id uuid, p_status text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_user_id uuid := (select auth.uid());
+  v_order public.electronics_post_orders%rowtype;
+  v_current_stock integer;
+begin
+  if v_user_id is null then
+    raise exception using errcode='42501', message='Authentication required';
+  end if;
+  if p_status not in ('confirmed','rejected','delivered','cancelled') then
+    raise exception using errcode='22023', message='Invalid product post order status';
+  end if;
+
+  select * into v_order
+  from public.electronics_post_orders
+  where id=p_order_id
+  for update;
+  if not found then
+    raise exception using errcode='P0002', message='Product post order not found';
+  end if;
+
+  if v_order.post_category not in (
+    'electronics'::public.post_category,
+    'general'::public.post_category,
+    'supermarket'::public.post_category,
+    'beauty'::public.post_category,
+    'kids'::public.post_category,
+    'online_stores'::public.post_category,
+    'delivery'::public.post_category
+  ) then
+    raise exception using errcode='42501', message='This order category cannot use this workflow';
+  end if;
+
+  if v_user_id=v_order.buyer_id then
+    if v_order.status <> 'pending' or p_status <> 'cancelled' then
+      raise exception using errcode='42501', message='Buyers may only cancel pending product orders';
+    end if;
+  elsif v_user_id=v_order.seller_id or (select private.has_permission('posts.manage')) then
+    if not (
+      (v_order.status='pending' and p_status in ('confirmed','rejected','cancelled'))
+      or (v_order.status='confirmed' and p_status in ('delivered','cancelled'))
+    ) then
+      raise exception using errcode='22023', message='Invalid product post order status transition';
+    end if;
+  else
+    raise exception using errcode='42501', message='You cannot manage this product post order';
+  end if;
+
+  if p_status in ('rejected','cancelled') and v_order.status in ('pending','confirmed')
+    and v_order.product_details ? 'stock_quantity'
+    and coalesce(v_order.product_details->>'stock_quantity','') ~ '^[0-9]+$' then
+    select case
+      when coalesce(nullif(btrim(p.category_details->>'stock_quantity'),''),'') ~ '^[0-9]+$'
+        then (p.category_details->>'stock_quantity')::integer
+      else 0
+    end
+    into v_current_stock
+    from public.posts p
+    where p.id=v_order.post_id
+    for update;
+
+    if found then
+      update public.posts
+      set category_details = jsonb_set(
+        coalesce(category_details, '{}'::jsonb),
+        '{stock_quantity}',
+        to_jsonb(coalesce(v_current_stock,0) + v_order.quantity),
+        true
+      )
+      where id=v_order.post_id and category=v_order.post_category;
+    end if;
+  end if;
+
+  update public.electronics_post_orders
+  set status=p_status
+  where id=p_order_id
+  returning * into v_order;
+
+  return jsonb_build_object(
+    'id',p_order_id,
+    'status',v_order.status,
+    'payment_status',v_order.payment_status
+  );
+end;
+$function$;
+
+revoke all on function public.update_product_post_order_status(uuid,text) from public, anon;
+grant execute on function public.update_product_post_order_status(uuid,text) to authenticated;
