@@ -246,7 +246,8 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     if (role !== 'captain' || !userId || !presenceLoaded || !isOnline) return;
     const heartbeat = window.setInterval(() => {
       void setCaptainPresence(true).catch(() => {
-        setMessage('پەیوەندی دۆخی ئۆنلاین پچڕاوە؛ تا نوێبوونەوەی heartbeat کاپتن وەک بەردەست نیشان نادرێت.');
+        setIsOnline(false);
+        setMessage('پەیوەندی دۆخی ئۆنلاین پچڕاوە؛ بۆ بەردەستبوون تکایە دووبارە ئۆنلاین ببە.');
       });
     }, 45_000);
     return () => window.clearInterval(heartbeat);
