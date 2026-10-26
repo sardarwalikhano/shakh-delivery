@@ -53,8 +53,8 @@ No broad table policies were added. Keep the tables private and test the RPC bou
 
 ## Verification status
 
-- GitHub Actions CI: the run for the earlier commit 34a845ef... passed TypeScript and production build. A new run for the current head 884977c... was in progress at last check; rerun/confirm this latest result before review. CI uses placeholder public environment variables and does not test production database access.
-- Vercel: the preview for earlier commit 34a845ef... was READY and returned HTTP 200 for the Sorani RTL app shell. A new preview for current head 884977c... was queued at last check; verify the latest-head deployment before review.
+- GitHub Actions CI: run 40283323977 for PR #68 was in progress at last check on the branch head around `20197c373081ef5db7bb8f3327399ea29f426078`. CI uses placeholder public environment variables and does not test production database access. Recheck the final result for the latest head before review.
+- Vercel: preview `dpl_383D8h93pU8GUstpe5QRERGgHq6g` matching commit `20197c373081ef5db7bb8f3327399ea29f426078` was BUILDING at last check. Earlier commits were READY, but only the latest-head deployment counts for release verification.
 - Preview for the exact audited commit returned HTTP 200 and served the Kurdish Sorani RTL app shell. This is not an authenticated workflow test.
 - Live Storage inspection found public post/product image buckets constrained to JPEG/PNG/WebP and 5 MiB per file, and private payout/wallet-receipt buckets allowing common image/PDF MIME types with 5 MiB limits. Existing object policies scope uploads by permission and folder ownership; no storage policy was changed.
 - Not yet run: authenticated captain online/offline integration tests, RLS tests using multiple users, full financial integrity tests, all-role dashboard tests, all route/profile UI regression tests, mobile/tablet visual checks, and full end-to-end tests.
