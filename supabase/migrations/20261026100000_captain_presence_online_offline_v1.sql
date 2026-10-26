@@ -276,3 +276,61 @@ $function$;
 
 revoke all on function public.get_available_captains() from public, anon;
 grant execute on function public.get_available_captains() to authenticated;
+
+
+-- Complete coverage for the remaining live-schema foreign keys reported as
+-- lacking a left-prefix B-tree index. These target small tables (all under ~130 KB
+-- at audit time) and help joins plus parent-row delete/update constraint checks.
+create index if not exists apparel_post_orders_share_link_idx
+  on public.apparel_post_orders (share_link_id);
+
+create index if not exists apparel_post_orders_variant_idx
+  on public.apparel_post_orders (variant_id);
+
+create index if not exists captain_cash_ledger_settled_by_idx
+  on public.captain_cash_ledger (settled_by);
+
+create index if not exists captain_cash_allocations_ledger_idx
+  on public.captain_cash_settlement_allocations (cash_ledger_id);
+
+create index if not exists captain_cash_batches_settled_by_idx
+  on public.captain_cash_settlement_batches (settled_by);
+
+create index if not exists captain_cash_items_ledger_idx
+  on public.captain_cash_settlement_items (ledger_id);
+
+create index if not exists captain_cash_settlements_received_by_idx
+  on public.captain_cash_settlements (received_by);
+
+create index if not exists captain_commission_rules_captain_idx
+  on public.captain_commission_rules (captain_id);
+
+create index if not exists captain_commission_rules_updated_by_idx
+  on public.captain_commission_rules (updated_by);
+
+create index if not exists electronics_post_orders_share_link_idx
+  on public.electronics_post_orders (share_link_id);
+
+create index if not exists food_post_cart_items_post_idx
+  on public.food_post_cart_items (post_id);
+
+create index if not exists food_post_orders_share_link_idx
+  on public.food_post_orders (share_link_id);
+
+create index if not exists topup_requests_approved_transaction_idx
+  on public.prepaid_topup_requests (approved_transaction_id);
+
+create index if not exists topup_requests_reviewed_by_idx
+  on public.prepaid_topup_requests (reviewed_by);
+
+create index if not exists prepaid_wallet_transactions_created_by_idx
+  on public.prepaid_wallet_transactions (created_by);
+
+create index if not exists role_requests_reviewed_by_idx
+  on public.role_requests (reviewed_by);
+
+create index if not exists share_withdrawals_reviewed_by_idx
+  on public.share_withdrawal_requests (reviewed_by);
+
+create index if not exists wallet_commission_settings_updated_by_idx
+  on public.wallet_commission_settings (updated_by);
