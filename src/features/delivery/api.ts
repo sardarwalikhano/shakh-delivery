@@ -50,7 +50,34 @@ export type Captain = {
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  is_online: boolean;
+  last_seen_at: string | null;
 };
+
+export type CaptainPresence = {
+  is_online: boolean;
+  last_seen_at: string | null;
+};
+
+export async function setCaptainPresence(isOnline: boolean): Promise<CaptainPresence> {
+  const { data, error } = await supabase.rpc('set_captain_presence', { p_is_online: isOnline });
+  if (error) throw error;
+  const presence = data as CaptainPresence | null;
+  if (!presence || typeof presence.is_online !== 'boolean') {
+    throw new Error('دۆخی کاپتن لە سێرڤەرەوە پشتڕاست نەکرایەوە.');
+  }
+  return presence;
+}
+
+export async function getMyCaptainPresence(userId: string): Promise<CaptainPresence> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_online,last_seen_at')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return { is_online: Boolean(data.is_online), last_seen_at: data.last_seen_at as string | null };
+}
 
 const deliverySelect = `
   id,order_id,captain_id,status,assigned_by,assigned_at,accepted_at,picked_up_at,
@@ -95,18 +122,9 @@ export async function getDispatchDeliveries(): Promise<Delivery[]> {
 }
 
 export async function getAvailableCaptains(): Promise<Captain[]> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id,full_name,phone,avatar_url,user_roles!inner(role)')
-    .eq('user_roles.role', 'captain')
-    .order('full_name', { ascending: true });
+  const { data, error } = await supabase.rpc('get_available_captains');
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    full_name: row.full_name as string | null,
-    phone: row.phone as string | null,
-    avatar_url: row.avatar_url as string | null,
-  }));
+  return (data ?? []) as Captain[];
 }
 
 export async function createDelivery(orderId: string, assignedBy: string, captainId: string | null, dispatchNote?: string): Promise<Delivery> {

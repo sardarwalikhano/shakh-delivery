@@ -75,7 +75,7 @@ export function ApparelPostOrdersPage() {
     try {
       await updateElectronicsPostOrderStatus(order.id, status);
       setMessage(status === 'delivered'
-        ? 'گەیاندن و وەرگرتنی پارە پشتڕاست کرایەوە.'
+        ? 'دۆخی داواکاری نوێ کرایەوە؛ پارەدان تا پشتڕاستکردنەوەی مامەڵە بە پارەی وەرگیراو هەژمار ناکرێت.'
         : 'دۆخی داواکاریی بەرهەم نوێ کرایەوە.');
       await refresh();
     } catch (err) { setError(err instanceof Error ? err.message : 'گۆڕینی دۆخی داواکاری سەرنەکەوت.'); }

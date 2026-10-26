@@ -1,8 +1,8 @@
-import { Check, ChevronDown, CircleAlert, Clock3, LocateFixed, MapPin, Navigation, PackageCheck, RefreshCw, Truck, UserRound } from 'lucide-react';
+import { Check, ChevronDown, CircleAlert, Clock3, LocateFixed, MapPin, Navigation, PackageCheck, RefreshCw, Truck, UserRound, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
-import { assignCaptain, claimDelivery, getAvailableCaptains, getDispatchDeliveries, getMyDeliveries, updateCaptainDelivery, updateCaptainLocation, type Captain, type Delivery, type DeliveryStatus } from '../api';
+import { assignCaptain, claimDelivery, getAvailableCaptains, getDispatchDeliveries, getMyDeliveries, getMyCaptainPresence, setCaptainPresence, updateCaptainDelivery, updateCaptainLocation, type Captain, type Delivery, type DeliveryStatus } from '../api';
 import { useRealtimeCaptainDeliveries } from '@/features/realtime/hooks';
 import { buildGoogleMapsDirectionsUrl } from '@/lib/maps/navigation';
 import { claimFoodPostDelivery, listFoodPostOrders, recordFoodPostPayment, updateFoodPostDeliveryStatus, listApparelPostOrders, listElectronicsPostOrders, claimDirectPostDelivery, updateDirectPostDeliveryStatus, recordDirectPostPayment, type FoodPostDeliveryStatus, type FoodPostOrder, type ApparelPostOrder, type ElectronicsPostOrder, type DirectPostDeliveryStatus, type DirectPostOrderType } from '@/features/posts/apparelOrders';
@@ -190,6 +190,9 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(false);
+  const [presenceLoaded, setPresenceLoaded] = useState(false);
+  const [presenceBusy, setPresenceBusy] = useState(false);
   const active = useMemo(() => deliveries.find((d) => ['assigned', 'accepted', 'picked_up', 'on_the_way', 'arrived'].includes(d.status)) ?? null, [deliveries]);
 
   const refresh = useCallback(async () => {
@@ -213,6 +216,55 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
   }, [role]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    if (role !== 'captain' || !userId) { setPresenceLoaded(true); return; }
+    let cancelled = false;
+    void getMyCaptainPresence(userId).then(async (presence) => {
+      if (cancelled) return;
+      if (!presence.is_online) {
+        setIsOnline(false);
+        return;
+      }
+      try {
+        const renewed = await setCaptainPresence(true);
+        if (!cancelled) setIsOnline(renewed.is_online);
+      } catch {
+        if (!cancelled) {
+          setIsOnline(false);
+          setMessage('دۆخی ئۆنلاین نوێ نەکرایەوە؛ بۆ وەرگرتنی داواکاری دووبارە ئۆنلاین ببە.');
+        }
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setIsOnline(false);
+        setMessage('نەتوانرا دۆخی ئۆنلاین لە Supabase بخوێندرێتەوە.');
+      }
+    }).finally(() => { if (!cancelled) setPresenceLoaded(true); });
+    return () => { cancelled = true; };
+  }, [role, userId]);
+  useEffect(() => {
+    if (role !== 'captain' || !userId || !presenceLoaded || !isOnline) return;
+    const heartbeat = window.setInterval(() => {
+      void setCaptainPresence(true).catch(() => {
+        setIsOnline(false);
+        setMessage('پەیوەندی دۆخی ئۆنلاین پچڕاوە؛ بۆ بەردەستبوون تکایە دووبارە ئۆنلاین ببە.');
+      });
+    }, 45_000);
+    return () => window.clearInterval(heartbeat);
+  }, [isOnline, presenceLoaded, role, userId]);
+  const togglePresence = async () => {
+    setPresenceBusy(true);
+    setMessage(null);
+    try {
+      const next = await setCaptainPresence(!isOnline);
+      setIsOnline(next.is_online);
+      setMessage(next.is_online ? 'ئێستا ئۆنلاینیت و دەتوانیت داواکاری وەربگریت.' : 'ئێستا ئۆفلاینیت؛ داواکاری نوێ بۆت نانێردرێت.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'گۆڕینی دۆخی ئۆنلاین سەرنەکەوت.');
+    } finally {
+      setPresenceBusy(false);
+    }
+  };
   useRealtimeCaptainDeliveries(userId, refresh);
   useEffect(() => {
     if (role !== 'captain') return;
@@ -345,6 +397,26 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
     <DeliveryLayout eyebrow="Captain workspace" title="گەیاندنەکانی تۆ" subtitle={role === 'captain' ? 'داواکارییە نوێکان لێرە وەردەگریت و دەتوانیت گەیاندنە سپێردراوەکانت بەڕێوەببەیت.' : 'ئەم بەشە بەپێی دەسەڵاتی هەژمارەکەت داتای گەیاندن پیشان دەدات.'} onRefresh={() => void refresh()} refreshing={loading}>
       {message ? <Notice text={message} /> : null}
       {role === 'captain' ? (
+        <section className="rounded-3xl border border-black/[0.06] bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className={`grid size-11 place-items-center rounded-2xl ${isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                {isOnline ? <Wifi size={20} /> : <WifiOff size={20} />}
+              </span>
+              <div>
+                <h2 className="font-black">{presenceLoaded ? (isOnline ? 'دۆخی کاپتن: ئۆنلاین' : 'دۆخی کاپتن: ئۆفلاین') : 'پشکنینی دۆخی کاپتن...'}</h2>
+                <p className="mt-1 text-xs leading-5 text-black/55">{isOnline ? 'لە لیستی کاپتنە بەردەستەکاندا پیشان دەدرێیت.' : 'بۆ وەرگرتنی داواکاری نوێ ئۆنلاین ببە.'}</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => void togglePresence()} disabled={!presenceLoaded || presenceBusy} aria-pressed={isOnline}
+              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${isOnline ? 'bg-slate-700 hover:bg-slate-800' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+              {isOnline ? <WifiOff size={16} /> : <Wifi size={16} />}
+              {presenceBusy ? 'تکایە چاوەڕێ بکە...' : isOnline ? 'ئۆفلاین ببە' : 'ئۆنلاین ببە'}
+            </button>
+          </div>
+        </section>
+      ) : null}
+      {role === 'captain' ? (
         <section className="space-y-3">
           <div className="flex items-center gap-2 px-1"><Clock3 size={18} className="text-[var(--shakh-orange)]" /><h2 className="text-lg font-black">داواکارییە نوێکان</h2></div>
           {offers.map((delivery) => (
@@ -365,14 +437,14 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
             onAction={() => void advanceFoodOrder(order)}
             actionLabel={target ? `گواستنەوە بۆ ${foodDeliveryStatusLabel[target]}` : 'چاوەڕوانی'} />;
         })}
-        {foodOrders.filter((order) => order.captain_id === userId && order.delivery_status === 'delivered' && order.payment_status === 'pending').map((order) => (
+        {foodOrders.filter((order) => order.captain_id === userId && order.delivery_status === 'delivered' && order.payment_status === 'pending' && order.payment_method === 'cash_on_delivery').map((order) => (
           <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id} onAction={() => void recordFoodPayment(order)} actionLabel="تۆمارکردنی وەرگرتنی پارە" />
         ))}
-        {!loading && !foodOrders.some((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending'))) ? <Empty text="هیچ داواکاریی خواردنێکی سپێردراو نییە." /> : null}
+        {!loading && !foodOrders.some((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending' && order.payment_method === 'cash_on_delivery'))) ? <Empty text="هیچ داواکاریی خواردنێکی سپێردراو نییە." /> : null}
       </section> : null}
       {role === 'captain' ? <section className="space-y-3">
         <div className="flex items-center gap-2 px-1"><PackageCheck size={18} className="text-[var(--shakh-green)]"/><h2 className="text-lg font-black">مێژووی داواکاریی خواردن</h2></div>
-        {foodOrders.filter((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')).map((order) => (
+        {foodOrders.filter((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending' && order.payment_method === 'cash_on_delivery')).map((order) => (
           <FoodPostCaptainCard key={order.id} order={order} busy={false} />
         ))}
         {!loading && !foodOrders.some((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')) ? <Empty text="مێژووی داواکاریی خواردن بەتاڵە." /> : null}
@@ -443,6 +515,18 @@ function DispatchView({ userId }: { userId: string; role: string | null }) {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    // Realtime updates are useful for online transitions. Polling is also needed
+    // because a captain who goes offline no longer matches the scoped profile RLS policy.
+    const channel = supabase.channel('dispatch-captain-presence')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => { void refresh(); })
+      .subscribe();
+    const intervalId = window.setInterval(() => { void refresh(); }, 15_000);
+    return () => {
+      window.clearInterval(intervalId);
+      void supabase.removeChannel(channel);
+    };
+  }, [refresh]);
 
   const doAssign = async (delivery: Delivery) => {
     const captain = selectedCaptain[delivery.id];
@@ -461,7 +545,7 @@ function DispatchView({ userId }: { userId: string; role: string | null }) {
       <div className="grid gap-3 sm:grid-cols-3"><StatCard label="لە چاوەڕوانی" value={counts.pending} icon={<Clock3 size={18} />} /><StatCard label="چالاک" value={counts.active} icon={<Navigation size={18} />} /><StatCard label="گەیەنراو" value={counts.delivered} icon={<PackageCheck size={18} />} /></div>
       <section className="space-y-3">
         {deliveries.map((delivery) => <DispatchRow key={delivery.id} delivery={delivery} captains={captains} selectedCaptain={selectedCaptain[delivery.id] ?? delivery.captain_id ?? ''} busy={busyId === delivery.id} onSelect={(value) => setSelectedCaptain((current) => ({ ...current, [delivery.id]: value }))} onAssign={() => void doAssign(delivery)} />)}
-        {!loading && deliveries.length === 0 ? <Empty text="هێشتا هیچ delivery record ـێک نییە؛ checkout/order module لە Phase ـی دواتر record ـی واقعی دروست دەکات." /> : null}
+        {!loading && deliveries.length === 0 ? <Empty text="هیچ داواکاریی گەیاندنێکی چالاک نییە. کاتێک داواکارییەکی گونجاو تۆمار بکرێت، لێرە بۆ دابەشکردن دەرکەوێت." /> : null}
       </section>
     </DeliveryLayout>
   );
@@ -525,7 +609,11 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
           <FoodAmount label="کرێی پلاتفۆرم" amount={order.platform_fee_iqd} />
           <FoodAmount label="ئەو بڕەی لە کڕیار وەردەگریت" amount={order.total_iqd} strong />
         </div>
-        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
+        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected'
+          ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع`
+          : order.payment_method === 'mobile_cash'
+            ? 'Mobile Cash · چاوەڕوانی پشتڕاستکردنەوەی پارە لەلایەن سیستەم/ئەدمین'
+            : 'کاش · هێشتا وەرنەگیراوە'}</div>
       </div>
       {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy ? 'چاوەڕوانبە...' : actionLabel}</button> : null}
     </div>

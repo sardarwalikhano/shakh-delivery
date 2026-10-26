@@ -22,6 +22,7 @@ import { CartPage } from '@/features/marketplace/pages/CartPage';
 import { VendorStorePage } from '@/features/vendor/pages/VendorStorePage';
 import { VendorProductsPage } from '@/features/vendor/pages/VendorProductsPage';
 import { DeliveryPage } from '@/features/delivery/pages/DeliveryPage';
+import { StoreCaptainsPage } from '@/features/delivery/pages/StoreCaptainsPage';
 import { CheckoutPage } from '@/features/checkout/CheckoutPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { VendorOrdersPage } from '@/features/orders/VendorOrdersPage';
@@ -81,6 +82,7 @@ export function App() {
           <Route path="/dashboard/products" element={<RequirePermission permission="products.manage"><VendorProductsPage /></RequirePermission>} />
           <Route path="/dashboard/orders" element={<RequirePermission permission="orders.view"><VendorOrdersPage /></RequirePermission>} />
           <Route path="/dashboard/deliveries" element={<RequirePermission permission="deliveries.view"><DeliveryPage /></RequirePermission>} />
+          <Route path="/dashboard/store-captains" element={<RequirePermission permission="vendors.view"><StoreCaptainsPage /></RequirePermission>} />
           <Route path="/dashboard/notifications" element={<RequirePermission permission="notifications.view_own"><NotificationsPage /></RequirePermission>} />
           <Route path="/dashboard/role-requests" element={<RequirePermission permission="role_requests.review"><RoleRequestsPage /></RequirePermission>} />
           <Route path="/dashboard/posts/manage" element={<RequirePermission permission="posts.update_own"><MyPostsPage /></RequirePermission>} />
@@ -92,7 +94,6 @@ export function App() {
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
           <Route path="/post-orders" element={<RequirePermission permission="posts.view"><ApparelPostOrdersPage /></RequirePermission>} />
-          <Route path="/dashboard/*" element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
