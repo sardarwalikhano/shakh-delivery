@@ -135,3 +135,37 @@ drop trigger if exists guard_captain_assignment_presence on public.electronics_p
 create trigger guard_captain_assignment_presence
 before insert or update of captain_id on public.electronics_post_orders
 for each row execute function public.guard_captain_assignment_presence();
+
+
+-- Restrictive lookup indexes selected from the live FK audit.
+-- Foreign keys whose only expected use is rare ON DELETE SET NULL/RESTRICT checks
+-- are deliberately not indexed here; add those only after workload evidence.
+create index if not exists captain_cash_settlement_batches_captain_created_idx
+  on public.captain_cash_settlement_batches (captain_id, created_at desc);
+
+create index if not exists food_post_payment_events_captain_received_idx
+  on public.food_post_payment_events (captain_id, received_at desc);
+
+create index if not exists order_receipts_store_created_idx
+  on public.order_receipts (store_id, created_at desc);
+
+create index if not exists prepaid_topup_requests_user_created_idx
+  on public.prepaid_topup_requests (user_id, requested_at desc);
+
+create index if not exists role_requests_user_requested_idx
+  on public.role_requests (user_id, requested_at desc);
+
+create index if not exists share_earnings_post_created_idx
+  on public.share_earnings (post_id, created_at desc);
+
+create index if not exists share_earnings_share_link_created_idx
+  on public.share_earnings (share_link_id, created_at desc);
+
+create index if not exists whatsapp_outbox_recipient_created_idx
+  on public.whatsapp_message_outbox (recipient_user_id, created_at desc);
+
+create index if not exists whatsapp_outbox_receipt_idx
+  on public.whatsapp_message_outbox (receipt_id);
+
+create index if not exists whatsapp_outbox_settlement_batch_idx
+  on public.whatsapp_message_outbox (settlement_batch_id);
