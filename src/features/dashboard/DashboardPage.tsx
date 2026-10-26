@@ -1,6 +1,5 @@
 import {
   ArrowUpLeft,
-  BarChart3,
   Bell,
   Boxes,
   ClipboardList,
@@ -117,7 +116,6 @@ const dashboardActions: DashboardAction[] = [
   { title: 'شێر و قازانج', description: 'بینینی خەڵات و مامەڵەکانی شێرکردن.', href: '/dashboard/referral-wallet', permission: 'posts.view', icon: Gift },
   { title: 'داواکاریی ڕۆڵەکان', description: 'پشکنین و بڕیاردان لەسەر داواکاریی ڕۆڵ.', href: '/dashboard/role-requests', permission: 'role_requests.review', icon: ShieldCheck },
   { title: 'ئاگادارکردنەوەکان', description: 'بینین و بەدواداچوونی ئاگادارکردنەوەکان.', href: '/dashboard/notifications', permission: 'notifications.view_own', icon: Bell },
-  { title: 'ڕاپۆرتەکان', description: 'کردنەوەی بەشی ڕاپۆرت بەپێی دەسەڵاتی هەژمارەکەت.', href: '/dashboard/reports', permission: 'reports.view', icon: BarChart3 },
 ];
 
 export function DashboardPage() {
