@@ -516,10 +516,16 @@ function DispatchView({ userId }: { userId: string; role: string | null }) {
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
+    // Realtime updates are useful for online transitions. Polling is also needed
+    // because a captain who goes offline no longer matches the scoped profile RLS policy.
     const channel = supabase.channel('dispatch-captain-presence')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => { void refresh(); })
       .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    const intervalId = window.setInterval(() => { void refresh(); }, 15_000);
+    return () => {
+      window.clearInterval(intervalId);
+      void supabase.removeChannel(channel);
+    };
   }, [refresh]);
 
   const doAssign = async (delivery: Delivery) => {
@@ -539,7 +545,7 @@ function DispatchView({ userId }: { userId: string; role: string | null }) {
       <div className="grid gap-3 sm:grid-cols-3"><StatCard label="لە چاوەڕوانی" value={counts.pending} icon={<Clock3 size={18} />} /><StatCard label="چالاک" value={counts.active} icon={<Navigation size={18} />} /><StatCard label="گەیەنراو" value={counts.delivered} icon={<PackageCheck size={18} />} /></div>
       <section className="space-y-3">
         {deliveries.map((delivery) => <DispatchRow key={delivery.id} delivery={delivery} captains={captains} selectedCaptain={selectedCaptain[delivery.id] ?? delivery.captain_id ?? ''} busy={busyId === delivery.id} onSelect={(value) => setSelectedCaptain((current) => ({ ...current, [delivery.id]: value }))} onAssign={() => void doAssign(delivery)} />)}
-        {!loading && deliveries.length === 0 ? <Empty text="هێشتا هیچ delivery record ـێک نییە؛ checkout/order module لە Phase ـی دواتر record ـی واقعی دروست دەکات." /> : null}
+        {!loading && deliveries.length === 0 ? <Empty text="هیچ داواکاریی گەیاندنێکی چالاک نییە. کاتێک داواکارییەکی گونجاو تۆمار بکرێت، لێرە بۆ دابەشکردن دەرکەوێت." /> : null}
       </section>
     </DeliveryLayout>
   );
