@@ -54,7 +54,9 @@ end;
 $function$;
 
 -- Eligible roster candidates disclose only identity and presence status, not phone numbers.
-create or replace function public.list_eligible_store_captains()
+-- PostgreSQL cannot replace a function when its OUT parameter row type changes.
+drop function if exists public.list_eligible_store_captains();
+create function public.list_eligible_store_captains()
 returns table (captain_id uuid, full_name text, is_online boolean, last_seen_at timestamptz)
 language plpgsql
 security definer
