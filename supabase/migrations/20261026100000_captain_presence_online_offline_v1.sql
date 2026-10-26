@@ -16,7 +16,16 @@ as $guard$
 begin
   if (new.is_online is distinct from old.is_online
       or new.last_seen_at is distinct from old.last_seen_at)
-     and pg_catalog.current_setting('shakh.captain_presence_rpc', true) is distinct from 'allowed' then
+     and (
+       pg_catalog.current_setting('shakh.captain_presence_rpc', true) is distinct from 'allowed'
+       or not exists (
+         select 1
+         from public.user_roles ur
+         where ur.user_id = auth.uid()
+           and ur.role = 'captain'::public.app_role
+       )
+       or new.id is distinct from auth.uid()
+     ) then
     raise exception 'Use the captain presence endpoint to update availability'
       using errcode = '42501';
   end if;
