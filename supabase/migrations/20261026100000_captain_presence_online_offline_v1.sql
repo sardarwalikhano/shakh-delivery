@@ -7,7 +7,7 @@ create index if not exists profiles_captain_presence_idx
   on public.profiles (is_online, last_seen_at desc)
   where is_online = true;
 
-create or replace function private.guard_captain_presence_columns()
+create or replace function public.guard_captain_presence_columns()
 returns trigger
 language plpgsql
 security definer
@@ -27,7 +27,7 @@ $guard$;
 drop trigger if exists guard_captain_presence_columns on public.profiles;
 create trigger guard_captain_presence_columns
 before update of is_online, last_seen_at on public.profiles
-for each row execute function private.guard_captain_presence_columns();
+for each row execute function public.guard_captain_presence_columns();
 
 create or replace function public.set_captain_presence(p_is_online boolean)
 returns jsonb
@@ -72,6 +72,6 @@ begin
 end;
 $function$;
 
-revoke all on function private.guard_captain_presence_columns() from public, anon, authenticated;
+revoke all on function public.guard_captain_presence_columns() from public, anon, authenticated;
 revoke all on function public.set_captain_presence(boolean) from public, anon;
 grant execute on function public.set_captain_presence(boolean) to authenticated;
