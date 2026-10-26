@@ -147,3 +147,55 @@ grant execute on function public.list_store_captains() to authenticated;
 grant execute on function public.list_eligible_store_captains() to authenticated;
 grant execute on function public.add_store_captain(uuid) to authenticated;
 grant execute on function public.set_store_captain_active(uuid, boolean) to authenticated;
+
+
+-- For merchant-owned product orders, assignment must use that merchant's active
+-- roster. Non-merchant seller workflows retain their existing global dispatch path.
+create or replace function private.guard_store_captain_assignment()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_seller_id uuid;
+  v_captain_id uuid;
+begin
+  v_seller_id := new.seller_id;
+  v_captain_id := new.captain_id;
+  if v_captain_id is null or v_seller_id is null then return new; end if;
+
+  if exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = v_seller_id
+      and ur.role in ('restaurant_vendor'::public.app_role,
+                      'fashion_vendor'::public.app_role,
+                      'supermarket_vendor'::public.app_role)
+  ) and not exists (
+    select 1
+    from public.store_captains sc
+    join public.profiles p on p.id = sc.captain_id
+    where sc.store_owner_id = v_seller_id
+      and sc.captain_id = v_captain_id
+      and sc.is_active = true
+      and p.is_online = true
+      and p.last_seen_at >= pg_catalog.clock_timestamp() - interval '2 minutes'
+  ) then
+    raise exception 'Captain must be active in this store roster and online'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$function$;
+
+drop trigger if exists guard_store_captain_assignment on public.apparel_post_orders;
+create trigger guard_store_captain_assignment
+before insert or update of captain_id, seller_id on public.apparel_post_orders
+for each row execute function private.guard_store_captain_assignment();
+
+drop trigger if exists guard_store_captain_assignment on public.electronics_post_orders;
+create trigger guard_store_captain_assignment
+before insert or update of captain_id, seller_id on public.electronics_post_orders
+for each row execute function private.guard_store_captain_assignment();
+
+revoke all on function private.guard_store_captain_assignment() from public, anon, authenticated;
