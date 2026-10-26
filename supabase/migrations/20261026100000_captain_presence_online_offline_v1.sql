@@ -511,3 +511,68 @@ $function$;
 
 revoke all on function public.update_product_post_order_status(uuid,text) from public, anon;
 grant execute on function public.update_product_post_order_status(uuid,text) to authenticated;
+
+
+-- The existing supermarket vendor UI exposes order-status actions. Grant the
+-- matching RBAC permission explicitly, and require that permission in the RPC
+-- rather than relying solely on a hard-coded role list.
+insert into public.role_permissions(role, permission_code)
+select 'supermarket_vendor'::public.app_role, p.code
+from public.permissions p
+where p.code = 'orders.manage'
+on conflict do nothing;
+
+create or replace function public.update_store_order_status(
+  p_order_id uuid,
+  p_status public.order_status
+)
+returns public.order_status
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_order public.orders%rowtype;
+  v_user_id uuid := (select auth.uid());
+begin
+  if v_user_id is null then
+    raise exception using errcode='42501', message='Authentication required';
+  end if;
+
+  if not private.has_permission('orders.manage') then
+    raise exception using errcode='42501', message='Order management permission required';
+  end if;
+
+  if not exists (
+    select 1 from public.user_roles ur
+    where ur.user_id=v_user_id
+      and ur.role in ('restaurant_vendor','supermarket_vendor')
+  ) then
+    raise exception using errcode='42501', message='Store owner role required';
+  end if;
+
+  select o.* into v_order
+  from public.orders o
+  join public.stores s on s.id=o.store_id and s.owner_id=v_user_id
+  where o.id=p_order_id
+  for update of o;
+
+  if not found then
+    raise exception using errcode='P0002', message='Order not found for this store';
+  end if;
+
+  if not (
+    (v_order.status='pending' and p_status='confirmed')
+    or (v_order.status='confirmed' and p_status='preparing')
+    or (v_order.status='preparing' and p_status='ready')
+  ) then
+    raise exception using errcode='22023', message='Invalid store order status transition';
+  end if;
+
+  update public.orders set status=p_status where id=p_order_id;
+  return p_status;
+end;
+$function$;
+
+revoke all on function public.update_store_order_status(uuid, public.order_status) from public, anon;
+grant execute on function public.update_store_order_status(uuid, public.order_status) to authenticated;
