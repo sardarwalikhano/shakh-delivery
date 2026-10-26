@@ -578,15 +578,43 @@ revoke all on function public.update_store_order_status(uuid, public.order_statu
 grant execute on function public.update_store_order_status(uuid, public.order_status) to authenticated;
 
 
--- Limit direct profile/role reads to the signed-in user's own row.
--- Dispatchers now use get_available_captains(); role review uses its guarded RPC.
--- Wallet managers retain access through the separate wallets.manage policies,
--- which are required by the existing top-up and captain settlement screens.
+
+-- Restrict broad profile and role reads. The dispatcher only needs to see online,
+-- recently-heartbeating captains; role review and dispatch now use guarded RPCs.
+-- Wallet managers retain access through separate wallets.manage policies.
+create or replace function private.can_view_captain_presence(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+  select
+    (select private.has_permission('deliveries.assign')
+        or private.has_permission('deliveries.view_all'))
+    and exists (
+      select 1
+      from public.user_roles ur
+      where ur.user_id = p_user_id
+        and ur.role = 'captain'::public.app_role
+    );
+$function$;
+
+revoke all on function private.can_view_captain_presence(uuid) from public, anon;
+grant execute on function private.can_view_captain_presence(uuid) to authenticated;
+
 drop policy if exists profiles_select_scoped on public.profiles;
 create policy profiles_select_scoped
   on public.profiles
   for select to authenticated
-  using ((select auth.uid()) = id);
+  using (
+    (select auth.uid()) = id
+    or (
+      is_online = true
+      and last_seen_at >= (select pg_catalog.now() - interval '2 minutes')
+      and private.can_view_captain_presence(id)
+    )
+  );
 
 drop policy if exists user_roles_select_scoped on public.user_roles;
 create policy user_roles_select_scoped
