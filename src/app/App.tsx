@@ -92,7 +92,6 @@ export function App() {
           <Route path="/posts" element={<RequirePermission permission="posts.view"><PostsPage /></RequirePermission>} />
           <Route path="/posts/:id" element={<RequirePermission permission="posts.view"><PostDetailPage /></RequirePermission>} />
           <Route path="/post-orders" element={<RequirePermission permission="posts.view"><ApparelPostOrdersPage /></RequirePermission>} />
-          <Route path="/dashboard/*" element={<RequirePermission permission="dashboard.view"><DashboardPage /></RequirePermission>} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
