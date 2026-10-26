@@ -237,3 +237,42 @@ $function$;
 
 revoke all on function public.record_food_post_payment(uuid,numeric,text) from public, anon;
 grant execute on function public.record_food_post_payment(uuid,numeric,text) to authenticated;
+
+
+-- Use the database clock and dispatcher permission for the online-captain list.
+create or replace function public.get_available_captains()
+returns table (
+  id uuid,
+  full_name text,
+  phone text,
+  avatar_url text,
+  is_online boolean,
+  last_seen_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+begin
+  if auth.uid() is null then
+    raise exception using errcode='42501', message='Authentication required';
+  end if;
+  if not (
+    private.has_permission('deliveries.assign')
+    or private.has_permission('deliveries.view_all')
+  ) then
+    raise exception using errcode='42501', message='Delivery dispatch permission required';
+  end if;
+
+  return query
+  select p.id, p.full_name, p.phone, p.avatar_url, p.is_online, p.last_seen_at
+  from public.profiles p
+  join public.user_roles ur on ur.user_id=p.id and ur.role='captain'::public.app_role
+  where p.is_online=true
+    and p.last_seen_at >= pg_catalog.now() - interval '2 minutes'
+  order by lower(coalesce(p.full_name,p.phone,p.id::text));
+end;
+$function$;
+
+revoke all on function public.get_available_captains() from public, anon;
+grant execute on function public.get_available_captains() to authenticated;
