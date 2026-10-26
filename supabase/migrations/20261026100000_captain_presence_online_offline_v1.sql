@@ -7,6 +7,28 @@ create index if not exists profiles_captain_presence_idx
   on public.profiles (is_online, last_seen_at desc)
   where is_online = true;
 
+create or replace function private.guard_captain_presence_columns()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $guard$
+begin
+  if (new.is_online is distinct from old.is_online
+      or new.last_seen_at is distinct from old.last_seen_at)
+     and pg_catalog.current_setting('shakh.captain_presence_rpc', true) is distinct from 'allowed' then
+    raise exception 'Use the captain presence endpoint to update availability'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$guard$;
+
+drop trigger if exists guard_captain_presence_columns on public.profiles;
+create trigger guard_captain_presence_columns
+before update of is_online, last_seen_at on public.profiles
+for each row execute function private.guard_captain_presence_columns();
+
 create or replace function public.set_captain_presence(p_is_online boolean)
 returns jsonb
 language plpgsql
@@ -30,6 +52,8 @@ begin
     raise exception 'Captain role required' using errcode = '42501';
   end if;
 
+  perform pg_catalog.set_config('shakh.captain_presence_rpc', 'allowed', true);
+
   update public.profiles p
      set is_online = p_is_online,
          last_seen_at = case when p_is_online then pg_catalog.now() else p.last_seen_at end,
@@ -48,5 +72,6 @@ begin
 end;
 $function$;
 
+revoke all on function private.guard_captain_presence_columns() from public, anon, authenticated;
 revoke all on function public.set_captain_presence(boolean) from public, anon;
 grant execute on function public.set_captain_presence(boolean) to authenticated;
