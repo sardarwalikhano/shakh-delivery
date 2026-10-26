@@ -140,8 +140,8 @@ for each row execute function public.guard_captain_assignment_presence();
 -- Restrictive lookup indexes selected from the live FK audit.
 -- Foreign keys whose only expected use is rare ON DELETE SET NULL/RESTRICT checks
 -- are deliberately not indexed here; add those only after workload evidence.
-create index if not exists captain_cash_settlement_batches_captain_created_idx
-  on public.captain_cash_settlement_batches (captain_id, created_at desc);
+create index if not exists captain_cash_settlement_batches_captain_settled_idx
+  on public.captain_cash_settlement_batches (captain_id, settled_at desc);
 
 create index if not exists food_post_payment_events_captain_received_idx
   on public.food_post_payment_events (captain_id, received_at desc);
