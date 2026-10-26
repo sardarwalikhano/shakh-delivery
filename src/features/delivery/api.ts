@@ -122,22 +122,9 @@ export async function getDispatchDeliveries(): Promise<Delivery[]> {
 }
 
 export async function getAvailableCaptains(): Promise<Captain[]> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id,full_name,phone,avatar_url,is_online,last_seen_at,user_roles!inner(role)')
-    .eq('user_roles.role', 'captain')
-    .eq('is_online', true)
-    .gte('last_seen_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
-    .order('full_name', { ascending: true });
+  const { data, error } = await supabase.rpc('get_available_captains');
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    full_name: row.full_name as string | null,
-    phone: row.phone as string | null,
-    avatar_url: row.avatar_url as string | null,
-    is_online: Boolean(row.is_online),
-    last_seen_at: row.last_seen_at as string | null,
-  }));
+  return (data ?? []) as Captain[];
 }
 
 export async function createDelivery(orderId: string, assignedBy: string, captainId: string | null, dispatchNote?: string): Promise<Delivery> {
