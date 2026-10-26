@@ -69,3 +69,11 @@ No broad table policies were added. Keep the tables private and test the RPC bou
 3. Run two-user/RLS tests for the three private/no-policy tables and all sensitive definer RPCs.
 4. Audit the remaining financial, role review, storage, authentication, and catalog query paths. Review the pg_net dependency before any schema move.
 5. After approved tests, schedule production migration execution and merge separately. Do not promote production until those checks pass.
+
+## Merchant-scoped captain roster update
+
+- Added `public.store_captains` as an additive store-owner ↔ captain roster; no existing users, roles, orders, balances, or deliveries are rewritten.
+- Added guarded RPCs: `list_store_captains()`, `list_eligible_store_captains()`, `add_store_captain(uuid)`, and `set_store_captain_active(uuid, boolean)`. Each validates the caller's authenticated identity and merchant role; direct table access is revoked and RLS is enabled.
+- Added the Kurdish RTL page `src/features/delivery/pages/StoreCaptainsPage.tsx` at `/dashboard/store-captains`, linked in merchant navigation. It lists each merchant's roster, online/offline state, and permits adding, activating, and deactivating a captain.
+- Added a database guard for apparel/electronics merchant order assignment: when the seller is a merchant, the captain must belong to that seller's active roster and be online with a fresh heartbeat. Non-merchant seller workflows retain the existing global dispatch path.
+- This migration has not been applied to Production. Before release, verify the actual merchant-role ownership model and test assignment for food, general deliveries, and each supported merchant type; the new trigger currently explicitly covers apparel and electronics order tables.
