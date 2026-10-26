@@ -169,3 +169,71 @@ create index if not exists whatsapp_outbox_receipt_idx
 
 create index if not exists whatsapp_outbox_settlement_batch_idx
   on public.whatsapp_message_outbox (settlement_batch_id);
+
+
+-- A captain may record collection only for Cash on Delivery. Mobile Cash must be
+-- confirmed through its payment provider/admin flow, not by a courier self-attestation.
+create or replace function public.record_food_post_payment(
+  p_order_id uuid,
+  p_amount_iqd numeric,
+  p_note text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_order public.food_post_orders%rowtype;
+  v_event public.food_post_payment_events%rowtype;
+begin
+  if v_user_id is null then
+    raise exception using errcode='42501', message='Authentication required';
+  end if;
+  if not (select private.has_permission('deliveries.status_update')) then
+    raise exception using errcode='42501', message='Captain delivery permission required';
+  end if;
+
+  select * into v_order
+  from public.food_post_orders
+  where id=p_order_id and captain_id=v_user_id
+  for update;
+  if not found then
+    raise exception using errcode='42501', message='Food order is not assigned to you';
+  end if;
+  if v_order.delivery_status <> 'delivered' then
+    raise exception using errcode='22023', message='Mark this delivery as delivered before recording payment';
+  end if;
+  if v_order.payment_method <> 'cash_on_delivery' then
+    raise exception using errcode='22023', message='Mobile Cash must be verified through the payment confirmation flow';
+  end if;
+  if round(coalesce(p_amount_iqd,0),2) <> v_order.total_iqd then
+    raise exception using errcode='22023', message='Received amount must match the order total';
+  end if;
+  if length(coalesce(p_note,'')) > 1000 then
+    raise exception using errcode='22023', message='Payment note is too long';
+  end if;
+
+  select * into v_event from public.food_post_payment_events where order_id=p_order_id;
+  if found then
+    if v_event.captain_id <> v_user_id or v_event.amount_iqd <> p_amount_iqd then
+      raise exception using errcode='23505', message='Payment for this order has already been recorded';
+    end if;
+    return jsonb_build_object('id',v_event.id,'order_id',v_event.order_id,'amount_iqd',v_event.amount_iqd,'received_at',v_event.received_at);
+  end if;
+
+  insert into public.food_post_payment_events(order_id,captain_id,amount_iqd,payment_method,note)
+  values(p_order_id,v_user_id,v_order.total_iqd,v_order.payment_method,nullif(btrim(p_note),'' ))
+  returning * into v_event;
+
+  update public.food_post_orders
+  set payment_status='collected',payment_collected_at=v_event.received_at,updated_at=now()
+  where id=p_order_id;
+
+  return jsonb_build_object('id',v_event.id,'order_id',v_event.order_id,'amount_iqd',v_event.amount_iqd,'received_at',v_event.received_at);
+end;
+$function$;
+
+revoke all on function public.record_food_post_payment(uuid,numeric,text) from public, anon;
+grant execute on function public.record_food_post_payment(uuid,numeric,text) to authenticated;
