@@ -84,3 +84,54 @@ $function$;
 revoke all on function public.guard_captain_presence_columns() from public, anon, authenticated;
 revoke all on function public.set_captain_presence(boolean) from public, anon;
 grant execute on function public.set_captain_presence(boolean) to authenticated;
+
+
+-- Reject new delivery assignments/claims for offline or stale captains at the database layer.
+-- Existing delivery progress updates are unaffected because the guard only runs when captain_id changes.
+create or replace function public.guard_captain_assignment_presence()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $guard$
+begin
+  if new.captain_id is not null
+     and (tg_op = 'INSERT' or old.captain_id is distinct from new.captain_id) then
+    if not exists (
+      select 1
+      from public.user_roles ur
+      join public.profiles p on p.id = ur.user_id
+      where ur.user_id = new.captain_id
+        and ur.role = 'captain'::public.app_role
+        and p.is_online = true
+        and p.last_seen_at >= pg_catalog.now() - interval '2 minutes'
+    ) then
+      raise exception 'Captain is offline or heartbeat is stale'
+        using errcode = '23514';
+    end if;
+  end if;
+  return new;
+end;
+$guard$;
+
+revoke all on function public.guard_captain_assignment_presence() from public, anon, authenticated;
+
+drop trigger if exists guard_captain_assignment_presence on public.deliveries;
+create trigger guard_captain_assignment_presence
+before insert or update of captain_id on public.deliveries
+for each row execute function public.guard_captain_assignment_presence();
+
+drop trigger if exists guard_captain_assignment_presence on public.food_post_orders;
+create trigger guard_captain_assignment_presence
+before insert or update of captain_id on public.food_post_orders
+for each row execute function public.guard_captain_assignment_presence();
+
+drop trigger if exists guard_captain_assignment_presence on public.apparel_post_orders;
+create trigger guard_captain_assignment_presence
+before insert or update of captain_id on public.apparel_post_orders
+for each row execute function public.guard_captain_assignment_presence();
+
+drop trigger if exists guard_captain_assignment_presence on public.electronics_post_orders;
+create trigger guard_captain_assignment_presence
+before insert or update of captain_id on public.electronics_post_orders
+for each row execute function public.guard_captain_assignment_presence();
