@@ -1,4 +1,4 @@
--- Add explicit, server-verified captain availability without changing delivery/payment flows.
+-- Add server-verified captain availability, protect payment-state transitions, and cover audited FK lookups.
 alter table public.profiles
   add column if not exists is_online boolean not null default false,
   add column if not exists last_seen_at timestamptz;
