@@ -58,7 +58,7 @@ No broad table policies were added. Keep the tables private and test the RPC bou
 - Preview for the exact audited commit returned HTTP 200 and served the Kurdish Sorani RTL app shell. This is not an authenticated workflow test.
 - Live Storage inspection found public post/product image buckets constrained to JPEG/PNG/WebP and 5 MiB per file, and private payout/wallet-receipt buckets allowing common image/PDF MIME types with 5 MiB limits. Existing object policies scope uploads by permission and folder ownership; no storage policy was changed.
 - Not yet run: authenticated captain online/offline integration tests, RLS tests using multiple users, full financial integrity tests, all-role dashboard tests, all route/profile UI regression tests, mobile/tablet visual checks, and full end-to-end tests.
-- No migration has been applied to production. The feature will not work against the current production schema until the migration is reviewed and applied.
+- The presence-only subset migration was applied to the separate `testing` Supabase project (not production); unauthenticated calls to `set_captain_presence` and `get_available_captains` were rejected with SQLSTATE 42501 as expected. An authenticated positive-path test was blocked by the SQL tool's security checks and no test users were created. No migration has been applied to production. The full feature will not work against production until the migration is reviewed and applied.
 
 ## Required next checks before release
 
