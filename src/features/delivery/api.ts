@@ -50,7 +50,33 @@ export type Captain = {
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  is_online: boolean;
+  last_seen_at: string | null;
 };
+
+export type CaptainPresence = {
+  is_online: boolean;
+  last_seen_at: string | null;
+};
+
+export async function setCaptainPresence(isOnline: boolean): Promise<CaptainPresence> {
+  const { data, error } = await supabase.rpc('set_captain_presence', { p_is_online: isOnline });
+  if (error) throw error;
+  const presence = data as CaptainPresence | null;
+  if (!presence || typeof presence.is_online !== 'boolean') {
+    throw new Error('دۆخی کاپتن لە سێرڤەرەوە پشتڕاست نەکرایەوە.');
+  }
+  return presence;
+}
+
+export async function getMyCaptainPresence(): Promise<CaptainPresence> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_online,last_seen_at')
+    .single();
+  if (error) throw error;
+  return { is_online: Boolean(data.is_online), last_seen_at: data.last_seen_at as string | null };
+}
 
 const deliverySelect = `
   id,order_id,captain_id,status,assigned_by,assigned_at,accepted_at,picked_up_at,
@@ -97,8 +123,10 @@ export async function getDispatchDeliveries(): Promise<Delivery[]> {
 export async function getAvailableCaptains(): Promise<Captain[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id,full_name,phone,avatar_url,user_roles!inner(role)')
+    .select('id,full_name,phone,avatar_url,is_online,last_seen_at,user_roles!inner(role)')
     .eq('user_roles.role', 'captain')
+    .eq('is_online', true)
+    .gte('last_seen_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
     .order('full_name', { ascending: true });
   if (error) throw error;
   return (data ?? []).map((row) => ({
@@ -106,6 +134,8 @@ export async function getAvailableCaptains(): Promise<Captain[]> {
     full_name: row.full_name as string | null,
     phone: row.phone as string | null,
     avatar_url: row.avatar_url as string | null,
+    is_online: Boolean(row.is_online),
+    last_seen_at: row.last_seen_at as string | null,
   }));
 }
 
