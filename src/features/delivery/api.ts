@@ -69,10 +69,11 @@ export async function setCaptainPresence(isOnline: boolean): Promise<CaptainPres
   return presence;
 }
 
-export async function getMyCaptainPresence(): Promise<CaptainPresence> {
+export async function getMyCaptainPresence(userId: string): Promise<CaptainPresence> {
   const { data, error } = await supabase
     .from('profiles')
     .select('is_online,last_seen_at')
+    .eq('id', userId)
     .single();
   if (error) throw error;
   return { is_online: Boolean(data.is_online), last_seen_at: data.last_seen_at as string | null };
