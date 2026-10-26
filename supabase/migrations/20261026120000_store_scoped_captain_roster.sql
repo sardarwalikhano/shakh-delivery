@@ -53,8 +53,9 @@ begin
 end;
 $function$;
 
+-- Eligible roster candidates disclose only identity and presence status, not phone numbers.
 create or replace function public.list_eligible_store_captains()
-returns table (captain_id uuid, full_name text, phone text, is_online boolean, last_seen_at timestamptz)
+returns table (captain_id uuid, full_name text, is_online boolean, last_seen_at timestamptz)
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private
@@ -72,7 +73,7 @@ begin
   end if;
 
   return query
-  select p.id, p.full_name, p.phone, p.is_online, p.last_seen_at
+  select p.id, p.full_name, p.is_online, p.last_seen_at
   from public.profiles p
   where exists (
     select 1 from public.user_roles ur
