@@ -16,9 +16,11 @@ This is a staged audit report, not a claim that every application route has been
 - Added a profile trigger that rejects direct changes to the presence columns unless they are made through the authorized presence RPC.
 - Added a database trigger on deliveries, food_post_orders, apparel_post_orders, and electronics_post_orders that rejects a new captain assignment/claim if the captain is not online or their heartbeat is older than two minutes. Existing delivery status changes for already assigned captains are not blocked.
 - Added an Online/Offline control to the existing captain dashboard. While online, it sends a 45-second heartbeat and handles read/write failures with an error message.
-- Changed dispatcher captain lookup to return only captains whose online flag is set and whose heartbeat is within two minutes.
+- Changed dispatcher captain lookup to a restricted RPC that checks dispatcher permissions and uses the database clock, returning only captains whose online flag is set and whose heartbeat is within two minutes.
 - Added a Realtime subscription to profile changes in the dispatcher view so the available captain list refreshes when presence changes.
-- Added 10 FK lookup indexes selected for active wallet/settlement, order receipt, role request, share-earning, and WhatsApp outbox query paths. Low-value SET NULL/rarely deleted foreign keys were not all indexed blindly.
+- Added 10 FK lookup indexes selected for active wallet/settlement, order receipt, role request, share-earning, and WhatsApp outbox query paths. Column names were checked against the live schema; low-value SET NULL/rarely deleted foreign keys were not all indexed blindly.
+- Fixed a confirmed food-order payment-control gap: the captain payment RPC previously allowed marking Mobile Cash orders as collected. The migration now restricts captain collection to Cash on Delivery; the UI offers collection only for COD orders and labels pending Mobile Cash as awaiting payment confirmation.
+- Fixed invalid dashboard navigation: links to non-existent payments/users/reports/support/audit routes were hidden until real pages exist, the missing reports quick action was removed, and unknown dashboard paths no longer silently render the dashboard home. Wallet, receipt, role-request, delivery, and system-auditor pages remain available at their implemented routes.
 
 ## Security review findings
 
@@ -51,8 +53,8 @@ No broad table policies were added. Keep the tables private and test the RPC bou
 
 ## Verification status
 
-- GitHub Actions CI: latest run must complete for the current PR head before merge. CI currently checks TypeScript and production build with placeholder public environment variables; it does not test production database access.
-- Vercel: preview builds were generated for multiple commits on this branch. Verify the deployment matching the latest PR head SHA, not an older READY preview, before review.
+- GitHub Actions CI: the run for the earlier commit 34a845ef... passed TypeScript and production build. A new run for the current head 884977c... was in progress at last check; rerun/confirm this latest result before review. CI uses placeholder public environment variables and does not test production database access.
+- Vercel: the preview for earlier commit 34a845ef... was READY and returned HTTP 200 for the Sorani RTL app shell. A new preview for current head 884977c... was queued at last check; verify the latest-head deployment before review.
 - Preview root returned HTTP 200 and served the Kurdish Sorani RTL app shell. This is not an authenticated workflow test.
 - Not yet run: authenticated captain online/offline integration tests, RLS tests using multiple users, full financial integrity tests, all-role dashboard tests, all route/profile UI regression tests, mobile/tablet visual checks, and full end-to-end tests.
 - No migration has been applied to production. The feature will not work against the current production schema until the migration is reviewed and applied.
