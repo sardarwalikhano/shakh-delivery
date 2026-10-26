@@ -137,9 +137,9 @@ before insert or update of captain_id on public.electronics_post_orders
 for each row execute function public.guard_captain_assignment_presence();
 
 
--- Restrictive lookup indexes selected from the live FK audit.
--- Foreign keys whose only expected use is rare ON DELETE SET NULL/RESTRICT checks
--- are deliberately not indexed here; add those only after workload evidence.
+-- Additional lookup and FK enforcement indexes selected from the live schema audit.
+-- The affected tables were small at audit time; names/columns were validated,
+-- existing indexes are preserved, and every index uses IF NOT EXISTS.
 create index if not exists captain_cash_settlement_batches_captain_settled_idx
   on public.captain_cash_settlement_batches (captain_id, settled_at desc);
 
