@@ -55,12 +55,12 @@ No broad table policies were added. Keep the tables private and test the RPC bou
 
 ## Verification status
 
-- GitHub Actions CI: run 40283416969 completed successfully for commit `192e6a102341a5e74c9e9ddc693a5143e6f2b0c0`; both TypeScript and production build steps passed. CI uses placeholder public environment variables and does not test production database access. A later documentation update triggers a new CI run, which must also pass before review.
-- Vercel: preview `dpl_xXimQmerUP87kPokFhyBuFn9BFfC` for commit `192e6a102341a5e74c9e9ddc693a5143e6f2b0c0` reached READY; requesting its root returned HTTP 200 with the Kurdish Sorani RTL app shell. A later documentation update triggers a new preview, which must reach READY before review.
+- GitHub Actions CI: run `40284217719` completed successfully for the latest code commit `b8778d990527b5bec203bfa349d2571688c01ce7`; TypeScript and production build both passed. CI uses placeholder public environment variables and does not test production database access.
+- Vercel: preview `dpl_JA1PfQnBayzHpi2prySa6kUQsTam` matching that same commit reached READY and its root returned HTTP 200 with the Kurdish Sorani RTL shell (`lang=ku-Arab`, `dir=rtl`). This is preview verification, not authenticated workflow or production-domain verification.
 - Preview for the exact audited commit returned HTTP 200 and served the Kurdish Sorani RTL app shell. This is not an authenticated workflow test.
 - Live Storage inspection found public post/product image buckets constrained to JPEG/PNG/WebP and 5 MiB per file, and private payout/wallet-receipt buckets allowing common image/PDF MIME types with 5 MiB limits. Existing object policies scope uploads by permission and folder ownership; no storage policy was changed.
 - Not yet run: authenticated captain online/offline integration tests, RLS tests using multiple users, full financial integrity tests, all-role dashboard tests, all route/profile UI regression tests, mobile/tablet visual checks, and full end-to-end tests.
-- The presence-only subset migration was applied to the separate `testing` Supabase project (not production); unauthenticated calls to `set_captain_presence` and `get_available_captains` were rejected with SQLSTATE 42501 as expected. An authenticated positive-path test was blocked by the SQL tool's security checks and no test users were created. No migration has been applied to production. The full feature will not work against production until the migration is reviewed and applied.
+- The presence-only subset migration was applied to the separate, older `testing` Supabase project (not production); unauthenticated calls to `set_captain_presence` and `get_available_captains` were rejected with SQLSTATE 42501 as expected. An authenticated positive-path test was blocked by the SQL tool's security checks and no test users were created. The full migration was not applied to that stale project because it lacks several current financial tables. No migration has been applied to production. The full feature will not work against production until the migration is reviewed and applied.
 
 ## Required next checks before release
 
