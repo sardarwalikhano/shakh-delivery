@@ -18,7 +18,7 @@ This is a staged audit report, not a claim that every application route has been
 - Added an Online/Offline control to the existing captain dashboard. While online, it sends a 45-second heartbeat and handles read/write failures with an error message.
 - Changed dispatcher captain lookup to a restricted RPC that checks dispatcher permissions and uses the database clock, returning only captains whose online flag is set and whose heartbeat is within two minutes.
 - Added a Realtime subscription to profile changes in the dispatcher view so the available captain list refreshes when presence changes.
-- Added 10 FK lookup indexes selected for active wallet/settlement, order receipt, role request, share-earning, and WhatsApp outbox query paths. Column names were checked against the live schema; low-value SET NULL/rarely deleted foreign keys were not all indexed blindly.
+- Added 28 FK lookup indexes for the 28 live-schema FK relationships that lacked a suitable left-prefix B-tree index in the audit query. This covers wallet/settlement, order receipt, role request, share-earning, WhatsApp outbox, cart cleanup, and remaining FK constraint checks. At audit time, every affected table was under about 130 KB; the index columns were matched to live column names and names are guarded with IF NOT EXISTS.
 - Fixed a confirmed food-order payment-control gap: the captain payment RPC previously allowed marking Mobile Cash orders as collected. The migration now restricts captain collection to Cash on Delivery; the UI offers collection only for COD orders and labels pending Mobile Cash as awaiting payment confirmation.
 - Fixed invalid dashboard navigation: links to non-existent payments/users/reports/support/audit routes were hidden until real pages exist, the missing reports quick action was removed, and unknown dashboard paths no longer silently render the dashboard home. Wallet, receipt, role-request, delivery, and system-auditor pages remain available at their implemented routes.
 
@@ -49,13 +49,14 @@ No broad table policies were added. Keep the tables private and test the RPC bou
 - Supabase Security Advisor reports 47 authenticated-executable definer functions. The ACL/search-path checks above narrowed this from a blanket finding to a body-review task.
 - Supabase Advisor reports 25 unindexed foreign-key relationships. An independent catalog query identified additional uncovered FK columns under a stricter left-prefix rule; not all deserve indexes, particularly low-frequency audit columns and parent references that are rarely deleted.
 - Supabase Advisor reports the pg_net extension in the public schema. Moving it may affect existing function references and needs a separate dependency audit before any change.
-- No production schema change was run to investigate/fix the historic 42703: column "category" does not exist error. The actual current schema and every query path referencing category need a targeted comparison before changing application code or data.
+- The historic 42703 error (column "category" does not exist) was not reproduced by the current schema catalog: public.posts.category exists as a user-defined enum. No production schema change was made for this historic error. If the error returns, capture the exact table/query and compare it to the current schema rather than adding a duplicate column.
 
 ## Verification status
 
 - GitHub Actions CI: the run for the earlier commit 34a845ef... passed TypeScript and production build. A new run for the current head 884977c... was in progress at last check; rerun/confirm this latest result before review. CI uses placeholder public environment variables and does not test production database access.
 - Vercel: the preview for earlier commit 34a845ef... was READY and returned HTTP 200 for the Sorani RTL app shell. A new preview for current head 884977c... was queued at last check; verify the latest-head deployment before review.
-- Preview root returned HTTP 200 and served the Kurdish Sorani RTL app shell. This is not an authenticated workflow test.
+- Preview for the exact audited commit returned HTTP 200 and served the Kurdish Sorani RTL app shell. This is not an authenticated workflow test.
+- Live Storage inspection found public post/product image buckets constrained to JPEG/PNG/WebP and 5 MiB per file, and private payout/wallet-receipt buckets allowing common image/PDF MIME types with 5 MiB limits. Existing object policies scope uploads by permission and folder ownership; no storage policy was changed.
 - Not yet run: authenticated captain online/offline integration tests, RLS tests using multiple users, full financial integrity tests, all-role dashboard tests, all route/profile UI regression tests, mobile/tablet visual checks, and full end-to-end tests.
 - No migration has been applied to production. The feature will not work against the current production schema until the migration is reviewed and applied.
 
