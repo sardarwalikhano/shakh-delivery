@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Activity, Bell, Boxes, ChevronLeft, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, WalletCards, X } from 'lucide-react';
+import { Activity, Bell, Boxes, ChevronLeft, FileText, Gift, LayoutDashboard, Menu, Package, ShieldCheck, ShoppingCart, Store, Truck, UserRound, WalletCards, X } from 'lucide-react';
 import { useAuthorization } from '@/lib/permissions/AuthorizationContext';
 import { roleLabelsKu } from '@/features/role-requests/roleLabels';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
   { label: 'داواکارییەکان', href: '/dashboard/orders', icon: ShoppingCart, permission: 'orders.view', section: 'operations' },
   { label: 'وەسڵەکانی فرۆشتن', href: '/receipts', icon: FileText, permission: 'orders.view', section: 'operations' },
   { label: 'گەیاندنەکان', href: '/dashboard/deliveries', icon: Truck, permission: 'deliveries.view', section: 'operations' },
+  { label: 'کاپتنەکانی دوکان', href: '/dashboard/store-captains', icon: UserRound, permission: 'vendors.view', section: 'operations' },
   { label: 'ئاگادارکردنەوەکان', href: '/dashboard/notifications', icon: Bell, permission: 'notifications.view_own', section: 'management' },
   { label: 'داواکارییەکانی Role', href: '/dashboard/role-requests', icon: ShieldCheck, permission: 'role_requests.review', section: 'management' },
   { label: 'پشکنینی سیستەم', href: '/dashboard/system-auditor', icon: Activity, permission: 'audit.view', section: 'management' },
