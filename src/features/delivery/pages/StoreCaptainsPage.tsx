@@ -79,7 +79,7 @@ export function StoreCaptainsPage() {
           <label htmlFor="captain-select" className="mt-5 block text-sm font-bold text-slate-800">کاپتن</label>
           <select id="captain-select" value={selectedId} onChange={e => setSelectedId(e.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100">
             <option value="">کاپتن هەڵبژێرە...</option>
-            {eligible.map(c => <option key={c.captain_id} value={c.captain_id}>{c.full_name || 'بێ ناو'}{c.phone ? ' — ' + c.phone : ''}{c.is_online ? ' (ئۆنلاین)' : ' (ئۆفلاین)'}</option>)}
+            {eligible.map(c => <option key={c.captain_id} value={c.captain_id}>{c.full_name || 'بێ ناو'}{c.is_online ? ' (ئۆنلاین)' : ' (ئۆفلاین)'}</option>)}
           </select>
           <button type="button" onClick={() => void addCaptain()} disabled={!selectedId || saving} className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"><UserPlus size={18} /> {saving ? 'چاوەڕوان بە...' : 'زیادکردن بۆ دوکان'}</button>
           {eligible.length === 0 && !loading && <p className="mt-3 text-sm text-slate-500">هیچ کاپتنێکی نوێ بەردەست نییە بۆ زیادکردن.</p>}
