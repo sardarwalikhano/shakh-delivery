@@ -424,14 +424,14 @@ function CaptainOrScopedView({ role, userId }: { role: string | null; userId: st
             onAction={() => void advanceFoodOrder(order)}
             actionLabel={target ? `گواستنەوە بۆ ${foodDeliveryStatusLabel[target]}` : 'چاوەڕوانی'} />;
         })}
-        {foodOrders.filter((order) => order.captain_id === userId && order.delivery_status === 'delivered' && order.payment_status === 'pending').map((order) => (
+        {foodOrders.filter((order) => order.captain_id === userId && order.delivery_status === 'delivered' && order.payment_status === 'pending' && order.payment_method === 'cash_on_delivery').map((order) => (
           <FoodPostCaptainCard key={order.id} order={order} busy={busyId === order.id} onAction={() => void recordFoodPayment(order)} actionLabel="تۆمارکردنی وەرگرتنی پارە" />
         ))}
-        {!loading && !foodOrders.some((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending'))) ? <Empty text="هیچ داواکاریی خواردنێکی سپێردراو نییە." /> : null}
+        {!loading && !foodOrders.some((order) => order.captain_id === userId && (!['delivered','failed','cancelled'].includes(order.delivery_status) || (order.delivery_status === 'delivered' && order.payment_status === 'pending' && order.payment_method === 'cash_on_delivery'))) ? <Empty text="هیچ داواکاریی خواردنێکی سپێردراو نییە." /> : null}
       </section> : null}
       {role === 'captain' ? <section className="space-y-3">
         <div className="flex items-center gap-2 px-1"><PackageCheck size={18} className="text-[var(--shakh-green)]"/><h2 className="text-lg font-black">مێژووی داواکاریی خواردن</h2></div>
-        {foodOrders.filter((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')).map((order) => (
+        {foodOrders.filter((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending' && order.payment_method === 'cash_on_delivery')).map((order) => (
           <FoodPostCaptainCard key={order.id} order={order} busy={false} />
         ))}
         {!loading && !foodOrders.some((order) => order.captain_id === userId && ['delivered','failed','cancelled'].includes(order.delivery_status) && !(order.delivery_status === 'delivered' && order.payment_status === 'pending')) ? <Empty text="مێژووی داواکاریی خواردن بەتاڵە." /> : null}
@@ -590,7 +590,11 @@ function FoodPostCaptainCard({ order, busy, onAction, actionLabel }: { order: Fo
           <FoodAmount label="کرێی پلاتفۆرم" amount={order.platform_fee_iqd} />
           <FoodAmount label="ئەو بڕەی لە کڕیار وەردەگریت" amount={order.total_iqd} strong />
         </div>
-        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected' ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع` : 'هێشتا وەرنەگیراوە'}</div>
+        <div className="mt-2 text-xs font-bold text-black/45">پارەدان: {order.payment_method === 'cash_on_delivery' ? 'کاش لە کاتی گەیاندن' : 'Mobile Cash'} · {order.payment_status === 'collected'
+          ? `وەرگیرا و تۆمارکرا · ${Number(order.payment_event?.[0]?.amount_iqd ?? order.total_iqd).toLocaleString('en-US')} د.ع`
+          : order.payment_method === 'mobile_cash'
+            ? 'Mobile Cash · چاوەڕوانی پشتڕاستکردنەوەی پارە لەلایەن سیستەم/ئەدمین'
+            : 'کاش · هێشتا وەرنەگیراوە'}</div>
       </div>
       {onAction && actionLabel ? <button disabled={busy} onClick={onAction} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--shakh-navy)] px-5 py-3 text-sm font-black text-white disabled:opacity-40"><Check size={17}/>{busy ? 'چاوەڕوانبە...' : actionLabel}</button> : null}
     </div>
