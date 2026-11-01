@@ -61,7 +61,7 @@ export function DashboardLayout() {
     <>
       <div className="shakh-dashboard__brand p-4 text-white">
         <div className="flex items-center gap-3">
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--shakh-orange)] text-lg font-black text-[var(--shakh-navy)]">S</div>
+          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#d8a64c] text-lg font-black text-[#102d2a]">S</div>
           <div className="min-w-0">
             <div className="truncate font-black">SHAKH Delivery</div>
             <div className="mt-0.5 truncate text-xs text-white/50">{displayRole ? roleLabelsKu[displayRole] ?? displayRole : '...'}</div>
@@ -73,7 +73,7 @@ export function DashboardLayout() {
       <nav className="mt-3 space-y-3 pb-5" aria-label="Dashboard navigation">
         {visibleSections.map(({ section, items }) => (
           <section key={section} aria-label={sectionLabels[section]}>
-            <h2 className="px-3.5 pb-1.5 pt-2 text-[10px] font-black tracking-wide text-white/45">{sectionLabels[section]}</h2>
+            <h2 className="px-3.5 pb-1.5 pt-2 text-[10px] font-black tracking-wide text-white/50">{sectionLabels[section]}</h2>
             <div className="space-y-1">
               {items.map((item) => (
                 <NavLink key={item.href} to={item.href} end={item.href === '/dashboard'} onClick={() => setMenuOpen(false)}
