@@ -120,86 +120,84 @@ const dashboardActions: DashboardAction[] = [
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { roles, permissions } = useAuthorization();
+  const { roles, permissions, loading, error, refresh } = useAuthorization();
   const displayRole = roles.find((item) => item !== 'customer') ?? roles[0] ?? null;
   const presentation = displayRole ? rolePresentation[displayRole] : null;
   const visibleActions = dashboardActions.filter((action) => permissions.has(action.permission));
 
+  const groupedActions = [
+    { title: 'بازاڕ و بەرهەم', description: 'پۆست، بەرهەم و فرۆشگا', items: visibleActions.filter((item) => ['posts.create','posts.view','posts.update_own','vendors.view','products.manage'].includes(item.permission)) },
+    { title: 'ئۆردەر و گەیاندن', description: 'داواکاری و ڕێڕەوی گەیاندن', items: visibleActions.filter((item) => ['orders.view','deliveries.view'].includes(item.permission)) },
+    { title: 'دارایی و جزدان', description: 'باڵانس، وەسڵ و مامەڵەکان', items: visibleActions.filter((item) => ['wallets.view_own','wallets.manage'].includes(item.permission)) },
+    { title: 'بەڕێوەبردن و چاودێری', description: 'ڕۆڵ، ئاگادارکردنەوە و چاودێری', items: visibleActions.filter((item) => ['role_requests.review','notifications.view_own','audit.view'].includes(item.permission)) },
+  ].filter((group) => group.items.length > 0);
+
   return (
-    <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] bg-[linear-gradient(125deg,#102641_0%,#153d69_56%,#225cff_100%)] p-5 text-white shadow-[0_22px_55px_rgba(16,38,65,.16)] sm:p-7 lg:p-9">
-        <div className="pointer-events-none absolute -end-14 -top-20 size-56 rounded-full bg-[var(--shakh-orange)]/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 start-1/4 size-64 rounded-full bg-blue-300/10 blur-3xl" />
-        <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+    <div className="space-y-6" dir="rtl">
+      <section className="relative isolate overflow-hidden rounded-[30px] border border-[#1c3850] bg-[linear-gradient(125deg,#0a1d2b_0%,#12384a_58%,#17645a_100%)] p-5 text-white shadow-[0_24px_65px_rgba(7,29,43,.18)] sm:p-7 lg:p-9">
+        <div className="pointer-events-none absolute -end-16 -top-24 -z-10 size-72 rounded-full bg-[#d8a64c]/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 start-1/4 -z-10 size-72 rounded-full bg-[#6bd2b0]/15 blur-3xl" />
+        <div className="relative flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-black tracking-wider text-white/75">{presentation?.eyebrow ?? 'SHAKH WORKSPACE'}</span>
-              {displayRole ? <span className="rounded-full bg-[var(--shakh-orange)] px-3 py-1 text-xs font-black text-white">{roleLabelsKu[displayRole] ?? displayRole}</span> : null}
+              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-black tracking-wider text-white/75">SHAKH • CONTROL CENTER</span>
+              {displayRole ? <span className="rounded-full bg-[#d8a64c] px-3 py-1 text-xs font-black text-[#182b31]">{roleLabelsKu[displayRole] ?? displayRole}</span> : null}
             </div>
-            <h1 className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">{presentation?.title ?? 'بەخێربێیتە داشبۆردی شاخ'}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-white/75">{presentation?.description ?? 'داشبۆردەکە بەپێی مۆڵەتە پشتڕاستکراوەکانی هەژمارەکەت ڕێکدەخرێت.'}</p>
+            <h1 className="mt-5 text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">{presentation?.title ?? 'بەخێربێیتە داشبۆردی شاخ'}</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-8 text-white/75">{presentation?.description ?? 'داشبۆردەکە بەپێی مۆڵەتە پشتڕاستکراوەکانی هەژمارەکەت ڕێکدەخرێت.'}</p>
           </div>
-          <div className="w-full shrink-0 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm lg:w-72">
-            <div className="text-[11px] font-bold text-white/55">SIGNED IN AS</div>
+          <div className="w-full shrink-0 rounded-2xl border border-white/15 bg-white/[.09] p-4 backdrop-blur-md lg:w-80">
+            <div className="text-[11px] font-bold text-white/55">بەکارهێنەری ئێستا</div>
             <div className="mt-1 truncate text-sm font-bold text-white" dir="ltr">{user?.email ?? '—'}</div>
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
-              <span className="text-xs text-white/65">بەشە دەستگەیشتووەکان</span>
-              <span className="rounded-lg bg-white/15 px-2.5 py-1 text-sm font-black tabular-nums">{visibleActions.length}</span>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-3">
+              <div><div className="text-xs text-white/60">بەشە بەردەستەکان</div><div className="mt-1 text-2xl font-black tabular-nums">{visibleActions.length}</div></div>
+              <div><div className="text-xs text-white/60">ڕۆڵە چالاکەکان</div><div className="mt-1 text-2xl font-black tabular-nums">{roles.length}</div></div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-black tracking-wide text-[var(--shakh-orange)]">{presentation?.accent ?? 'دەستگەیشتنی ڕۆڵ'}</p>
-            <h2 className="mt-1 text-xl font-black text-[var(--shakh-ink)]">دەستگەیشتنی خێرا</h2>
-          </div>
-          <p className="text-xs leading-6 text-black/45">بەشەکان بە مۆڵەتی Supabase فلتەر دەکرێن؛ زانیاری و ژمارەی ساختە بەکارنەهاتووە.</p>
-        </div>
+      {error ? (
+        <section role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between">
+          <span>نەتوانرا مۆڵەتەکان نوێ بکرێنەوە. بۆ پاراستنی هەژمار، بەشەکان تا پشتڕاستکردنەوە پیشان نادرێن.</span>
+          <button type="button" onClick={() => void refresh()} className="rounded-xl border border-rose-300 px-4 py-2 font-bold hover:bg-rose-100">هەوڵدانەوە</button>
+        </section>
+      ) : null}
 
-        {visibleActions.length > 0 ? (
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-[#d8e2df] bg-white p-4 shadow-sm"><div className="text-xs font-bold text-[#60746f]">دۆخی دەستگەیشتن</div><div className="mt-2 flex items-center gap-2 text-sm font-black text-[#176b53]"><span className="size-2 rounded-full bg-[#23966e]" />{loading ? 'پشکنین...' : error ? 'پێویستی بە پشکنین هەیە' : 'پشتڕاستکراوە'}</div></div>
+        <div className="rounded-2xl border border-[#d8e2df] bg-white p-4 shadow-sm"><div className="text-xs font-bold text-[#60746f]">کۆی بەشە ڕێگەپێدراوەکان</div><div className="mt-2 text-2xl font-black tabular-nums text-[#183b43]">{loading ? '—' : visibleActions.length}</div></div>
+        <div className="rounded-2xl border border-[#d8e2df] bg-white p-4 shadow-sm"><div className="text-xs font-bold text-[#60746f]">ڕۆڵە چالاکەکان</div><div className="mt-2 text-2xl font-black tabular-nums text-[#183b43]">{loading ? '—' : roles.length}</div></div>
+        <div className="rounded-2xl border border-[#d8e2df] bg-white p-4 shadow-sm"><div className="text-xs font-bold text-[#60746f]">خزمەتگوزاری</div><div className="mt-2 text-sm font-black text-[#176b53]">Supabase • Live authorization</div></div>
+      </section>
+
+      {groupedActions.length > 0 ? groupedActions.map((group, index) => (
+        <section key={group.title} className="space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div><p className="text-xs font-black tracking-wide text-[#98712e]">{String(index + 1).padStart(2, '0')} / WORKSPACE</p><h2 className="mt-1 text-xl font-black text-[#183b43]">{group.title}</h2></div>
+            <p className="text-xs text-[#687d78]">{group.description}</p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleActions.map((action) => (
-              <Link
-                key={action.href}
-                to={action.href}
-                className="group flex min-h-36 items-start gap-4 rounded-2xl border border-[var(--shakh-border)] bg-white p-4 shadow-[0_8px_24px_rgba(16,38,65,.035)] transition duration-150 hover:-translate-y-0.5 hover:border-[var(--shakh-orange)]/40 hover:shadow-[0_15px_30px_rgba(16,38,65,.08)] sm:p-5"
-              >
-                <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--shakh-orange)]/10 text-[var(--shakh-orange)] transition group-hover:bg-[var(--shakh-orange)] group-hover:text-white">
-                  <action.icon size={21} strokeWidth={2.1} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-black text-[var(--shakh-ink)]">{action.title}</span>
-                  <span className="mt-2 block text-xs leading-6 text-black/50">{action.description}</span>
-                </span>
-                <ArrowUpLeft size={17} className="mt-1 shrink-0 text-black/25 transition group-hover:text-[var(--shakh-orange)]" />
+            {group.items.map((action) => (
+              <Link key={action.href} to={action.href} className="group flex min-h-32 items-start gap-4 rounded-2xl border border-[#dce6e2] bg-white p-4 shadow-[0_8px_24px_rgba(12,43,38,.04)] transition duration-200 hover:-translate-y-1 hover:border-[#c8a45c] hover:shadow-[0_18px_36px_rgba(12,43,38,.10)] sm:p-5">
+                <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#eaf3ef] text-[#176b53] transition group-hover:bg-[#176b53] group-hover:text-white"><action.icon size={21} strokeWidth={2.1} /></span>
+                <span className="min-w-0 flex-1"><span className="block font-black text-[#183b43]">{action.title}</span><span className="mt-2 block text-xs leading-6 text-[#687d78]">{action.description}</span></span>
+                <ArrowUpLeft size={17} className="mt-1 shrink-0 text-[#a0b0aa] transition group-hover:text-[#98712e]" />
               </Link>
             ))}
           </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-black/15 bg-white p-6 text-sm leading-7 text-black/55">
-            بۆ ئەم هەژمارە هێشتا هیچ بەشێکی داشبۆرد دیاری نەکراوە. تکایە لەگەڵ سوپەر ئەدمین پشکنینی مۆڵەتەکان بکە.
-          </div>
-        )}
-      </section>
+        </section>
+      )) : (
+        <section className="rounded-2xl border border-dashed border-[#cbd9d4] bg-white p-7 text-center">
+          <ShieldCheck size={32} className="mx-auto text-[#8d9f99]" />
+          <h2 className="mt-3 font-black text-[#183b43]">{loading ? 'مۆڵەتەکان دەخوێندرێنەوە' : 'هیچ بەشێکی بۆ ئەم هەژمارە دیاری نەکراوە'}</h2>
+          <p className="mt-2 text-sm leading-7 text-[#687d78]">تەنها بەشە پشتڕاستکراوەکان دەردەکەون. بۆ زیادکردنی دەسەڵات، پەیوەندی بە بەڕێوەبەری پلاتفۆرم بکە.</p>
+        </section>
+      )}
 
       <section className="grid gap-3 md:grid-cols-2">
-        <div className="flex items-start gap-3 rounded-2xl border border-[var(--shakh-border)] bg-white p-4 sm:p-5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-700"><LayoutDashboard size={19} /></span>
-          <div>
-            <h2 className="font-black">داشبۆردی بەپێی ڕۆڵ</h2>
-            <p className="mt-1 text-xs leading-6 text-black/50">کارت و بەشەکان تەنها کاتێک پیشان دەدرێن کە مۆڵەتی پێویست بۆ ئەو هەژمارە هەبێت.</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3 rounded-2xl border border-[var(--shakh-border)] bg-white p-4 sm:p-5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-700"><ShieldCheck size={19} /></span>
-          <div>
-            <h2 className="font-black">پاراستنی دەسەڵات</h2>
-            <p className="mt-1 text-xs leading-6 text-black/50">ڕێنماییەکانی UI جێگرەوەی RLS و پشتڕاستکردنەوەی لای داتابەیس نین؛ بڕیارە سەرەکییەکان هەر لە Supabase پشتڕاست دەکرێنەوە.</p>
-          </div>
-        </div>
+        <div className="flex items-start gap-3 rounded-2xl border border-[#dce6e2] bg-white p-4 sm:p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#eaf3ef] text-[#176b53]"><LayoutDashboard size={19} /></span><div><h2 className="font-black text-[#183b43]">داشبۆردی بەپێی ڕۆڵ</h2><p className="mt-1 text-xs leading-6 text-[#687d78]">کارت و بەشەکان لە مۆڵەتی Supabase دروست دەبن؛ هیچ ژمارە یان داتای ساختە بەکارناهێنرێت.</p></div></div>
+        <div className="flex items-start gap-3 rounded-2xl border border-[#dce6e2] bg-white p-4 sm:p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#fbf3e3] text-[#98712e]"><ShieldCheck size={19} /></span><div><h2 className="font-black text-[#183b43]">پاراستنی دەسەڵات</h2><p className="mt-1 text-xs leading-6 text-[#687d78]">ڕێنمایی UI جێگرەوەی RLS نییە. بڕیاری کۆتایی دەسەڵات و مامەڵەکان لە PostgreSQL پشتڕاست دەکرێنەوە.</p></div></div>
       </section>
     </div>
   );
