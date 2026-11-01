@@ -1,4 +1,5 @@
 import {
+  Activity,
   ArrowUpLeft,
   Bell,
   Boxes,
@@ -13,6 +14,7 @@ import {
   ShoppingCart,
   Store,
   Truck,
+  UserRound,
   WalletCards,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -103,6 +105,9 @@ type DashboardAction = {
 
 const dashboardActions: DashboardAction[] = [
   { title: 'پۆستی نوێ', description: 'زیادکردنی پۆست بەپێی کاتەگۆری و ڕۆڵی ڕێگەپێدراو.', href: '/dashboard/posts/new', permission: 'posts.create', icon: PlusCircle },
+  { title: 'داواکاریی جل‌وبەرگ', description: 'پشکنین و بەڕێوەبردنی داواکارییەکانی جل‌وبەرگ، ڕەنگ، قەبارە و ستۆکی ڕاستەقینە.', href: '/post-orders', permission: 'posts.view', icon: ShoppingCart },
+  { title: 'کاپتنەکانی دوکان', description: 'زیادکردن و بەڕێوەبردنی کاپتنە چالاکەکانی فرۆشگا و دۆخی ئۆنلاینبوونیان.', href: '/dashboard/store-captains', permission: 'vendors.view', icon: UserRound },
+  { title: 'پشکنینی سیستەم', description: 'چاودێریی دۆخی سیستەم و پشکنینی زانیارییە ڕێگەپێدراوەکان.', href: '/dashboard/system-auditor', permission: 'audit.view', icon: Activity },
   { title: 'پۆستەکان', description: 'بینین و گەڕان لە پۆستە چالاکەکانی بازاڕ.', href: '/posts', permission: 'posts.view', icon: Package },
   { title: 'بەڕێوەبردنی پۆستەکان', description: 'دەستکاری و چاودێری پۆستەکانی خۆت و بەشە ڕێگەپێدراوەکان.', href: '/dashboard/posts/manage', permission: 'posts.update_own', icon: ClipboardList },
   { title: 'فرۆشگا', description: 'بینین و بەڕێوەبردنی خزمەتگوزاریی فرۆشگا.', href: '/dashboard/store', permission: 'vendors.view', icon: Store },
